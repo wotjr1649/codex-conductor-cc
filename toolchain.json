@@ -1,0 +1,434 @@
+{
+  "$schema": "./evidence/schemas/toolchain-v1.schema.json",
+  "schemaVersion": "toolchain-v1",
+  "platform": {
+    "os": "windows",
+    "architecture": "x64",
+    "nodeRange": ">=24.0.0"
+  },
+  "reviewPolicy": {
+    "reviewedAt": "2026-07-31",
+    "expiresAt": "2026-08-31",
+    "owner": "wotjr1649",
+    "reviewer": "wotjr1649",
+    "driftTriggers": [
+      "node-24-security-release",
+      "vendor-signing-key-change",
+      "artifact-or-checksum-replacement",
+      "relevant-tool-vulnerability",
+      "license-or-source-identity-change",
+      "action-runtime-change"
+    ]
+  },
+  "tools": [
+    {
+      "id": "node",
+      "version": "24.18.1",
+      "purpose": "exact P3 JavaScript runtime",
+      "owner": "wotjr1649",
+      "installable": true,
+      "artifact": {
+        "kind": "zip",
+        "url": "https://nodejs.org/dist/v24.18.1/node-v24.18.1-win-x64.zip",
+        "sha256": "ec56b84a7551893ab2324ebdfdc4ab974a63b4781162600b68a1293cc3e53765",
+        "executableRelativePath": "node-v24.18.1-win-x64/node.exe",
+        "executableSha256": "ac51903c4c111815d52280b1fdcc8da067cbb37e2fe1a765097b85c3292c8582",
+        "installedExecutableName": "node.exe"
+      },
+      "signature": {
+        "kind": "gpg-checksums",
+        "published": true,
+        "verified": false,
+        "signer": "DD792F5973C6DE52C432CBDAC77ABFA00DDBF2B7",
+        "authenticodeRequired": false
+      },
+      "source": {
+        "releaseUrl": "https://nodejs.org/en/blog/release/v24.18.1",
+        "tag": "v24.18.1",
+        "commit": "9623d9ad85d37d2f0610ec4a82b48182cf2c6061",
+        "releasedAt": "2026-07-29",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/nodejs/node/blob/9623d9ad85d37d2f0610ec4a82b48182cf2c6061/LICENSE"
+      },
+      "review": {
+        "reviewedAt": "2026-07-31",
+        "expiresAt": "2026-08-31",
+        "disposition": "accepted"
+      }
+    },
+    {
+      "id": "npm",
+      "version": "11.16.0",
+      "purpose": "npm bundled in the exact Node.js archive",
+      "owner": "wotjr1649",
+      "installable": false,
+      "artifact": {
+        "kind": "embedded",
+        "url": "https://nodejs.org/dist/v24.18.1/node-v24.18.1-win-x64.zip",
+        "sha256": "ec56b84a7551893ab2324ebdfdc4ab974a63b4781162600b68a1293cc3e53765",
+        "executableRelativePath": "node-v24.18.1-win-x64/node_modules/npm/bin/npm-cli.js",
+        "executableSha256": null,
+        "installedExecutableName": null
+      },
+      "signature": {
+        "kind": "inherited-node-archive",
+        "published": true,
+        "verified": false,
+        "signer": "DD792F5973C6DE52C432CBDAC77ABFA00DDBF2B7",
+        "authenticodeRequired": false
+      },
+      "source": {
+        "releaseUrl": "https://github.com/npm/cli/releases/tag/v11.16.0",
+        "tag": "v11.16.0",
+        "commit": "960135ad6e26b2b656e23848690c9cfe3cb3783b",
+        "releasedAt": "2026-05-27",
+        "license": "Artistic-2.0",
+        "licenseUrl": "https://github.com/npm/cli/blob/960135ad6e26b2b656e23848690c9cfe3cb3783b/LICENSE"
+      },
+      "review": {
+        "reviewedAt": "2026-07-31",
+        "expiresAt": "2026-08-31",
+        "disposition": "accepted-bundled-only"
+      }
+    },
+    {
+      "id": "codex-regression-only",
+      "version": "0.146.0",
+      "purpose": "P2 build regression only; not P4 admission evidence",
+      "owner": "wotjr1649",
+      "installable": true,
+      "artifact": {
+        "kind": "file",
+        "url": "https://releases.openai.com/codex/releases/0.146.0/codex-x86_64-pc-windows-msvc.exe",
+        "sha256": "bc343ba420dc2e2e9f59e6fc5e5bf0aae1cd8c771fc319665241fc9c0271fddb",
+        "executableRelativePath": "codex-x86_64-pc-windows-msvc.exe",
+        "executableSha256": "bc343ba420dc2e2e9f59e6fc5e5bf0aae1cd8c771fc319665241fc9c0271fddb",
+        "installedExecutableName": "codex.exe"
+      },
+      "signature": {
+        "kind": "authenticode",
+        "published": true,
+        "verified": true,
+        "signer": "OpenAI OpCo, LLC",
+        "authenticodeRequired": true
+      },
+      "source": {
+        "releaseUrl": "https://github.com/openai/codex/releases/tag/rust-v0.146.0",
+        "tag": "rust-v0.146.0",
+        "commit": "e363b08c9175ac1cbe5893615dd2cb9ddf95043b",
+        "releasedAt": "2026-07-29",
+        "license": "Apache-2.0",
+        "licenseUrl": "https://github.com/openai/codex/blob/e363b08c9175ac1cbe5893615dd2cb9ddf95043b/LICENSE"
+      },
+      "review": {
+        "reviewedAt": "2026-07-31",
+        "expiresAt": "2026-08-31",
+        "disposition": "accepted-regression-only"
+      }
+    },
+    {
+      "id": "claude-minimum",
+      "version": "2.1.196",
+      "purpose": "project-selected minimum for plugin validation compatibility",
+      "owner": "wotjr1649",
+      "installable": true,
+      "artifact": {
+        "kind": "file",
+        "url": "https://downloads.claude.ai/claude-code-releases/2.1.196/win32-x64/claude.exe",
+        "sha256": "180d7b279455e8b89d4353a5146447be2f80b80fb0db14bdc6dd9cb98c0aef09",
+        "executableRelativePath": "claude.exe",
+        "executableSha256": "180d7b279455e8b89d4353a5146447be2f80b80fb0db14bdc6dd9cb98c0aef09",
+        "installedExecutableName": "claude.exe"
+      },
+      "signature": {
+        "kind": "authenticode-and-signed-manifest",
+        "published": true,
+        "verified": true,
+        "signer": "Anthropic, PBC",
+        "authenticodeRequired": true
+      },
+      "source": {
+        "releaseUrl": "https://github.com/anthropics/claude-code/releases/tag/v2.1.196",
+        "tag": "v2.1.196",
+        "commit": "c80896ca84bd5f45cfe2cd4c1ae91b5d4ba4280b",
+        "releasedAt": "2026-07-15",
+        "license": "Commercial Terms",
+        "licenseUrl": "https://github.com/anthropics/claude-code/blob/c80896ca84bd5f45cfe2cd4c1ae91b5d4ba4280b/LICENSE.md"
+      },
+      "review": {
+        "reviewedAt": "2026-07-31",
+        "expiresAt": "2026-08-31",
+        "disposition": "accepted-project-minimum"
+      }
+    },
+    {
+      "id": "claude-current",
+      "version": "2.1.220",
+      "purpose": "current Claude Code compatibility snapshot",
+      "owner": "wotjr1649",
+      "installable": true,
+      "artifact": {
+        "kind": "file",
+        "url": "https://downloads.claude.ai/claude-code-releases/2.1.220/win32-x64/claude.exe",
+        "sha256": "af5bf1f1b2aadffc768eccd787084c6fdf9ba81624cbe96c1c6d9ac1a1550231",
+        "executableRelativePath": "claude.exe",
+        "executableSha256": "af5bf1f1b2aadffc768eccd787084c6fdf9ba81624cbe96c1c6d9ac1a1550231",
+        "installedExecutableName": "claude.exe"
+      },
+      "signature": {
+        "kind": "authenticode-and-signed-manifest",
+        "published": true,
+        "verified": true,
+        "signer": "Anthropic, PBC",
+        "authenticodeRequired": true
+      },
+      "source": {
+        "releaseUrl": "https://github.com/anthropics/claude-code/releases/tag/v2.1.220",
+        "tag": "v2.1.220",
+        "commit": "7ef6eec9d9ba84ea6f233f26c45f1df5c5991843",
+        "releasedAt": "2026-07-25",
+        "license": "Commercial Terms",
+        "licenseUrl": "https://github.com/anthropics/claude-code/blob/7ef6eec9d9ba84ea6f233f26c45f1df5c5991843/LICENSE.md"
+      },
+      "review": {
+        "reviewedAt": "2026-07-31",
+        "expiresAt": "2026-08-31",
+        "disposition": "accepted-current-snapshot"
+      }
+    },
+    {
+      "id": "actionlint",
+      "version": "1.7.12",
+      "purpose": "GitHub Actions syntax and semantic lint",
+      "owner": "wotjr1649",
+      "installable": true,
+      "artifact": {
+        "kind": "zip",
+        "url": "https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_windows_amd64.zip",
+        "sha256": "6e7241b51e6817ea6a047693d8e6fed13b31819c9a0dd6c5a726e1592d22f6e9",
+        "executableRelativePath": "actionlint.exe",
+        "executableSha256": "54ca21be3de4c7cfa26914aa8b61bd76bf573ef3caac5f80d110558cdf241718",
+        "installedExecutableName": "actionlint.exe"
+      },
+      "signature": {
+        "kind": "none",
+        "published": false,
+        "verified": false,
+        "signer": null,
+        "authenticodeRequired": false
+      },
+      "source": {
+        "releaseUrl": "https://github.com/rhysd/actionlint/releases/tag/v1.7.12",
+        "tag": "v1.7.12",
+        "commit": "914e7df21a07ef503a81201c76d2b11c789d3fca",
+        "releasedAt": "2026-03-30",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/rhysd/actionlint/blob/914e7df21a07ef503a81201c76d2b11c789d3fca/LICENSE.txt"
+      },
+      "review": {
+        "reviewedAt": "2026-07-31",
+        "expiresAt": "2026-08-31",
+        "disposition": "accepted-digest-only"
+      }
+    },
+    {
+      "id": "zizmor",
+      "version": "1.28.0",
+      "purpose": "GitHub Actions security audit",
+      "owner": "wotjr1649",
+      "installable": true,
+      "artifact": {
+        "kind": "zip",
+        "url": "https://github.com/zizmorcore/zizmor/releases/download/v1.28.0/zizmor-x86_64-pc-windows-msvc.zip",
+        "sha256": "06e5b2345323201ed4c55897651862fee3b43f79ddced799f1236f0f0d1c1c0f",
+        "executableRelativePath": "zizmor.exe",
+        "executableSha256": "607192add27b5b8cff054605ca2c01fc69629d700724ff2401265e57204610c0",
+        "installedExecutableName": "zizmor.exe"
+      },
+      "signature": {
+        "kind": "github-attestation",
+        "published": true,
+        "verified": true,
+        "signer": "zizmorcore/zizmor GitHub Actions",
+        "authenticodeRequired": false
+      },
+      "source": {
+        "releaseUrl": "https://github.com/zizmorcore/zizmor/releases/tag/v1.28.0",
+        "tag": "v1.28.0",
+        "commit": "4381cc6339bb76a1004a99da929fe8f8f1143d94",
+        "releasedAt": "2026-07-21",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/zizmorcore/zizmor/blob/4381cc6339bb76a1004a99da929fe8f8f1143d94/LICENSE"
+      },
+      "review": {
+        "reviewedAt": "2026-07-31",
+        "expiresAt": "2026-08-31",
+        "disposition": "accepted"
+      }
+    },
+    {
+      "id": "osv-scanner",
+      "version": "2.4.0",
+      "purpose": "lockfile vulnerability scan",
+      "owner": "wotjr1649",
+      "installable": true,
+      "artifact": {
+        "kind": "file",
+        "url": "https://github.com/google/osv-scanner/releases/download/v2.4.0/osv-scanner_windows_amd64.exe",
+        "sha256": "0cdd113610126d5dfd5e12ad0e0b4f3e879291ff19bb43b0c52ed2f2c2df1a37",
+        "executableRelativePath": "osv-scanner.exe",
+        "executableSha256": "0cdd113610126d5dfd5e12ad0e0b4f3e879291ff19bb43b0c52ed2f2c2df1a37",
+        "installedExecutableName": "osv-scanner.exe"
+      },
+      "signature": {
+        "kind": "slsa-materials",
+        "published": true,
+        "verified": false,
+        "signer": "google/osv-scanner GitHub Actions",
+        "authenticodeRequired": false
+      },
+      "source": {
+        "releaseUrl": "https://github.com/google/osv-scanner/releases/tag/v2.4.0",
+        "tag": "v2.4.0",
+        "commit": "b56b5191101d5f27d4787d5583d8d01e9518a7af",
+        "releasedAt": "2026-06-18",
+        "license": "Apache-2.0",
+        "licenseUrl": "https://github.com/google/osv-scanner/blob/b56b5191101d5f27d4787d5583d8d01e9518a7af/LICENSE"
+      },
+      "review": {
+        "reviewedAt": "2026-07-31",
+        "expiresAt": "2026-08-31",
+        "disposition": "accepted-digest-only"
+      }
+    },
+    {
+      "id": "gitleaks",
+      "version": "8.30.1",
+      "purpose": "repository secret scan",
+      "owner": "wotjr1649",
+      "installable": true,
+      "artifact": {
+        "kind": "zip",
+        "url": "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_windows_x64.zip",
+        "sha256": "d29144deff3a68aa93ced33dddf84b7fdc26070add4aa0f4513094c8332afc4e",
+        "executableRelativePath": "gitleaks.exe",
+        "executableSha256": "17157e2ee8b76fc8b1d8bee607a250e34b8a8023c8bc81822d4b5ee4d78fcb7c",
+        "installedExecutableName": "gitleaks.exe"
+      },
+      "signature": {
+        "kind": "none",
+        "published": false,
+        "verified": false,
+        "signer": null,
+        "authenticodeRequired": false
+      },
+      "source": {
+        "releaseUrl": "https://github.com/gitleaks/gitleaks/releases/tag/v8.30.1",
+        "tag": "v8.30.1",
+        "commit": "83d9cd684c87d95d656c1458ef04895a7f1cbd8e",
+        "releasedAt": "2026-03-21",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/gitleaks/gitleaks/blob/83d9cd684c87d95d656c1458ef04895a7f1cbd8e/LICENSE"
+      },
+      "review": {
+        "reviewedAt": "2026-07-31",
+        "expiresAt": "2026-08-31",
+        "disposition": "accepted-digest-only"
+      }
+    },
+    {
+      "id": "syft",
+      "version": "1.50.0",
+      "purpose": "P3 SPDX 2.3 SBOM spike only",
+      "owner": "wotjr1649",
+      "installable": true,
+      "artifact": {
+        "kind": "zip",
+        "url": "https://github.com/anchore/syft/releases/download/v1.50.0/syft_1.50.0_windows_amd64.zip",
+        "sha256": "815ee6973ec5dff6a671d7f41b0e78835a8c45b91d5a39f4743ea1cee833d3be",
+        "executableRelativePath": "syft.exe",
+        "executableSha256": "98a3779f229905fec96e16018adf27ed7a93adc2869d17e6fb21961eb501d398",
+        "installedExecutableName": "syft.exe"
+      },
+      "signature": {
+        "kind": "signed-checksums",
+        "published": true,
+        "verified": false,
+        "signer": "anchore/syft release workflow",
+        "authenticodeRequired": false
+      },
+      "source": {
+        "releaseUrl": "https://github.com/anchore/syft/releases/tag/v1.50.0",
+        "tag": "v1.50.0",
+        "commit": "16223e6dd7893fe578787658ceb876257483d404",
+        "releasedAt": "2026-07-28",
+        "license": "Apache-2.0",
+        "licenseUrl": "https://github.com/anchore/syft/blob/16223e6dd7893fe578787658ceb876257483d404/LICENSE"
+      },
+      "review": {
+        "reviewedAt": "2026-07-31",
+        "expiresAt": "2026-08-31",
+        "disposition": "accepted-spike-only"
+      }
+    }
+  ],
+  "actions": [
+    {
+      "id": "actions/checkout",
+      "version": "v6.0.2",
+      "commit": "de0fac2e4500dabe0009e67214ff5f5447ce83dd",
+      "license": "MIT",
+      "disposition": "accepted-existing"
+    },
+    {
+      "id": "actions/setup-node",
+      "version": "v6.3.0",
+      "commit": "53b83947a5a98c8d113130e565377fae1a50d02f",
+      "license": "MIT",
+      "disposition": "accepted-existing"
+    },
+    {
+      "id": "actions/dependency-review-action",
+      "version": "v5.0.0",
+      "commit": "a1d282b36b6f3519aa1f3fc636f609c47dddb294",
+      "license": "MIT",
+      "disposition": "accepted"
+    }
+  ],
+  "specifications": [
+    {
+      "id": "spdx",
+      "version": "2.3",
+      "commit": "aadf3b0b8dbbabdb4d880b0fc714255fea436ff7",
+      "schemaUrl": "https://raw.githubusercontent.com/spdx/spdx-spec/aadf3b0b8dbbabdb4d880b0fc714255fea436ff7/schemas/spdx-schema.json",
+      "schemaSha256": "239208b7ac287b3cf5d9a9af23f9d69863971102a5e1587a27a398b43490b89b",
+      "disposition": "accepted-spike-format"
+    },
+    {
+      "id": "slsa",
+      "version": "1.2",
+      "commit": "19e4e2fef43627801309279b5043a16194a5d2e7",
+      "schemaUrl": "https://slsa.dev/spec/v1.2/",
+      "schemaSha256": null,
+      "disposition": "reference-only-no-p3-attestation"
+    }
+  ],
+  "rejectedOrDeferred": [
+    {
+      "id": "node-24.18.0",
+      "disposition": "rejected-superseded-security-release"
+    },
+    {
+      "id": "npm-latest",
+      "disposition": "rejected-not-bundled-identity"
+    },
+    {
+      "id": "actions-v7-upgrades",
+      "disposition": "deferred-no-compatibility-or-security-need"
+    },
+    {
+      "id": "actions-attest-build-provenance",
+      "disposition": "deferred-P6"
+    }
+  ]
+}

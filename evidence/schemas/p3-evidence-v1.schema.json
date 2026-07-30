@@ -1,0 +1,194 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/wotjr1649/codex-conductor-cc/evidence/schemas/p3-evidence-v1.schema.json",
+  "title": "P3 threat and toolchain evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "evidenceId",
+    "phase",
+    "source",
+    "environment",
+    "toolchain",
+    "localChecks",
+    "requirementResults",
+    "remoteExecution",
+    "attestation",
+    "sbom",
+    "privacy",
+    "attemptLedger"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "p3-evidence-v1" },
+    "evidenceId": { "type": "string", "minLength": 1 },
+    "phase": { "const": "P3" },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["p2Base", "upstreamBase", "branch"],
+      "properties": {
+        "p2Base": { "$ref": "#/$defs/commit" },
+        "upstreamBase": { "$ref": "#/$defs/commit" },
+        "branch": { "const": "codex/p3-threat-toolchain-baseline" }
+      }
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["os", "architecture", "filesystem", "privatePathsPersisted"],
+      "properties": {
+        "os": { "const": "windows" },
+        "architecture": { "const": "x64" },
+        "filesystem": { "const": "NTFS" },
+        "privatePathsPersisted": { "const": false }
+      }
+    },
+    "toolchain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["manifest", "schema", "sha256", "validationStatus"],
+      "properties": {
+        "manifest": { "const": "toolchain.json" },
+        "schema": { "const": "evidence/schemas/toolchain-v1.schema.json" },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "validationStatus": { "$ref": "#/$defs/status" }
+      }
+    },
+    "localChecks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "toolId",
+          "version",
+          "status",
+          "rawExitCode",
+          "scope",
+          "summary",
+          "artifactSha256"
+        ],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "toolId": { "type": "string", "minLength": 1 },
+          "version": { "type": "string", "minLength": 1 },
+          "status": { "$ref": "#/$defs/status" },
+          "rawExitCode": { "type": ["integer", "null"] },
+          "scope": { "type": "string", "minLength": 1 },
+          "summary": { "type": "string", "minLength": 1 },
+          "artifactSha256": { "$ref": "#/$defs/nullableSha256" }
+        }
+      }
+    },
+    "requirementResults": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "requirementId",
+          "status",
+          "proofKind",
+          "runtimeEnforcement",
+          "deferredPhase",
+          "evidence"
+        ],
+        "properties": {
+          "requirementId": { "type": "string", "pattern": "^X[0-9]+$" },
+          "status": { "$ref": "#/$defs/status" },
+          "proofKind": {
+            "enum": [
+              "policy",
+              "validator-fixture",
+              "runtime-fixture",
+              "remote-readback",
+              "attestation-verification"
+            ]
+          },
+          "runtimeEnforcement": {
+            "enum": ["observed", "not-observed", "not-applicable"]
+          },
+          "deferredPhase": { "type": ["string", "null"] },
+          "evidence": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
+    },
+    "remoteExecution": { "const": "not-run" },
+    "attestation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "claim"],
+      "properties": {
+        "status": { "const": "not-run" },
+        "claim": { "const": "none" }
+      }
+    },
+    "sbom": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope",
+        "status",
+        "format",
+        "releaseInput",
+        "artifactSha256",
+        "artifactRetained"
+      ],
+      "properties": {
+        "scope": { "const": "spike-only" },
+        "status": { "$ref": "#/$defs/status" },
+        "format": { "const": "SPDX-2.3-JSON" },
+        "releaseInput": { "const": false },
+        "artifactSha256": { "$ref": "#/$defs/sha256" },
+        "artifactRetained": { "const": false }
+      }
+    },
+    "privacy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "validator",
+        "seededNegativeStatus",
+        "redactedPositiveStatus",
+        "privatePathsPersisted",
+        "rawPromptsPersisted",
+        "secretsPersisted"
+      ],
+      "properties": {
+        "validator": { "const": "scripts/lib/p3-validation.mjs" },
+        "seededNegativeStatus": { "$ref": "#/$defs/status" },
+        "redactedPositiveStatus": { "$ref": "#/$defs/status" },
+        "privatePathsPersisted": { "const": false },
+        "rawPromptsPersisted": { "const": false },
+        "secretsPersisted": { "const": false }
+      }
+    },
+    "attemptLedger": { "const": "evidence/ledgers/p3-attempts.json" }
+  },
+  "$defs": {
+    "commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "nullableSha256": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "status": {
+      "enum": [
+        "static-pass",
+        "executed-pass",
+        "executed-fail",
+        "not-run",
+        "blocked-with-evidence",
+        "specified"
+      ]
+    }
+  }
+}

@@ -6,31 +6,76 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: p3-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
   ci:
-    name: Windows x64 / Node 24
-    runs-on: windows-latest
-    timeout-minutes: 10
+    name: Windows x64 / Node 24.18.1
+    runs-on: windows-2025
+    timeout-minutes: 20
 
     steps:
       - name: Check out repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       - name: Set up Node.js
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
-          node-version: 24
+          node-version: 24.18.1
           architecture: x64
-          cache: npm
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Install Codex CLI
-        run: npm install -g @openai/codex
+      - name: Validate P3 baseline
+        run: node scripts/validate-p3.mjs
+
+      - name: Acquire exact Codex regression binary
+        shell: pwsh
+        run: |
+          $codexPath = ./scripts/install-p3-tool.ps1 `
+            -ToolId codex-regression-only `
+            -DestinationRoot (Join-Path $env:RUNNER_TEMP 'p3-tools')
+          Add-Content -LiteralPath $env:GITHUB_PATH -Value (Split-Path -Parent $codexPath)
 
       - name: Run test suite
         run: npm test
 
       - name: Run build
         run: npm run build
+
+      - name: Acquire exact local security tools
+        shell: pwsh
+        run: |
+          foreach ($toolId in @('actionlint', 'zizmor', 'osv-scanner', 'gitleaks')) {
+            $toolPath = ./scripts/install-p3-tool.ps1 `
+              -ToolId $toolId `
+              -DestinationRoot (Join-Path $env:RUNNER_TEMP 'p3-tools')
+            Add-Content -LiteralPath $env:GITHUB_PATH -Value (Split-Path -Parent $toolPath)
+          }
+
+      - name: Lint workflow
+        run: actionlint.exe
+
+      - name: Audit workflow security
+        run: zizmor.exe --offline --persona pedantic .github/workflows
+
+      - name: Scan dependency lockfile
+        run: osv-scanner.exe scan --lockfile package-lock.json
+
+      - name: Scan repository for secrets
+        run: gitleaks.exe dir --redact --no-banner .
+
+  dependency-review:
+    name: Dependency review
+    runs-on: windows-2025
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Review dependency changes
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
