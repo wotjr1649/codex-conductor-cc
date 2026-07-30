@@ -22,6 +22,21 @@ const PLUGIN_ROOT = path.join(ROOT, "plugins", "codex");
 const SCRIPT = path.join(PLUGIN_ROOT, "scripts", "codex-companion.mjs");
 const STOP_HOOK = path.join(PLUGIN_ROOT, "scripts", "stop-review-gate-hook.mjs");
 const SESSION_HOOK = path.join(PLUGIN_ROOT, "scripts", "session-lifecycle-hook.mjs");
+const EXPECTED_CLIENT_INFO = {
+  name: "codex_conductor",
+  title: "Codex Conductor",
+  version: "0.1.0"
+};
+const EXPECTED_CAPABILITIES = {
+  experimentalApi: false,
+  requestAttestation: false,
+  optOutNotificationMethods: [
+    "item/agentMessage/delta",
+    "item/reasoning/summaryTextDelta",
+    "item/reasoning/summaryPartAdded",
+    "item/reasoning/textDelta"
+  ]
+};
 
 after(async () => {
   for (const directory of listCreatedTempDirs()) {
@@ -70,6 +85,9 @@ test("setup reports ready when fake codex is installed and authenticated", () =>
   assert.equal(payload.ready, true);
   assert.match(payload.codex.detail, /advanced runtime available/);
   assert.equal(payload.sessionRuntime.mode, "direct");
+  const fakeState = JSON.parse(fs.readFileSync(path.join(binDir, "fake-codex-state.json"), "utf8"));
+  assert.deepEqual(fakeState.clientInfo, EXPECTED_CLIENT_INFO);
+  assert.deepEqual(fakeState.capabilities, EXPECTED_CAPABILITIES);
 });
 
 test("setup is ready without npm when Codex is already installed and authenticated", () => {
@@ -2169,9 +2187,7 @@ test("commands lazily start and reuse one shared app-server after first use", as
   assert.equal(review.status, 0, review.stderr);
 
   const brokerSession = loadBrokerSession(repo);
-  if (!brokerSession) {
-    return;
-  }
+  assert.ok(brokerSession, "shared broker session must start on supported Windows x64");
 
   const adversarial = run("node", [SCRIPT, "adversarial-review"], {
     cwd: repo,
@@ -2181,6 +2197,8 @@ test("commands lazily start and reuse one shared app-server after first use", as
 
   const fakeState = JSON.parse(fs.readFileSync(fakeStatePath, "utf8"));
   assert.equal(fakeState.appServerStarts, 1);
+  assert.deepEqual(fakeState.clientInfo, EXPECTED_CLIENT_INFO);
+  assert.deepEqual(fakeState.capabilities, EXPECTED_CAPABILITIES);
 
   const cleanup = run("node", [SESSION_HOOK, "SessionEnd"], {
     cwd: repo,

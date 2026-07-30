@@ -1,9 +1,11 @@
-# Codex plugin for Claude Code
+# Codex Conductor
 
-Use Codex from inside Claude Code for code reviews or to delegate tasks to Codex.
+Codex Conductor is an unofficial downstream fork of `openai/codex-plugin-cc`. It lets you use
+Codex from inside Claude Code for code reviews or delegated tasks.
 
-This plugin is for Claude Code users who want an easy way to start using Codex from the workflow
-they already have.
+Codex Conductor is not affiliated with or endorsed by OpenAI or Anthropic. Codex and OpenAI are
+marks of OpenAI; Claude and Anthropic are marks of Anthropic. See [upstream and release
+policy](docs/UPSTREAM.md) for the exact source relationship.
 
 <video src="./docs/plugin-demo.webm" controls muted playsinline autoplay></video>
 
@@ -25,16 +27,19 @@ older than 24 are not supported by this personal fork.
 
 ## Install
 
+> [!WARNING]
+> Codex Conductor is a drop-in replacement for the official `codex` plugin. Do not enable Codex Conductor and the official plugin at the same time; disable or remove the official plugin first.
+
 Add the marketplace in Claude Code:
 
 ```bash
-/plugin marketplace add openai/codex-plugin-cc
+/plugin marketplace add wotjr1649/codex-conductor-cc
 ```
 
 Install the plugin:
 
 ```bash
-/plugin install codex@openai-codex
+/plugin install codex@codex-conductor
 ```
 
 Reload plugins:
@@ -322,3 +327,8 @@ Yes. If you already use Codex, the plugin picks up the same [configuration](#com
 Yes. Because the plugin uses your local Codex CLI, your existing sign-in method and config still apply.
 
 If you need to point the built-in OpenAI provider at a different endpoint, set `openai_base_url` in your [Codex config](https://developers.openai.com/codex/config-advanced/#config-and-state-locations).
+
+## License and attribution
+
+Codex Conductor retains the upstream Apache License 2.0 and notices. See [LICENSE](LICENSE) and
+[NOTICE](NOTICE).

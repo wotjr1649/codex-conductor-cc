@@ -1,9 +1,9 @@
 {
-  "name": "@openai/codex-plugin-cc",
-  "version": "1.0.6",
+  "name": "codex-conductor-cc",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Use Codex from Claude Code to review code or delegate tasks.",
+  "description": "Codex Conductor delegates tasks and code reviews from Claude Code to Codex.",
   "license": "Apache-2.0",
   "engines": {
     "node": ">=24.0.0"

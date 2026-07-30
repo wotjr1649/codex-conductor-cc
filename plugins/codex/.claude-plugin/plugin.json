@@ -1,8 +1,9 @@
 {
   "name": "codex",
-  "version": "1.0.6",
-  "description": "Use Codex from Claude Code to review code or delegate tasks.",
+  "version": "0.1.0",
+  "description": "Codex Conductor delegates tasks and code reviews from Claude Code to Codex.",
   "author": {
-    "name": "OpenAI"
+    "name": "wotjr1649",
+    "url": "https://github.com/wotjr1649"
   }
 }

@@ -1,19 +1,21 @@
 {
-  "name": "openai-codex",
+  "name": "codex-conductor",
   "owner": {
-    "name": "OpenAI"
+    "name": "wotjr1649",
+    "url": "https://github.com/wotjr1649"
   },
   "metadata": {
-    "description": "Codex plugins to use in Claude Code for delegation and code review.",
-    "version": "1.0.6"
+    "description": "Codex Conductor plugins for task delegation and code review from Claude Code.",
+    "version": "0.1.0"
   },
   "plugins": [
     {
       "name": "codex",
-      "description": "Use Codex from Claude Code to review code or delegate tasks.",
-      "version": "1.0.6",
+      "description": "Codex Conductor delegates tasks and code reviews from Claude Code to Codex.",
+      "version": "0.1.0",
       "author": {
-        "name": "OpenAI"
+        "name": "wotjr1649",
+        "url": "https://github.com/wotjr1649"
       },
       "source": "./plugins/codex"
     }
