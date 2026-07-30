@@ -6,6 +6,13 @@
     "architecture": "x64",
     "nodeRange": ">=24.0.0"
   },
+  "installRecipe": {
+    "script": "scripts/install-p3-tool.ps1",
+    "toolSelector": "-ToolId <exact-id>",
+    "destinationPolicy": "-DestinationRoot <run-owned-path-outside-repository>",
+    "globalInstall": false,
+    "pathLookup": false
+  },
   "reviewPolicy": {
     "reviewedAt": "2026-07-31",
     "expiresAt": "2026-08-31",
@@ -110,7 +117,9 @@
         "published": true,
         "verified": true,
         "signer": "OpenAI OpCo, LLC",
-        "authenticodeRequired": true
+        "authenticodeRequired": true,
+        "authenticodeSubject": "CN=\"OpenAI OpCo, LLC\", O=\"OpenAI OpCo, LLC\", L=San Francisco, S=California, C=US",
+        "authenticodeThumbprint": "0B7C30C11BF7250EC1ECD3254AC781D9E13D62F8"
       },
       "source": {
         "releaseUrl": "https://github.com/openai/codex/releases/tag/rust-v0.146.0",
@@ -141,17 +150,22 @@
         "installedExecutableName": "claude.exe"
       },
       "signature": {
-        "kind": "authenticode-and-signed-manifest",
+        "kind": "authenticode",
         "published": true,
         "verified": true,
         "signer": "Anthropic, PBC",
-        "authenticodeRequired": true
+        "authenticodeRequired": true,
+        "authenticodeSubject": "CN=\"Anthropic, PBC\", O=\"Anthropic, PBC\", L=San Francisco, S=California, C=US, SERIALNUMBER=4860621, OID.2.5.4.15=Private Organization, OID.1.3.6.1.4.1.311.60.2.1.2=Delaware, OID.1.3.6.1.4.1.311.60.2.1.3=US",
+        "authenticodeThumbprint": "0D7581D2C51C59DF686C3000C70BF543F9F6C6CB"
       },
       "source": {
         "releaseUrl": "https://github.com/anthropics/claude-code/releases/tag/v2.1.196",
+        "manifestUrl": "https://downloads.claude.ai/claude-code-releases/2.1.196/manifest.json",
         "tag": "v2.1.196",
         "commit": "c80896ca84bd5f45cfe2cd4c1ae91b5d4ba4280b",
-        "releasedAt": "2026-07-15",
+        "buildCommit": "a4ca500badcac68511fb5f04303e32e4360f3dfb",
+        "buildDate": "2026-06-29T01:55:28Z",
+        "releasedAt": "2026-06-29",
         "license": "Commercial Terms",
         "licenseUrl": "https://github.com/anthropics/claude-code/blob/c80896ca84bd5f45cfe2cd4c1ae91b5d4ba4280b/LICENSE.md"
       },
@@ -176,16 +190,21 @@
         "installedExecutableName": "claude.exe"
       },
       "signature": {
-        "kind": "authenticode-and-signed-manifest",
+        "kind": "authenticode",
         "published": true,
         "verified": true,
         "signer": "Anthropic, PBC",
-        "authenticodeRequired": true
+        "authenticodeRequired": true,
+        "authenticodeSubject": "CN=\"Anthropic, PBC\", O=\"Anthropic, PBC\", L=San Francisco, S=California, C=US, SERIALNUMBER=4860621, OID.2.5.4.15=Private Organization, OID.1.3.6.1.4.1.311.60.2.1.2=Delaware, OID.1.3.6.1.4.1.311.60.2.1.3=US",
+        "authenticodeThumbprint": "0D7581D2C51C59DF686C3000C70BF543F9F6C6CB"
       },
       "source": {
         "releaseUrl": "https://github.com/anthropics/claude-code/releases/tag/v2.1.220",
+        "manifestUrl": "https://downloads.claude.ai/claude-code-releases/2.1.220/manifest.json",
         "tag": "v2.1.220",
         "commit": "7ef6eec9d9ba84ea6f233f26c45f1df5c5991843",
+        "buildCommit": "4073f59596e272f39393db4f96abc5f4b10eff21",
+        "buildDate": "2026-07-24T22:28:51Z",
         "releasedAt": "2026-07-25",
         "license": "Commercial Terms",
         "licenseUrl": "https://github.com/anthropics/claude-code/blob/7ef6eec9d9ba84ea6f233f26c45f1df5c5991843/LICENSE.md"
@@ -407,7 +426,7 @@
     {
       "id": "slsa",
       "version": "1.2",
-      "commit": "19e4e2fef43627801309279b5043a16194a5d2e7",
+      "commit": "19e4e2f005f871270c4f555fc47afecfb37f3efe",
       "schemaUrl": "https://slsa.dev/spec/v1.2/",
       "schemaSha256": null,
       "disposition": "reference-only-no-p3-attestation"

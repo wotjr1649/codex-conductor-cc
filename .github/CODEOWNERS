@@ -1,8 +1,13 @@
 # P3 security-sensitive surfaces. Repository settings must separately require
 # CODEOWNERS review before this file has enforcement effect.
+/.gitattributes @wotjr1649
+/.gitleaks.toml @wotjr1649
+/.github/CODEOWNERS @wotjr1649
 /.github/workflows/ @wotjr1649
+/SECURITY.md @wotjr1649
+/docs/security/ @wotjr1649
 /toolchain.json @wotjr1649
 /security/ @wotjr1649
 /scripts/install-p3-tool.ps1 @wotjr1649
 /scripts/lib/p3-validation.mjs @wotjr1649
-/evidence/schemas/ @wotjr1649
+/evidence/ @wotjr1649

@@ -8,6 +8,7 @@
     "$schema",
     "schemaVersion",
     "platform",
+    "installRecipe",
     "reviewPolicy",
     "tools",
     "actions",
@@ -25,6 +26,26 @@
         "os": { "const": "windows" },
         "architecture": { "const": "x64" },
         "nodeRange": { "const": ">=24.0.0" }
+      }
+    },
+    "installRecipe": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "script",
+        "toolSelector",
+        "destinationPolicy",
+        "globalInstall",
+        "pathLookup"
+      ],
+      "properties": {
+        "script": { "const": "scripts/install-p3-tool.ps1" },
+        "toolSelector": { "const": "-ToolId <exact-id>" },
+        "destinationPolicy": {
+          "const": "-DestinationRoot <run-owned-path-outside-repository>"
+        },
+        "globalInstall": { "const": false },
+        "pathLookup": { "const": false }
       }
     },
     "reviewPolicy": { "$ref": "#/$defs/reviewPolicy" },
@@ -141,7 +162,12 @@
         "published": { "type": "boolean" },
         "verified": { "type": "boolean" },
         "signer": { "type": ["string", "null"] },
-        "authenticodeRequired": { "type": "boolean" }
+        "authenticodeRequired": { "type": "boolean" },
+        "authenticodeSubject": { "type": ["string", "null"] },
+        "authenticodeThumbprint": {
+          "type": ["string", "null"],
+          "pattern": "^[0-9A-F]{40}$"
+        }
       }
     },
     "source": {
@@ -157,8 +183,11 @@
       ],
       "properties": {
         "releaseUrl": { "type": "string", "pattern": "^https://" },
+        "manifestUrl": { "type": "string", "pattern": "^https://" },
         "tag": { "type": "string", "minLength": 1 },
         "commit": { "$ref": "#/$defs/commit" },
+        "buildCommit": { "$ref": "#/$defs/commit" },
+        "buildDate": { "type": "string", "format": "date-time" },
         "releasedAt": { "$ref": "#/$defs/date" },
         "license": { "type": "string", "minLength": 1 },
         "licenseUrl": { "type": "string", "pattern": "^https://" }

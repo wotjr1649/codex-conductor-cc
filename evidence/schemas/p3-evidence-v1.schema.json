@@ -10,6 +10,7 @@
     "phase",
     "source",
     "environment",
+    "executionContext",
     "toolchain",
     "localChecks",
     "requirementResults",
@@ -42,6 +43,24 @@
         "architecture": { "const": "x64" },
         "filesystem": { "const": "NTFS" },
         "privatePathsPersisted": { "const": false }
+      }
+    },
+    "executionContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sourceCommit",
+        "environmentClass",
+        "defaultTrial",
+        "deterministicRetryLimit",
+        "outerTimeoutSeconds"
+      ],
+      "properties": {
+        "sourceCommit": { "$ref": "#/$defs/commit" },
+        "environmentClass": { "const": "local-windows-x64-ntfs-run-owned" },
+        "defaultTrial": { "const": 1 },
+        "deterministicRetryLimit": { "const": 0 },
+        "outerTimeoutSeconds": { "type": "integer", "minimum": 1 }
       }
     },
     "toolchain": {
@@ -156,6 +175,13 @@
       "additionalProperties": false,
       "required": [
         "validator",
+        "seedFixtureId",
+        "seedSha256",
+        "trial",
+        "retryCount",
+        "seededSecretCount",
+        "privatePathCount",
+        "promptCount",
         "seededNegativeStatus",
         "redactedPositiveStatus",
         "privatePathsPersisted",
@@ -164,6 +190,13 @@
       ],
       "properties": {
         "validator": { "const": "scripts/lib/p3-validation.mjs" },
+        "seedFixtureId": { "const": "p3-redaction-negative-control-v1" },
+        "seedSha256": { "$ref": "#/$defs/sha256" },
+        "trial": { "const": 1 },
+        "retryCount": { "const": 0 },
+        "seededSecretCount": { "const": 1 },
+        "privatePathCount": { "const": 1 },
+        "promptCount": { "const": 1 },
         "seededNegativeStatus": { "$ref": "#/$defs/status" },
         "redactedPositiveStatus": { "$ref": "#/$defs/status" },
         "privatePathsPersisted": { "const": false },

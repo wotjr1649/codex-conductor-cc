@@ -1,0 +1,5 @@
+# Evidence digests bind repository bytes, so security manifests must not vary
+# with a contributor's core.autocrlf setting.
+toolchain.json text eol=lf
+security/*.json text eol=lf
+evidence/**/*.json text eol=lf

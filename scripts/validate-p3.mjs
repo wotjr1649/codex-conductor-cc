@@ -7,7 +7,10 @@ import {
   redactEvidence,
   validateAttemptLedger,
   validateEvidenceValue,
+  validateGitleaksConfig,
   validateMarkdownLinks,
+  validateMarkdownStructure,
+  validateP3EvidenceManifest,
   validateToolchain,
   validateWorkflowText
 } from "./lib/p3-validation.mjs";
@@ -32,6 +35,7 @@ function requireFile(relativePath) {
 
 const requiredFiles = [
   "SECURITY.md",
+  ".gitleaks.toml",
   "docs/security/THREAT_MODEL.md",
   "docs/security/REPOSITORY_SECURITY.md",
   ".github/CODEOWNERS",
@@ -45,12 +49,22 @@ const requiredFiles = [
 ];
 requiredFiles.forEach(requireFile);
 
+const gitleaksPath = path.join(ROOT, ".gitleaks.toml");
+if (fs.existsSync(gitleaksPath)) {
+  errors.push(...validateGitleaksConfig(fs.readFileSync(gitleaksPath, "utf8")));
+}
+
 const toolchain = readJson("toolchain.json");
 if (toolchain) errors.push(...validateToolchain(toolchain));
 
 const workflowPath = path.join(ROOT, ".github", "workflows", "pull-request-ci.yml");
 if (fs.existsSync(workflowPath)) {
-  errors.push(...validateWorkflowText(fs.readFileSync(workflowPath, "utf8")));
+  errors.push(
+    ...validateWorkflowText(
+      fs.readFileSync(workflowPath, "utf8"),
+      toolchain?.actions ?? []
+    )
+  );
 }
 
 const policy = readJson("security/p3-policy.json");
@@ -83,23 +97,43 @@ const evidence = readJson(
 );
 if (evidence) {
   errors.push(...validateEvidenceValue(evidence));
-  const allowedStatuses = new Set([
-    "static-pass",
-    "executed-pass",
-    "executed-fail",
-    "not-run",
-    "blocked-with-evidence",
-    "specified"
-  ]);
-  if (
-    evidence.schemaVersion !== "p3-evidence-v1" ||
-    evidence.remoteExecution !== "not-run" ||
-    evidence.attestation?.status !== "not-run" ||
-    evidence.sbom?.scope !== "spike-only" ||
-    !Array.isArray(evidence.requirementResults) ||
-    evidence.requirementResults.some((result) => !allowedStatuses.has(result.status))
-  ) {
-    errors.push("P3 evidence manifest: unsupported shape or inflated execution claim");
+  errors.push(...validateP3EvidenceManifest(evidence));
+  if (toolchain) {
+    const actualToolchainSha256 = crypto
+      .createHash("sha256")
+      .update(fs.readFileSync(path.join(ROOT, "toolchain.json")))
+      .digest("hex");
+    if (evidence.toolchain?.sha256 !== actualToolchainSha256) {
+      errors.push(
+        "P3 evidence manifest: toolchain digest does not bind the validated bytes"
+      );
+    }
+  }
+}
+
+function listFilesByExtension(directory, extension) {
+  return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    if (entry.isDirectory() && [".git", "node_modules"].includes(entry.name)) {
+      return [];
+    }
+    const absolutePath = path.join(directory, entry.name);
+    if (entry.isDirectory()) return listFilesByExtension(absolutePath, extension);
+    return entry.isFile() && entry.name.endsWith(extension) ? [absolutePath] : [];
+  });
+}
+
+const evidenceRoot = path.join(ROOT, "evidence");
+if (fs.existsSync(evidenceRoot)) {
+  for (const evidenceJsonPath of listFilesByExtension(evidenceRoot, ".json")) {
+    const relativePath = path.relative(ROOT, evidenceJsonPath).replaceAll("\\", "/");
+    try {
+      const value = JSON.parse(fs.readFileSync(evidenceJsonPath, "utf8"));
+      for (const privacyError of validateEvidenceValue(value)) {
+        errors.push(`${relativePath}: ${privacyError}`);
+      }
+    } catch (error) {
+      errors.push(`${relativePath}: ${error.message}`);
+    }
   }
 }
 
@@ -109,14 +143,11 @@ if (ledger) {
   errors.push(...validateEvidenceValue(ledger));
 }
 
-const docs = [
-  "SECURITY.md",
-  "docs/security/THREAT_MODEL.md",
-  "docs/security/REPOSITORY_SECURITY.md"
-];
-if (docs.every((relativePath) => fs.existsSync(path.join(ROOT, relativePath)))) {
-  errors.push(...validateMarkdownLinks(ROOT, docs));
-}
+const docs = listFilesByExtension(ROOT, ".md").map((absolutePath) =>
+  path.relative(ROOT, absolutePath).replaceAll("\\", "/")
+);
+errors.push(...validateMarkdownStructure(ROOT, docs));
+errors.push(...validateMarkdownLinks(ROOT, docs));
 
 const packageJson = readJson("package.json");
 if (packageJson) {

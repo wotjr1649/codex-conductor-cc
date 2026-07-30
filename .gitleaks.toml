@@ -1,0 +1,10 @@
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Reviewed public Authenticode leaf-certificate thumbprints"
+condition = "AND"
+regexTarget = "line"
+targetRules = ["generic-api-key"]
+paths = ['''^toolchain\.json$''']
+regexes = ['''authenticodeThumbprint": "(?:0B7C30C11BF7250EC1ECD3254AC781D9E13D62F8|0D7581D2C51C59DF686C3000C70BF543F9F6C6CB)"''']

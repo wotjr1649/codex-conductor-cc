@@ -47,9 +47,11 @@ No hosted setting was changed.
 
 Evidence must use `evidence/schemas/p3-evidence-v1.schema.json`, explicit
 execution statuses, sanitized environment classes, and an append-only ordered
-attempt ledger. A blocked-before-execution attempt has `rawExitCode: null`;
-an executed failure keeps its real nonzero code. Failures are not overwritten
-by later corrections.
+attempt ledger. A blocked-before-execution attempt has `rawExitCode: null`.
+Executed attempts keep the process's observed exit code; a PowerShell
+nonterminating error can therefore be an `executed-fail` with exit code zero
+only when the ledger explicitly marks that exit status as unreliable.
+Failures are not overwritten by later corrections.
 
 Raw secrets, bearer-like tokens, private user paths, and prompts are rejected.
 The seeded-secret negative and redacted positive controls use the same
