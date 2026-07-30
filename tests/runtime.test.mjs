@@ -1,13 +1,20 @@
 import fs from "node:fs";
 import path from "node:path";
-import test from "node:test";
+import test, { after } from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 import { buildEnv, installFakeCodex } from "./fake-codex-fixture.mjs";
-import { initGitRepo, makeTempDir, run } from "./helpers.mjs";
-import { loadBrokerSession, saveBrokerSession } from "../plugins/codex/scripts/lib/broker-lifecycle.mjs";
+import { initGitRepo, listCreatedTempDirs, makeTempDir, run } from "./helpers.mjs";
+import {
+  clearBrokerSession,
+  loadBrokerSession,
+  saveBrokerSession,
+  sendBrokerShutdown,
+  teardownBrokerSession
+} from "../plugins/codex/scripts/lib/broker-lifecycle.mjs";
+import { terminateProcessTree } from "../plugins/codex/scripts/lib/process.mjs";
 import { resolveStateDir } from "../plugins/codex/scripts/lib/state.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -15,6 +22,27 @@ const PLUGIN_ROOT = path.join(ROOT, "plugins", "codex");
 const SCRIPT = path.join(PLUGIN_ROOT, "scripts", "codex-companion.mjs");
 const STOP_HOOK = path.join(PLUGIN_ROOT, "scripts", "stop-review-gate-hook.mjs");
 const SESSION_HOOK = path.join(PLUGIN_ROOT, "scripts", "session-lifecycle-hook.mjs");
+
+after(async () => {
+  for (const directory of listCreatedTempDirs()) {
+    const session = loadBrokerSession(directory);
+    if (!session) {
+      continue;
+    }
+    if (session.endpoint) {
+      await sendBrokerShutdown(session.endpoint);
+    }
+    teardownBrokerSession({
+      endpoint: session.endpoint ?? null,
+      pidFile: session.pidFile ?? null,
+      logFile: session.logFile ?? null,
+      sessionDir: session.sessionDir ?? null,
+      pid: session.pid ?? null,
+      killProcess: terminateProcessTree
+    });
+    clearBrokerSession(directory);
+  }
+});
 
 async function waitFor(predicate, { timeoutMs = 5000, intervalMs = 50 } = {}) {
   const start = Date.now();
@@ -47,13 +75,14 @@ test("setup reports ready when fake codex is installed and authenticated", () =>
 test("setup is ready without npm when Codex is already installed and authenticated", () => {
   const binDir = makeTempDir();
   installFakeCodex(binDir);
-  fs.symlinkSync(process.execPath, path.join(binDir, "node"));
+  fs.copyFileSync(process.execPath, path.join(binDir, "node.exe"));
 
   const result = run("node", [SCRIPT, "setup", "--json"], {
     cwd: ROOT,
     env: {
       ...process.env,
-      PATH: binDir
+      PATH: binDir,
+      PATHEXT: ".EXE;.CMD"
     }
   });
 
@@ -220,6 +249,7 @@ test("transfer delegates the current Claude session directly to native import", 
     env: {
       ...buildEnv(binDir),
       HOME: home,
+      USERPROFILE: home,
       CODEX_HOME: path.join(home, ".codex"),
       CODEX_COMPANION_TRANSCRIPT_PATH: sourcePath
     }
@@ -265,6 +295,7 @@ test("transfer reports an actionable upgrade error when native import is unsuppo
     env: {
       ...buildEnv(binDir),
       HOME: home,
+      USERPROFILE: home,
       CODEX_HOME: path.join(home, ".codex")
     }
   });
@@ -295,6 +326,7 @@ test("transfer fails visibly when native import completes without a ledger recor
     env: {
       ...buildEnv(binDir),
       HOME: home,
+      USERPROFILE: home,
       CODEX_HOME: path.join(home, ".codex")
     }
   });
@@ -320,7 +352,7 @@ test("transfer rejects sources outside the Claude projects directory", () => {
 
   const result = run("node", [SCRIPT, "transfer", "--source", sourcePath], {
     cwd: repo,
-    env: { ...buildEnv(binDir), HOME: home }
+    env: { ...buildEnv(binDir), HOME: home, USERPROFILE: home }
   });
 
   assert.notEqual(result.status, 0);
@@ -2209,6 +2241,7 @@ test("setup reuses an existing shared app-server without starting another one", 
 test("status reports shared session runtime when a lazy broker is active", () => {
   const repo = makeTempDir();
   const binDir = makeTempDir();
+  const env = buildEnv(binDir);
   installFakeCodex(binDir);
   initGitRepo(repo);
   fs.writeFileSync(path.join(repo, "README.md"), "hello\n");
@@ -2218,7 +2251,7 @@ test("status reports shared session runtime when a lazy broker is active", () =>
 
   const review = run("node", [SCRIPT, "review"], {
     cwd: repo,
-    env: buildEnv(binDir)
+    env
   });
   assert.equal(review.status, 0, review.stderr);
 
@@ -2228,11 +2261,21 @@ test("status reports shared session runtime when a lazy broker is active", () =>
 
   const result = run("node", [SCRIPT, "status"], {
     cwd: repo,
-    env: buildEnv(binDir)
+    env
   });
 
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /Session runtime: shared session/);
+
+  const cleanup = run("node", [SESSION_HOOK, "SessionEnd"], {
+    cwd: repo,
+    env,
+    input: JSON.stringify({
+      hook_event_name: "SessionEnd",
+      cwd: repo
+    })
+  });
+  assert.equal(cleanup.status, 0, cleanup.stderr);
 });
 
 test("setup and status honor --cwd when reading shared session runtime", () => {
@@ -2240,7 +2283,7 @@ test("setup and status honor --cwd when reading shared session runtime", () => {
   const invocationWorkspace = makeTempDir();
 
   saveBrokerSession(targetWorkspace, {
-    endpoint: "unix:/tmp/fake-broker.sock"
+    endpoint: "pipe:\\\\.\\pipe\\fake-broker"
   });
 
   const status = run("node", [SCRIPT, "status", "--cwd", targetWorkspace], {
@@ -2255,5 +2298,5 @@ test("setup and status honor --cwd when reading shared session runtime", () => {
   assert.equal(setup.status, 0, setup.stderr);
   const payload = JSON.parse(setup.stdout);
   assert.equal(payload.sessionRuntime.mode, "shared");
-  assert.equal(payload.sessionRuntime.endpoint, "unix:/tmp/fake-broker.sock");
+  assert.equal(payload.sessionRuntime.endpoint, "pipe:\\\\.\\pipe\\fake-broker");
 });

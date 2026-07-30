@@ -53,3 +53,25 @@ test("terminateProcessTree treats missing Windows processes as already stopped",
   assert.equal(outcome.result.status, 128);
   assert.match(outcome.result.stdout, /not found/i);
 });
+
+test("terminateProcessTree recognizes taskkill's locale-independent missing-process exit code", () => {
+  const outcome = terminateProcessTree(1234, {
+    platform: "win32",
+    runCommandImpl(command, args) {
+      return {
+        command,
+        args,
+        status: 128,
+        signal: null,
+        stdout: "오류: 프로세스를 찾을 수 없습니다.",
+        stderr: "",
+        error: null
+      };
+    }
+  });
+
+  assert.equal(outcome.attempted, true);
+  assert.equal(outcome.delivered, false);
+  assert.equal(outcome.method, "taskkill");
+  assert.equal(outcome.result.status, 128);
+});

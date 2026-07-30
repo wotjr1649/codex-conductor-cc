@@ -1,5 +1,4 @@
 import path from "node:path";
-import process from "node:process";
 
 function sanitizePipeName(value) {
   return String(value ?? "")
@@ -7,13 +6,9 @@ function sanitizePipeName(value) {
     .replace(/^-+|-+$/g, "");
 }
 
-export function createBrokerEndpoint(sessionDir, platform = process.platform) {
-  if (platform === "win32") {
-    const pipeName = sanitizePipeName(`${path.win32.basename(sessionDir)}-codex-app-server`);
-    return `pipe:\\\\.\\pipe\\${pipeName}`;
-  }
-
-  return `unix:${path.join(sessionDir, "broker.sock")}`;
+export function createBrokerEndpoint(sessionDir) {
+  const pipeName = sanitizePipeName(`${path.win32.basename(sessionDir)}-codex-app-server`);
+  return `pipe:\\\\.\\pipe\\${pipeName}`;
 }
 
 export function parseBrokerEndpoint(endpoint) {
@@ -27,14 +22,6 @@ export function parseBrokerEndpoint(endpoint) {
       throw new Error("Broker pipe endpoint is missing its path.");
     }
     return { kind: "pipe", path: pipePath };
-  }
-
-  if (endpoint.startsWith("unix:")) {
-    const socketPath = endpoint.slice("unix:".length);
-    if (!socketPath) {
-      throw new Error("Broker Unix socket endpoint is missing its path.");
-    }
-    return { kind: "unix", path: socketPath };
   }
 
   throw new Error(`Unsupported broker endpoint: ${endpoint}`);

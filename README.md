@@ -17,7 +17,11 @@ they already have.
 
 - **ChatGPT subscription (incl. Free) or OpenAI API key.**
   - Usage will contribute to your Codex usage limits. [Learn more](https://developers.openai.com/codex/pricing).
-- **Node.js 18.18 or later**
+- **64-bit Windows (x64)**
+- **Node.js 24.0 or later (x64)**
+
+Other operating systems, 32-bit Windows, ARM64 Windows, and Node.js versions
+older than 24 are not supported by this personal fork.
 
 ## Install
 

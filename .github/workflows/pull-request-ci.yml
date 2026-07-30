@@ -8,8 +8,8 @@ permissions:
 
 jobs:
   ci:
-    name: CI
-    runs-on: ubuntu-latest
+    name: Windows x64 / Node 24
+    runs-on: windows-latest
     timeout-minutes: 10
 
     steps:
@@ -19,7 +19,8 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
-          node-version: 22
+          node-version: 24
+          architecture: x64
           cache: npm
 
       - name: Install dependencies
