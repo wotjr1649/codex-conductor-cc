@@ -1,0 +1,88 @@
+{
+  "schemaVersion": "p3-security-policy-v1",
+  "phase": "P3",
+  "supportedPlatform": {
+    "os": "windows",
+    "architecture": "x64",
+    "nodeRange": ">=24.0.0"
+  },
+  "proofs": [
+    {
+      "fixtureId": "SEC-BOUNDARY-001",
+      "requirements": ["X4", "X14"],
+      "proofKind": "policy",
+      "status": "specified",
+      "runtimeEnforced": false,
+      "deferredPhase": "v0.2",
+      "claims": {
+        "sameUserIsolation": "not-guaranteed",
+        "ipcPeerIdentity": "admission-signal",
+        "ipcSecurityBoundary": false,
+        "crossUserDefault": "deny",
+        "crossSessionDefault": "deny",
+        "remoteDefault": "deny"
+      }
+    },
+    {
+      "fixtureId": "SEC-APPROVAL-002",
+      "requirements": ["X3"],
+      "proofKind": "policy",
+      "status": "specified",
+      "runtimeEnforced": false,
+      "deferredPhase": "P4",
+      "claims": {
+        "unattendedApproval": "deny-or-interrupt",
+        "automaticGrant": false,
+        "sessionGrant": false,
+        "rootGrant": false,
+        "networkGrant": false,
+        "policyAmendGrant": false
+      }
+    },
+    {
+      "fixtureId": "SEC-EXE-001",
+      "requirements": ["X14", "X15"],
+      "proofKind": "validator-fixture",
+      "status": "specified",
+      "runtimeEnforced": false,
+      "deferredPhase": "v0.2",
+      "claims": {
+        "runOwnedAcquisition": true,
+        "absoluteExecutable": true,
+        "shellAllowed": false,
+        "workspaceExecutableAllowed": false,
+        "pathLookupAllowed": false,
+        "reparsePointAllowed": false
+      }
+    },
+    {
+      "fixtureId": "SEC-LOG-001",
+      "requirements": ["X9"],
+      "proofKind": "validator-fixture",
+      "status": "specified",
+      "runtimeEnforced": false,
+      "deferredPhase": "P4",
+      "claims": {
+        "seededNegativeControl": true,
+        "redactedPositiveControl": true,
+        "productLogCoverage": false
+      }
+    },
+    {
+      "fixtureId": "SEC-RELEASE-001",
+      "requirements": ["X7", "X12", "X17"],
+      "proofKind": "policy",
+      "status": "specified",
+      "runtimeEnforced": false,
+      "deferredPhase": "P6",
+      "claims": {
+        "prWriteToken": false,
+        "prOidc": false,
+        "prSecrets": false,
+        "prArtifactReleaseInput": false,
+        "publicArtifact": false,
+        "attestation": false
+      }
+    }
+  ]
+}

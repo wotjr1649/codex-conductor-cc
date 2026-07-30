@@ -1,0 +1,8 @@
+# P3 security-sensitive surfaces. Repository settings must separately require
+# CODEOWNERS review before this file has enforcement effect.
+/.github/workflows/ @wotjr1649
+/toolchain.json @wotjr1649
+/security/ @wotjr1649
+/scripts/install-p3-tool.ps1 @wotjr1649
+/scripts/lib/p3-validation.mjs @wotjr1649
+/evidence/schemas/ @wotjr1649

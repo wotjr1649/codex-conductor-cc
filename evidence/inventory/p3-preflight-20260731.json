@@ -1,0 +1,202 @@
+{
+  "inventorySchemaVersion": "1",
+  "capturedAt": "2026-07-31",
+  "scope": "P3 threat/toolchain pre-change inventory",
+  "supportPolicy": {
+    "ownerClass": "single-repository-owner",
+    "os": "windows",
+    "architecture": "x64",
+    "nodeRange": ">=24.0.0",
+    "unsupported": [
+      "linux",
+      "macos",
+      "windows-arm64",
+      "windows-ia32",
+      "node-before-24"
+    ]
+  },
+  "lineage": {
+    "planning": {
+      "branch": "codex/p1b-architecture-feasibility",
+      "head": "0d2290b32278769415979f02a0b81b8d062d40e5",
+      "clean": true
+    },
+    "p15": {
+      "branch": "upstream/fix-windows-prebuild",
+      "head": "9be83f26780429cd693bef62a20eebc70f54cec1",
+      "clean": true
+    },
+    "p2": {
+      "branch": "codex/p2-downstream-identity",
+      "head": "7c65444eb5c1b372b369f71e1d496eafa7a1fc92",
+      "clean": true
+    },
+    "p3": {
+      "branch": "codex/p3-threat-toolchain-baseline",
+      "base": "7c65444eb5c1b372b369f71e1d496eafa7a1fc92",
+      "headBeforeChanges": "7c65444eb5c1b372b369f71e1d496eafa7a1fc92",
+      "cleanBeforeInventory": true
+    },
+    "upstreamBase": "db52e28f4d9ded852ab3942cea316258ae4ef346",
+    "planningProductMergeBase": "db52e28f4d9ded852ab3942cea316258ae4ef346",
+    "p2DescendsFromP15": true,
+    "p2DescendsFromUpstreamBase": true
+  },
+  "remotes": {
+    "originFetch": "https://github.com/wotjr1649/codex-conductor-cc.git",
+    "originPushConfigured": true,
+    "upstreamFetch": "https://github.com/openai/codex-plugin-cc.git",
+    "upstreamPush": "disabled",
+    "sessionMutationPolicy": "no-push"
+  },
+  "environment": {
+    "class": "local-windows-x64-ntfs",
+    "osBuild": "10.0.26200.0",
+    "architecture": "AMD64",
+    "filesystem": "NTFS",
+    "ambient": {
+      "node": "24.18.0",
+      "npm": "11.16.0",
+      "codex": "0.146.0",
+      "claude": "2.1.220",
+      "git": "2.55.0.windows.3"
+    },
+    "selected": {
+      "node": null,
+      "npm": null,
+      "codexRegressionOnly": null,
+      "claudeMinimum": null,
+      "claudeCurrent": null
+    },
+    "privatePathsPersisted": false
+  },
+  "package": {
+    "name": "codex-conductor-cc",
+    "version": "0.1.0",
+    "private": true,
+    "enginesNode": ">=24.0.0",
+    "os": [
+      "win32"
+    ],
+    "cpu": [
+      "x64"
+    ],
+    "lifecycleScripts": {
+      "bump-version": "node scripts/bump-version.mjs",
+      "check-version": "node scripts/bump-version.mjs --check",
+      "prebuild": "node scripts/generate-app-server-types.mjs",
+      "build": "tsc -p tsconfig.app-server.json",
+      "test": "node --test tests/*.test.mjs"
+    },
+    "lockfileVersion": 3,
+    "lockedPackages": {
+      "@types/node": "25.5.0",
+      "typescript": "6.0.2",
+      "undici-types": "7.18.2"
+    },
+    "installLifecycleReview": {
+      "rootPreinstall": false,
+      "rootInstall": false,
+      "rootPostinstall": false,
+      "buildPrehook": "prebuild"
+    }
+  },
+  "workflow": {
+    "files": [
+      ".github/workflows/pull-request-ci.yml"
+    ],
+    "events": [
+      "pull_request"
+    ],
+    "topLevelPermissions": {
+      "contents": "read"
+    },
+    "runner": "windows-latest",
+    "timeoutMinutes": 10,
+    "actions": [
+      {
+        "uses": "actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd",
+        "reviewedRelease": "v6.0.2",
+        "fullCommitSha": true
+      },
+      {
+        "uses": "actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f",
+        "reviewedRelease": "v6.3.0",
+        "fullCommitSha": true
+      }
+    ],
+    "nodeSelector": "24",
+    "globalInstalls": [
+      "npm install -g @openai/codex"
+    ],
+    "cache": [
+      "setup-node npm cache"
+    ],
+    "artifactUploads": [],
+    "secretsReferenced": [],
+    "writePermissions": [],
+    "oidcWrite": false,
+    "privilegedEvents": [],
+    "knownP3Gaps": [
+      "exact-node-patch-not-selected",
+      "mutable-global-codex-install",
+      "p3-validator-not-wired",
+      "security-scanners-not-wired",
+      "dependency-review-not-wired"
+    ]
+  },
+  "repositorySecurityReadback": {
+    "repository": "wotjr1649/codex-conductor-cc",
+    "visibility": "public",
+    "fork": true,
+    "actionsEnabled": true,
+    "allowedActions": "all",
+    "shaPinningRequired": true,
+    "defaultWorkflowPermissions": "read",
+    "workflowCanApprovePullRequests": false,
+    "privateVulnerabilityReporting": true,
+    "dependencyVulnerabilityAlerts": true,
+    "dependabotSecurityUpdates": true,
+    "secretScanning": true,
+    "secretScanningPushProtection": true,
+    "rulesets": [],
+    "mainProtection": {
+      "strictStatusChecks": true,
+      "requiredContexts": [
+        "CI"
+      ],
+      "requiredApprovals": 0,
+      "requireCodeOwnerReviews": false,
+      "enforceAdmins": false,
+      "requiredSignatures": false,
+      "forcePushAllowed": false,
+      "deletionAllowed": false
+    },
+    "readbackOnly": true
+  },
+  "policyClosure": {
+    "planningOnlyFiles": 56,
+    "productOnlyFiles": 9,
+    "commonFiles": 64,
+    "wholePlanningTreeTransferAllowed": false,
+    "selectedStrategy": null
+  },
+  "p2ProtectedReadback": {
+    "trees": {
+      "plugins/codex/commands": "01dee9ba76393439e179c5676ea92e538358d86b",
+      "plugins/codex/agents": "e3d07a2c1a1acf9a986ecccd7e2b1c865b9da709",
+      "plugins/codex/skills": "1272de32547df5bb365e114feb590bfa002e53c1",
+      "plugins/codex/hooks": "39821e61e8b99bf415b7b05098b97d545fd377af"
+    },
+    "canonicalProtectedInventorySha256": "b24fec394e331f6b550dfdb614be07ec19955c9f95288951afbcac4e4c8d0473",
+    "generatedSchemaSha256": "e504c5f04a3157a41a481bfc20cc77b8af58e4c750dcb47ad4453899779d4834",
+    "licenseSha256": "5382d9ba43803da42433ae0025fe38d93c6e730d8824bd9e01af8e2f3c9c3833",
+    "noticeSha256": "d8d0168f4940626032fe7a9d6e7a9b767b37f6c777a2140679e72e07afd1b8e0"
+  },
+  "researchCandidates": {
+    "nodeFromHandoff": "24.18.0",
+    "nodeCurrentOfficialP3Candidate": "24.18.1",
+    "nodeCandidateReason": "2026-07-29 LTS security release supersedes the handoff snapshot",
+    "admissionDisposition": "pending-independent-research"
+  }
+}
