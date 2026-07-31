@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync
+} from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -38,6 +44,8 @@ const scenarioRegistrySha256 = createHash("sha256")
 const runnerEvidenceSchema = readJson("evidence/schemas/p5-runner-evidence-v2.schema.json");
 const gateEvidenceSchema = readJson("evidence/schemas/p5-gate-evidence-v1.schema.json");
 const hostedHarvestSchema = readJson("evidence/schemas/p5-hosted-harvest-v1.schema.json");
+const gitAttributes = readFileSync(path.join(root, ".gitattributes"), "utf8")
+  .replace(/\r\n/g, "\n");
 const workflow = readFileSync(
   path.join(root, ".github", "workflows", "pull-request-ci.yml"),
   "utf8"
@@ -165,6 +173,31 @@ test("P5-WORKFLOW-001 job-scoped security and matrix policy validates", () => {
 });
 
 test("P5-PROVENANCE-001 every hosted allocation emits exact, bindable provenance", () => {
+  assert.equal(
+    gitAttributes,
+    [
+      "# Evidence digests bind repository bytes, so security manifests must not vary",
+      "# with a contributor's core.autocrlf setting.",
+      "toolchain.json text eol=lf",
+      "ci/scenario-registry-v1.json text eol=lf",
+      "security/*.json text eol=lf",
+      "evidence/**/*.json text eol=lf",
+      "contracts/codex/**/*.json text eol=lf",
+      "contracts/codex/snapshots/** text eol=lf",
+      "tests/contract/**/*.json text eol=lf",
+      ""
+    ].join("\n")
+  );
+  const attributeProbe = spawnSync(
+    "git",
+    ["check-attr", "text", "eol", "--", "ci/scenario-registry-v1.json"],
+    { cwd: root, encoding: "utf8", shell: false, windowsHide: true }
+  );
+  assert.equal(attributeProbe.status, 0, attributeProbe.stderr);
+  assert.deepEqual(attributeProbe.stdout.trim().split(/\r?\n/), [
+    "ci/scenario-registry-v1.json: text: set",
+    "ci/scenario-registry-v1.json: eol: lf"
+  ]);
   for (const relativePath of [
     "scripts/lib/p5-runner-provenance.psm1",
     "scripts/write-p5-gate-evidence.ps1"
@@ -748,23 +781,46 @@ test("P5-HOSTED-CONSUMER-001 fragments require fail-closed REST consolidation", 
   );
 });
 
-test("P5-POWERSHELL-001 exact npm, clock, and local writer contracts execute", () => {
+test("P5-POWERSHELL-001 exact npm, clock, and local writer contracts execute", (t) => {
   const probeRoot = mkdtempSync(path.join(tmpdir(), "p5-provenance-runtime-"));
+  t.after(() => rmSync(probeRoot, { recursive: true, force: true }));
   const outputPath = path.join(probeRoot, "policy.json");
   const branchRefOutputPath = path.join(probeRoot, "branch-ref.json");
   const fineGrainedPatOutputPath = path.join(probeRoot, "fine-grained-pat.json");
   const failedCanaryOutputPath = path.join(probeRoot, "failed-canary.json");
   const modulePath = path.join(root, "scripts", "lib", "p5-runner-provenance.psm1");
   const writerPath = path.join(root, "scripts", "write-p5-runner-evidence.ps1");
+  const powershellPath = path.join(
+    process.env.SystemRoot,
+    "System32",
+    "WindowsPowerShell",
+    "v1.0",
+    "powershell.exe"
+  );
+  const shadowNodePath = path.join(probeRoot, "node.cmd");
+  writeFileSync(shadowNodePath, "@echo off\r\necho v0.0.0\r\n", "utf8");
+  writeFileSync(
+    path.join(probeRoot, "npm.cmd"),
+    "@echo off\r\necho 0.0.0\r\n",
+    "utf8"
+  );
+  const inheritedPath = Object.entries(process.env).find(
+    ([name]) => name.toUpperCase() === "PATH"
+  )?.[1];
   const env = Object.fromEntries(
     Object.entries(process.env).filter(([name]) => name.toUpperCase() !== "PATH")
   );
-  env.PATH = [path.dirname(process.execPath), process.env.PATH]
+  env.Path = [probeRoot, inheritedPath]
     .filter(Boolean)
     .join(path.delimiter);
-  try {
-    const moduleProbe = spawnSync(
-      "powershell.exe",
+  const exactNodePrelude = [
+    `$env:Path = ${psQuote(path.dirname(process.execPath))} + [IO.Path]::PathSeparator + $env:Path`,
+    "$resolvedNode = (Get-Command node -CommandType Application | Select-Object -First 1).Source",
+    `if (-not [string]::Equals([IO.Path]::GetFullPath($resolvedNode), [IO.Path]::GetFullPath(${psQuote(process.execPath)}), [StringComparison]::OrdinalIgnoreCase)) { throw 'P5E_TEST_NODE_PATH' }`
+  ].join("; ");
+  {
+    const shadowProbe = spawnSync(
+      powershellPath,
       [
         "-NoProfile",
         "-NonInteractive",
@@ -772,6 +828,24 @@ test("P5-POWERSHELL-001 exact npm, clock, and local writer contracts execute", (
         "Bypass",
         "-Command",
         [
+          "$resolvedNode = (Get-Command node -CommandType Application | Select-Object -First 1).Source",
+          `if (-not [string]::Equals([IO.Path]::GetFullPath($resolvedNode), [IO.Path]::GetFullPath(${psQuote(shadowNodePath)}), [StringComparison]::OrdinalIgnoreCase)) { exit 1 }`
+        ].join("; ")
+      ],
+      { cwd: root, encoding: "utf8", env, shell: false, windowsHide: true }
+    );
+    assert.equal(shadowProbe.status, 0, "P5E_TEST_SHADOW_PATH");
+
+    const moduleProbe = spawnSync(
+      powershellPath,
+      [
+        "-NoProfile",
+        "-NonInteractive",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-Command",
+        [
+          exactNodePrelude,
           `Import-Module ${psQuote(modulePath)} -Force`,
           "function global:npm { '99.99.99' }",
           `$p = Get-P5ExecutionProvenance -RepositoryRoot ${psQuote(root)} -OutputPath ${psQuote(outputPath)} -ExecutionClass local -ExpectedNodeVersion 24.18.1 -ExpectedNpmVersion 11.16.0 -ExpectedNodeSha256 ac51903c4c111815d52280b1fdcc8da067cbb37e2fe1a765097b85c3292c8582 -RequireNodeIdentity $true`,
@@ -787,10 +861,10 @@ test("P5-POWERSHELL-001 exact npm, clock, and local writer contracts execute", (
       ],
       { cwd: root, encoding: "utf8", env, shell: false, windowsHide: true }
     );
-    assert.equal(moduleProbe.status, 0, moduleProbe.stderr || moduleProbe.stdout);
+    assert.equal(moduleProbe.status, 0, "P5E_TEST_MODULE_PROBE");
 
     const writerProbe = spawnSync(
-      "powershell.exe",
+      powershellPath,
       [
         "-NoProfile",
         "-NonInteractive",
@@ -798,13 +872,14 @@ test("P5-POWERSHELL-001 exact npm, clock, and local writer contracts execute", (
         "Bypass",
         "-Command",
         [
+          exactNodePrelude,
           `$startedAt = [DateTimeOffset]::UtcNow.AddSeconds(-1).ToString('o')`,
           `& ${psQuote(writerPath)} -Profile policy-validation -Lane default -ExecutionClass local -StartedAt $startedAt -OutputPath ${psQuote(outputPath)} -RequirementIds @('P5-1','P5-2','P5-10','P5-11','P5-12','X5','X8','X9') -ScenarioId P5-POLICY-001 -FixtureIds @('P5-RED-001','P5-PRIVACY-001','P5-FALSE-GREEN-001') -ExpectedOracle 'dependency-free validators and policy tests exit zero before npm ci' -ObservedStatus executed-pass -RawExitCode 0 -ExitCodeSource direct-process`
         ].join("; ")
       ],
       { cwd: root, encoding: "utf8", env, shell: false, windowsHide: true }
     );
-    assert.equal(writerProbe.status, 0, writerProbe.stderr || writerProbe.stdout);
+    assert.equal(writerProbe.status, 0, "P5E_TEST_WRITER_PROBE");
     const evidence = JSON.parse(readFileSync(outputPath, "utf8"));
     assert.equal(evidence.schemaVersion, "p5-runner-evidence-v2");
     assert.equal(evidence.tools.nodeIdentityStatus, "verified-exact");
@@ -813,7 +888,7 @@ test("P5-POWERSHELL-001 exact npm, clock, and local writer contracts execute", (
     assert.equal(evidence.attempt.timeout, null);
 
     const failedCanaryProbe = spawnSync(
-      "powershell.exe",
+      powershellPath,
       [
         "-NoProfile",
         "-NonInteractive",
@@ -821,6 +896,7 @@ test("P5-POWERSHELL-001 exact npm, clock, and local writer contracts execute", (
         "Bypass",
         "-Command",
         [
+          exactNodePrelude,
           "$fixtureIds = @()",
           `& ${psQuote(writerPath)} -Profile next-canary -Lane next -ExecutionClass local -StartedAt '' -OutputPath ${psQuote(failedCanaryOutputPath)} -RequirementIds @('P5-6','P5-9','P5-12') -ScenarioId P5-CANARY-001 -FixtureIds $fixtureIds -ExpectedOracle 'the exact prerelease digest is observed without satisfying or blocking a supported profile' -ObservedStatus non-blocking-canary -RawExitCode 1 -ExitCodeSource github-job-status-normalized`
         ].join("; ")
@@ -830,13 +906,13 @@ test("P5-POWERSHELL-001 exact npm, clock, and local writer contracts execute", (
     assert.equal(
       failedCanaryProbe.status,
       0,
-      failedCanaryProbe.stderr || failedCanaryProbe.stdout
+      "P5E_TEST_CANARY_PROBE"
     );
     const failedCanary = JSON.parse(readFileSync(failedCanaryOutputPath, "utf8"));
     assert.equal(failedCanary.attempt.startedAtSource, "finalizer-fallback");
 
     const negativeWriterProbe = spawnSync(
-      "powershell.exe",
+      powershellPath,
       [
         "-NoProfile",
         "-NonInteractive",
@@ -844,6 +920,7 @@ test("P5-POWERSHELL-001 exact npm, clock, and local writer contracts execute", (
         "Bypass",
         "-Command",
         [
+          exactNodePrelude,
           "$startedAt = [DateTimeOffset]::UtcNow.AddSeconds(-1).ToString('o')",
           "$laneRejected = $false",
           `try { & ${psQuote(writerPath)} -Profile unit -Lane fabricated -ExecutionClass local -StartedAt $startedAt -OutputPath ${psQuote(path.join(probeRoot, "wrong-lane.json"))} -RequirementIds @('P5-3','X2','X8','X9') -ScenarioId P5-UNIT-001 -FixtureIds @('P5-UNIT-PARTITION-001') -ExpectedOracle 'fixture' -ObservedStatus executed-pass -RawExitCode 0 -ExitCodeSource direct-process } catch { if ($_.Exception.Message -like 'P5E_PROFILE_LANE:*') { $laneRejected = $true } else { throw } }`,
@@ -858,10 +935,8 @@ test("P5-POWERSHELL-001 exact npm, clock, and local writer contracts execute", (
     assert.equal(
       negativeWriterProbe.status,
       0,
-      negativeWriterProbe.stderr || negativeWriterProbe.stdout
+      "P5E_TEST_NEGATIVE_WRITER_PROBE"
     );
-  } finally {
-    rmSync(probeRoot, { recursive: true, force: true });
   }
 });
 
@@ -1278,10 +1353,12 @@ test("P5-FALSE-GREEN-001 state D1 and Windows C0 cannot pass without runtime evi
 });
 
 test("P5-SCOPE-NEGATIVE-001 exact allowlist entries reject suffix lookalikes", () => {
+  assert.equal(isP5AllowedPath(".gitattributes"), true);
   assert.equal(isP5AllowedPath(".github/workflows/pull-request-ci.yml"), true);
   assert.equal(isP5AllowedPath("scripts/validate-p5.mjs"), true);
   assert.equal(isP5AllowedPath("tests/p5-new.test.mjs"), true);
   assert.equal(isP5AllowedPath(".github/workflows/pull-request-ci.yml.bak"), false);
+  assert.equal(isP5AllowedPath(".gitattributes.bak"), false);
   assert.equal(isP5AllowedPath("scripts/validate-p5.mjs.unreviewed"), false);
 });
 

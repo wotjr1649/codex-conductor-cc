@@ -45,6 +45,7 @@ const BLOCKING_JOBS = EXPECTED_JOBS.filter(
   (job) => !["next-canary", "gate"].includes(job)
 );
 const P5_EXACT_PATHS = new Set([
+  ".gitattributes",
   ".github/CODEOWNERS",
   ".github/workflows/pull-request-ci.yml",
   "scripts/invoke-p4-validator-at-handoff.ps1",
