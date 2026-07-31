@@ -1,0 +1,141 @@
+{
+  "$schema": "../../evidence/schemas/p4-contract-tools-v1.schema.json",
+  "schemaVersion": "p4-contract-tools-v1",
+  "reviewPolicy": {
+    "reviewedAt": "2026-07-31",
+    "expiresAt": "2026-08-31",
+    "owner": "wotjr1649",
+    "reviewer": "wotjr1649",
+    "driftTriggers": [
+      "new-stable-codex-release",
+      "node-24-security-release",
+      "release-asset-or-registry-integrity-change",
+      "vendor-signing-certificate-change",
+      "schema-generation-command-change",
+      "core-lifecycle-incompatibility"
+    ]
+  },
+  "platform": {
+    "os": "windows",
+    "architecture": "x64",
+    "nodeRange": ">=24.0.0"
+  },
+  "node": {
+    "version": "24.18.1",
+    "npmVersion": "11.16.0",
+    "releaseUrl": "https://nodejs.org/en/blog/release/v24.18.1",
+    "archiveUrl": "https://nodejs.org/dist/v24.18.1/node-v24.18.1-win-x64.zip",
+    "archiveSha256": "ec56b84a7551893ab2324ebdfdc4ab974a63b4781162600b68a1293cc3e53765"
+  },
+  "artifacts": [
+    {
+      "id": "codex-0.146.0-windows-x64",
+      "version": "0.146.0",
+      "releaseStatus": "stable",
+      "releaseUrl": "https://github.com/openai/codex/releases/tag/rust-v0.146.0",
+      "tag": "rust-v0.146.0",
+      "peeledCommit": "e363b08c9175ac1cbe5893615dd2cb9ddf95043b",
+      "releasedAt": "2026-07-29T01:42:51Z",
+      "archiveUrl": "https://github.com/openai/codex/releases/download/rust-v0.146.0/codex-x86_64-pc-windows-msvc.exe.zip",
+      "archiveSha256": "4781b618fa3a16d91c892f8a1e2c82625f9286f9bb944a5690ba727c84fc5729",
+      "executableRelativePath": "codex-x86_64-pc-windows-msvc.exe",
+      "executableSha256": "bc343ba420dc2e2e9f59e6fc5e5bf0aae1cd8c771fc319665241fc9c0271fddb",
+      "license": "Apache-2.0",
+      "licenseUrl": "https://github.com/openai/codex/blob/e363b08c9175ac1cbe5893615dd2cb9ddf95043b/LICENSE",
+      "authenticode": {
+        "required": true,
+        "observedStatus": "Valid",
+        "subject": "CN=\"OpenAI OpCo, LLC\", O=\"OpenAI OpCo, LLC\", L=San Francisco, S=California, C=US",
+        "leafThumbprint": "0B7C30C11BF7250EC1ECD3254AC781D9E13D62F8"
+      },
+      "npm": {
+        "name": "@openai/codex",
+        "version": "0.146.0",
+        "publishedAt": "2026-07-29T01:45:57.696Z",
+        "tarballUrl": "https://registry.npmjs.org/@openai/codex/-/codex-0.146.0.tgz",
+        "integrity": "sha512-yG3sPWNda/2YAIQIDq9MrrjoCTIQ7rxYM5IasrG3VBcuhCLTkgeg/JzqmJq1V98RE4MJ5jCxDXXQlOjrditFRw==",
+        "platformPackageVersion": "0.146.0-win32-x64",
+        "platformTarballUrl": "https://registry.npmjs.org/@openai/codex/-/codex-0.146.0-win32-x64.tgz",
+        "platformIntegrity": "sha512-b3lxMYeR0+IhstNo4JjX1P9cPc1xwVcCVkPd1lD1wpWPJ0SBhpIkPczwbu3ZRkJcdyl342+rgyf4DUrbZLdrGA==",
+        "lifecycleScripts": []
+      }
+    },
+    {
+      "id": "codex-0.145.0-windows-x64",
+      "version": "0.145.0",
+      "releaseStatus": "stable",
+      "releaseUrl": "https://github.com/openai/codex/releases/tag/rust-v0.145.0",
+      "tag": "rust-v0.145.0",
+      "peeledCommit": "25af12f7e61572b0bc18ddb1008be543b91519b0",
+      "releasedAt": "2026-07-21T18:21:04Z",
+      "archiveUrl": "https://github.com/openai/codex/releases/download/rust-v0.145.0/codex-x86_64-pc-windows-msvc.exe.zip",
+      "archiveSha256": "bc6ae808bf5a9cdf113364ac281594d6da76dc103c19129e9d32caed54ec3cda",
+      "executableRelativePath": "codex-x86_64-pc-windows-msvc.exe",
+      "executableSha256": "83751f15cb6a0a7b97df67752c001e3fe1c20e18ffbfec3ff63567296205eb6c",
+      "license": "Apache-2.0",
+      "licenseUrl": "https://github.com/openai/codex/blob/25af12f7e61572b0bc18ddb1008be543b91519b0/LICENSE",
+      "authenticode": {
+        "required": true,
+        "observedStatus": "Valid",
+        "subject": "CN=\"OpenAI OpCo, LLC\", O=\"OpenAI OpCo, LLC\", L=San Francisco, S=California, C=US",
+        "leafThumbprint": "FDE3B5E925F89FC3DDB81F651855DFCBBDA471C3"
+      },
+      "npm": {
+        "name": "@openai/codex",
+        "version": "0.145.0",
+        "publishedAt": "2026-07-21T18:24:11.494Z",
+        "tarballUrl": "https://registry.npmjs.org/@openai/codex/-/codex-0.145.0.tgz",
+        "integrity": "sha512-/PSPSFujjjmiyVFvG2yu/grOFhsWdokTH8t2KGWhXSo/M5n/dIDsnbsnO82/7bLtIoDuzQf7ATBUMWqPWQINlQ==",
+        "platformPackageVersion": "0.145.0-win32-x64",
+        "platformTarballUrl": "https://registry.npmjs.org/@openai/codex/-/codex-0.145.0-win32-x64.tgz",
+        "platformIntegrity": "sha512-u0h9lk094CaXRSqE34SBW2dRaQTPa6fASXqehczWH9QdsU62mBsiAgAdp6tCG4i+YzPmmhjD8FdXNnYGNmwuMg==",
+        "lifecycleScripts": []
+      }
+    }
+  ],
+  "lanes": {
+    "build": {
+      "version": "0.146.0",
+      "artifactId": "codex-0.146.0-windows-x64",
+      "disposition": "accepted-build-regression-and-contract-generation",
+      "blocking": true,
+      "p2GeneratedSchemaDigest": "e504c5f04a3157a41a481bfc20cc77b8af58e4c750dcb47ad4453899779d4834",
+      "p3ToolchainDigest": "a6033a05ebecd4ff5bca3a5924ff06e55a2e2de9b41541da2c050642102dbb5d"
+    },
+    "current": {
+      "version": "0.146.0",
+      "artifactId": "codex-0.146.0-windows-x64",
+      "disposition": "accepted-current-stable-blocking",
+      "blocking": true
+    },
+    "previous": {
+      "version": "0.145.0",
+      "artifactId": "codex-0.145.0-windows-x64",
+      "disposition": "accepted-previous-stable-blocking",
+      "blocking": true
+    }
+  },
+  "snapshotCommands": {
+    "typescriptStable": "codex app-server generate-ts --out <version>/stable/typescript",
+    "typescriptExperimental": "codex app-server generate-ts --out <version>/experimental/typescript --experimental",
+    "jsonSchemaStable": "codex app-server generate-json-schema --out <version>/stable/json-schema",
+    "jsonSchemaExperimental": "codex app-server generate-json-schema --out <version>/experimental/json-schema --experimental"
+  },
+  "rejectedOrDeferred": [
+    {
+      "candidate": "0.147.0-alpha.2",
+      "disposition": "deferred",
+      "reason": "official prerelease/alpha, not a stable blocking lane"
+    },
+    {
+      "candidate": "@openai/codex@latest",
+      "disposition": "rejected",
+      "reason": "mutable registry alias cannot establish reproducible identity"
+    },
+    {
+      "candidate": "ambient-or-global-codex",
+      "disposition": "rejected",
+      "reason": "PATH shadowing is outside the exact run-owned evidence boundary"
+    }
+  ]
+}

@@ -1,0 +1,215 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/wotjr1649/codex-conductor-cc/evidence/schemas/p4-contract-tools-v1.schema.json",
+  "title": "P4 exact Codex contract tooling",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schemaVersion",
+    "reviewPolicy",
+    "platform",
+    "node",
+    "artifacts",
+    "lanes",
+    "snapshotCommands",
+    "rejectedOrDeferred"
+  ],
+  "properties": {
+    "$schema": {
+      "const": "../../evidence/schemas/p4-contract-tools-v1.schema.json"
+    },
+    "schemaVersion": {
+      "const": "p4-contract-tools-v1"
+    },
+    "reviewPolicy": {
+      "$ref": "#/$defs/review"
+    },
+    "platform": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["os", "architecture", "nodeRange"],
+      "properties": {
+        "os": { "const": "windows" },
+        "architecture": { "const": "x64" },
+        "nodeRange": { "const": ">=24.0.0" }
+      }
+    },
+    "node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "npmVersion", "releaseUrl", "archiveUrl", "archiveSha256"],
+      "properties": {
+        "version": { "const": "24.18.1" },
+        "npmVersion": { "const": "11.16.0" },
+        "releaseUrl": { "$ref": "#/$defs/httpsUrl" },
+        "archiveUrl": { "$ref": "#/$defs/httpsUrl" },
+        "archiveSha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": { "$ref": "#/$defs/artifact" }
+    },
+    "lanes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["build", "current", "previous"],
+      "properties": {
+        "build": { "$ref": "#/$defs/lane" },
+        "current": { "$ref": "#/$defs/lane" },
+        "previous": { "$ref": "#/$defs/lane" }
+      }
+    },
+    "snapshotCommands": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["typescriptStable", "typescriptExperimental", "jsonSchemaStable", "jsonSchemaExperimental"],
+      "properties": {
+        "typescriptStable": { "const": "codex app-server generate-ts --out <version>/stable/typescript" },
+        "typescriptExperimental": { "const": "codex app-server generate-ts --out <version>/experimental/typescript --experimental" },
+        "jsonSchemaStable": { "const": "codex app-server generate-json-schema --out <version>/stable/json-schema" },
+        "jsonSchemaExperimental": { "const": "codex app-server generate-json-schema --out <version>/experimental/json-schema --experimental" }
+      }
+    },
+    "rejectedOrDeferred": {
+      "type": "array",
+      "minItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["candidate", "disposition", "reason"],
+        "properties": {
+          "candidate": { "type": "string", "minLength": 1 },
+          "disposition": { "enum": ["rejected", "deferred"] },
+          "reason": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "httpsUrl": {
+      "type": "string",
+      "pattern": "^https://"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "sha512Integrity": {
+      "type": "string",
+      "pattern": "^sha512-[A-Za-z0-9+/]+={0,2}$"
+    },
+    "review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reviewedAt", "expiresAt", "owner", "reviewer", "driftTriggers"],
+      "properties": {
+        "reviewedAt": { "const": "2026-07-31" },
+        "expiresAt": { "type": "string", "format": "date" },
+        "owner": { "type": "string", "minLength": 1 },
+        "reviewer": { "type": "string", "minLength": 1 },
+        "driftTriggers": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "npmPackage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "version",
+        "publishedAt",
+        "tarballUrl",
+        "integrity",
+        "platformPackageVersion",
+        "platformTarballUrl",
+        "platformIntegrity",
+        "lifecycleScripts"
+      ],
+      "properties": {
+        "name": { "const": "@openai/codex" },
+        "version": { "type": "string", "pattern": "^0\\.(145|146)\\.0$" },
+        "publishedAt": { "type": "string", "format": "date-time" },
+        "tarballUrl": { "$ref": "#/$defs/httpsUrl" },
+        "integrity": { "$ref": "#/$defs/sha512Integrity" },
+        "platformPackageVersion": { "type": "string", "pattern": "^0\\.(145|146)\\.0-win32-x64$" },
+        "platformTarballUrl": { "$ref": "#/$defs/httpsUrl" },
+        "platformIntegrity": { "$ref": "#/$defs/sha512Integrity" },
+        "lifecycleScripts": { "const": [] }
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "version",
+        "releaseStatus",
+        "releaseUrl",
+        "tag",
+        "peeledCommit",
+        "releasedAt",
+        "archiveUrl",
+        "archiveSha256",
+        "executableRelativePath",
+        "executableSha256",
+        "license",
+        "licenseUrl",
+        "authenticode",
+        "npm"
+      ],
+      "properties": {
+        "id": { "type": "string", "pattern": "^codex-0\\.(145|146)\\.0-windows-x64$" },
+        "version": { "type": "string", "pattern": "^0\\.(145|146)\\.0$" },
+        "releaseStatus": { "const": "stable" },
+        "releaseUrl": { "$ref": "#/$defs/httpsUrl" },
+        "tag": { "type": "string", "pattern": "^rust-v0\\.(145|146)\\.0$" },
+        "peeledCommit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "releasedAt": { "type": "string", "format": "date-time" },
+        "archiveUrl": { "$ref": "#/$defs/httpsUrl" },
+        "archiveSha256": { "$ref": "#/$defs/sha256" },
+        "executableRelativePath": { "const": "codex-x86_64-pc-windows-msvc.exe" },
+        "executableSha256": { "$ref": "#/$defs/sha256" },
+        "license": { "const": "Apache-2.0" },
+        "licenseUrl": { "$ref": "#/$defs/httpsUrl" },
+        "authenticode": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["required", "observedStatus", "subject", "leafThumbprint"],
+          "properties": {
+            "required": { "const": true },
+            "observedStatus": { "const": "Valid" },
+            "subject": { "const": "CN=\"OpenAI OpCo, LLC\", O=\"OpenAI OpCo, LLC\", L=San Francisco, S=California, C=US" },
+            "leafThumbprint": { "type": "string", "pattern": "^[0-9A-F]{40}$" }
+          }
+        },
+        "npm": { "$ref": "#/$defs/npmPackage" }
+      }
+    },
+    "lane": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "artifactId", "disposition", "blocking"],
+      "properties": {
+        "version": { "type": "string", "pattern": "^0\\.(145|146)\\.0$" },
+        "artifactId": { "type": "string", "pattern": "^codex-0\\.(145|146)\\.0-windows-x64$" },
+        "disposition": {
+          "enum": [
+            "accepted-build-regression-and-contract-generation",
+            "accepted-current-stable-blocking",
+            "accepted-previous-stable-blocking"
+          ]
+        },
+        "blocking": { "type": "boolean" },
+        "p2GeneratedSchemaDigest": { "$ref": "#/$defs/sha256" },
+        "p3ToolchainDigest": { "$ref": "#/$defs/sha256" }
+      }
+    }
+  }
+}

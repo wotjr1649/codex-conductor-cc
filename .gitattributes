@@ -3,3 +3,6 @@
 toolchain.json text eol=lf
 security/*.json text eol=lf
 evidence/**/*.json text eol=lf
+contracts/codex/**/*.json text eol=lf
+contracts/codex/snapshots/** text eol=lf
+tests/contract/**/*.json text eol=lf
