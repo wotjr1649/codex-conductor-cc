@@ -1,7 +1,7 @@
 # P5 Windows x64 matrix/profile bootstrap
 
 Date: 2026-07-31
-Source commit: `a5676fecce0b5943325582b89abf756fe67b6484`
+Source commit: `b5d76d220bb19e11c36d833c0bb2595433bbc727`
 Handoff commit: `84515289913dfe8a7452754ad442d37873bdfd53`
 Platform: Windows x64, exact Node.js 24.18.1 and npm 11.16.0
 
@@ -65,7 +65,7 @@ claim.
 
 The final exact-Node full regression passed 181/181 with zero failure,
 cancel, or skip at source
-`a5676fecce0b5943325582b89abf756fe67b6484`. An earlier source revision's
+`b5d76d220bb19e11c36d833c0bb2595433bbc727`. An earlier source revision's
 176/177 broker-cancel race and a later 124-second local harness timeout both
 remain in the attempt ledger; neither was rewritten as a pass.
 
@@ -133,7 +133,15 @@ The ordered attempt ledger retains all material failures. In particular:
   and fixed by binding the exact single-line command and adding negative no-op
   and appended-success mutations. Its first boundary expression rejected the
   valid workflow's blank line (13/14); that RED is retained, and the corrected
-  expression passed 14/14 before the final 181/181 source run.
+  expression passed 14/14; and
+- the bounded follow-up review found that an inert PowerShell here-string in a
+  block-scalar step could still contain a decoy matching sequence. Main-agent
+  reproduction produced 12/13 RED. The validator now requires one unique
+  inline command at the exact YAML step/property indentation, the new decoy
+  negative passed, and targeted validation returned 14/14. The first full run
+  overlapped unrelated exact-lane checks and retained an inherited
+  broker-cancel `taskkill` race at 180/181; after zero owned-process readback,
+  the full suite ran alone and passed 181/181 at the final source commit.
 
 No failed or cancelled attempt was rewritten as a pass.
 

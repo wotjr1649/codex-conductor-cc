@@ -1,7 +1,7 @@
 {
   "schemaVersion": "p5-attempt-ledger-v1",
   "phase": "P5",
-  "sourceCommit": "a5676fecce0b5943325582b89abf756fe67b6484",
+  "sourceCommit": "b5d76d220bb19e11c36d833c0bb2595433bbc727",
   "automaticRetryPolicy": {
     "count": 0,
     "cancelledIsPassing": false,
@@ -618,7 +618,7 @@
       "timeout": false,
       "expected": "all inherited and hardened P5 tests pass serially at final source revision a567",
       "observed": "181 of 181 passed with zero failure, zero cancellation, and zero skip in 236404 milliseconds",
-      "disposition": "accepted-final-source"
+      "disposition": "accepted-before-block-scalar-decoy-fix"
     },
     {
       "ordinal": 52,
@@ -630,7 +630,7 @@
       "timeout": false,
       "expected": "current and previous exact Codex lanes pass both transports at final source revision a567",
       "observed": "four lifecycle runs passed with exact versions, executable digests, terminal states, and exit zero",
-      "disposition": "accepted-final-source"
+      "disposition": "accepted-before-block-scalar-decoy-fix"
     },
     {
       "ordinal": 53,
@@ -642,7 +642,7 @@
       "timeout": false,
       "expected": "minimum and current exact Claude binaries strictly validate both manifests at final source revision a567",
       "observed": "both versions validated marketplace and plugin manifests with updates disabled and no authentication or inference",
-      "disposition": "accepted-final-source-structural-only"
+      "disposition": "accepted-before-block-scalar-decoy-fix-structural-only"
     },
     {
       "ordinal": 54,
@@ -654,7 +654,7 @@
       "timeout": false,
       "expected": "all four exact admitted security tools exit zero at final source revision a567",
       "observed": "actionlint and zizmor reported no workflow finding, OSV found no issue in three packages, and gitleaks found no leak",
-      "disposition": "accepted-final-source"
+      "disposition": "accepted-before-block-scalar-decoy-fix"
     },
     {
       "ordinal": 55,
@@ -666,7 +666,7 @@
       "timeout": false,
       "expected": "exact Node identity, clean install, audit, deterministic generation, and TypeScript build pass at final source revision a567",
       "observed": "Node 24.18.1, npm 11.16.0, x64, archive and executable digests matched; three packages installed, four audited with zero vulnerability, generation stayed exact, and TypeScript compiled",
-      "disposition": "accepted-final-source"
+      "disposition": "accepted-before-block-scalar-decoy-fix"
     },
     {
       "ordinal": 56,
@@ -678,7 +678,7 @@
       "timeout": false,
       "expected": "all command-bound workflow, false-green, evidence, privacy, and Windows resource assertions pass against final evidence",
       "observed": "P5 evidence validation passed and 14 of 14 targeted tests passed with zero failure and zero skip",
-      "disposition": "accepted-final-source"
+      "disposition": "accepted-before-block-scalar-decoy-fix"
     },
     {
       "ordinal": 57,
@@ -690,6 +690,126 @@
       "timeout": false,
       "expected": "diff checks, P5 and P3 validators, scope controls, and protected-surface readback pass after final evidence binding",
       "observed": "both validators passed, diff checking was clean, and no P4-protected product, contract, lockfile, toolchain, or P3 policy surface changed",
+      "disposition": "accepted-before-block-scalar-decoy-fix"
+    },
+    {
+      "ordinal": 58,
+      "id": "p5-block-scalar-decoy-red-001",
+      "commandClass": "targeted-command-negative-mutation",
+      "executionStatus": "executed-fail",
+      "rawExitCode": 1,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "a block-scalar no-op cannot satisfy exact P4 command binding by embedding a decoy step sequence in inert PowerShell text",
+      "observed": "the new negative control failed under the prior validator: 12 of 13 P5 matrix tests passed and the decoy mutation returned no diagnostic",
+      "disposition": "accepted-review-red"
+    },
+    {
+      "ordinal": 59,
+      "id": "p5-block-scalar-decoy-green-001",
+      "commandClass": "targeted-command-negative-mutation",
+      "executionStatus": "executed-pass",
+      "rawExitCode": 0,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "the exact inline P4 step occurs once at structural workflow indentation and block-scalar decoys fail closed",
+      "observed": "14 of 14 targeted P5 tests passed after anchoring the unique step at exact job-step and property indentation",
+      "disposition": "accepted"
+    },
+    {
+      "ordinal": 60,
+      "id": "p5-full-regression-source-b5d-overlap-red-001",
+      "commandClass": "full-exact-node-regression",
+      "executionStatus": "executed-fail",
+      "rawExitCode": 1,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "all inherited and P5 tests pass serially while unrelated exact-lane checks run concurrently",
+      "observed": "180 of 181 passed; the inherited broker-cancel cleanup raced an already-exited child and taskkill returned 255",
+      "disposition": "retained-failure-then-reran-full-suite-alone-after-zero-owned-process-readback"
+    },
+    {
+      "ordinal": 61,
+      "id": "p5-full-regression-source-b5d-final-001",
+      "commandClass": "full-exact-node-regression",
+      "executionStatus": "executed-pass",
+      "rawExitCode": 0,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "all inherited and hardened P5 tests pass in one isolated serial invocation at final source revision b5d",
+      "observed": "181 of 181 passed with zero failure, zero cancellation, and zero skip in 249834 milliseconds",
+      "disposition": "accepted-final-source"
+    },
+    {
+      "ordinal": 62,
+      "id": "p5-core-source-b5d-final-001",
+      "commandClass": "codex-direct-broker-lifecycle",
+      "executionStatus": "executed-pass",
+      "rawExitCode": 0,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "current and previous exact Codex lanes pass both transports at final source revision b5d",
+      "observed": "four lifecycle runs passed with exact versions, executable digests, terminal states, and exit zero",
+      "disposition": "accepted-final-source"
+    },
+    {
+      "ordinal": 63,
+      "id": "p5-claude-structural-source-b5d-final-001",
+      "commandClass": "claude-structural-validation",
+      "executionStatus": "executed-pass",
+      "rawExitCode": 0,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "minimum and current exact Claude binaries strictly validate both manifests at final source revision b5d",
+      "observed": "both versions validated marketplace and plugin manifests with updates disabled and no authentication or inference",
+      "disposition": "accepted-final-source-structural-only"
+    },
+    {
+      "ordinal": 64,
+      "id": "p5-security-source-b5d-final-001",
+      "commandClass": "exact-local-security-suite",
+      "executionStatus": "executed-pass",
+      "rawExitCode": 0,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "all four exact admitted security tools and P3 validation exit zero at final source revision b5d",
+      "observed": "actionlint and zizmor reported no workflow finding, OSV found no issue in three packages, gitleaks found no leak, and P3 validation passed",
+      "disposition": "accepted-final-source"
+    },
+    {
+      "ordinal": 65,
+      "id": "p5-build-source-b5d-final-001",
+      "commandClass": "exact-install-and-build",
+      "executionStatus": "executed-pass",
+      "rawExitCode": 0,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "exact Node identity, clean install, audit, deterministic generation, and TypeScript build pass at final source revision b5d",
+      "observed": "Node 24.18.1, npm 11.16.0, x64, and executable digest matched; three packages installed, four audited with zero vulnerability, generation stayed exact, and TypeScript compiled",
+      "disposition": "accepted-final-source"
+    },
+    {
+      "ordinal": 66,
+      "id": "p5-targeted-source-b5d-final-001",
+      "commandClass": "targeted-p5-contract-test",
+      "executionStatus": "executed-pass",
+      "rawExitCode": 0,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "all structurally command-bound workflow, false-green, evidence, privacy, and Windows resource assertions pass against final evidence",
+      "observed": "P5 evidence validation passed and 14 of 14 targeted tests passed with zero failure and zero skip",
+      "disposition": "accepted-final-source"
+    },
+    {
+      "ordinal": 67,
+      "id": "p5-hygiene-source-b5d-final-001",
+      "commandClass": "source-evidence-hygiene",
+      "executionStatus": "executed-pass",
+      "rawExitCode": 0,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "diff checks, P5 and P3 validators, source/evidence scope, protected readback, and owned-process zero pass",
+      "observed": "both validators passed, post-source changes were exactly three evidence files, protected surfaces were unchanged, and run-owned process count was zero",
       "disposition": "accepted-final-source"
     }
   ],
@@ -826,6 +946,13 @@
       "disposition": "accepted-fixed",
       "summary": "the workflow validator accepted a no-op in place of the exact P4 targeted command when the test path string remained",
       "correction": "bind the current lane to the exact single-line node test command and reject command replacement, chaining, or appended success with negative mutation tests"
+    },
+    {
+      "id": "P5-REVIEW-020",
+      "severity": "P1",
+      "disposition": "accepted-fixed",
+      "summary": "a block-scalar no-op could satisfy the exact-command regex by embedding a decoy step sequence inside inert PowerShell text",
+      "correction": "require one unique inline command step at exact YAML job-step indentation and retain a block-scalar here-string negative mutation"
     }
   ],
   "privacy": {
