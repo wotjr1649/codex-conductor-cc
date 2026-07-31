@@ -52,6 +52,7 @@ const requiredFiles = [
   "evidence/ledgers/p5-attempts.json",
   "scripts/invoke-p4-validator-at-handoff.ps1",
   "scripts/run-p5-core-contract.mjs",
+  "scripts/run-p5-p4-generator.mjs",
   "scripts/write-p5-runner-evidence.ps1",
   "tests/p5-matrix-profile.test.mjs",
   "tests/p5-windows-resource.test.mjs",

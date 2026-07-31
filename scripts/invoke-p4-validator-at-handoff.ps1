@@ -52,24 +52,20 @@ try {
     $env:PATH = [IO.Path]::GetDirectoryName($codexPath) +
         [IO.Path]::PathSeparator +
         $priorPath
-    Push-Location -LiteralPath $destination
     try {
         $nodeVersion = (& node --version | Out-String).Trim()
         $npmVersion = (& npm --version | Out-String).Trim()
         if ($nodeVersion -ne 'v24.18.1' -or $npmVersion -ne '11.16.0') {
             throw 'P5E_P4_RUNTIME: exact Node 24.18.1 and npm 11.16.0 are required'
         }
-        & npm ci
-        if ($LASTEXITCODE -ne 0) {
-            throw 'P5E_P4_NPM_CI: exact clean dependency installation failed'
-        }
-        & node 'scripts\generate-app-server-types.mjs'
+        & node (Join-Path $repoRoot 'scripts\run-p5-p4-generator.mjs') `
+            --repo $destination `
+            --codex $codexPath
         if ($LASTEXITCODE -ne 0) {
             throw 'P5E_P4_GENERATED: exact generated tree reproduction failed'
         }
     }
     finally {
-        Pop-Location
         $env:PATH = $priorPath
     }
     & node (Join-Path $destination 'scripts\validate-p4.mjs')

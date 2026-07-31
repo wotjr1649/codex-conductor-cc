@@ -61,9 +61,9 @@ jobs:
             -ExecutionClass hosted `
             -StartedAt $env:P5_STARTED_AT `
             -OutputPath (Join-Path $env:RUNNER_TEMP 'p5-evidence/policy-validation.json') `
-            -RequirementIds @('P5-1','P5-2','P5-10','P5-12') `
+            -RequirementIds @('P5-1','P5-2','P5-10','P5-11','P5-12','X5','X8','X9') `
             -ScenarioId P5-POLICY-001 `
-            -FixtureIds @('P5-RED-001','P5-PRIVACY-001')
+            -FixtureIds @('P5-RED-001','P5-PRIVACY-001','P5-FALSE-GREEN-001')
 
   install-build:
     name: Install and build
@@ -131,7 +131,7 @@ jobs:
             -ExecutionClass hosted `
             -StartedAt $env:P5_STARTED_AT `
             -OutputPath (Join-Path $env:RUNNER_TEMP 'p5-evidence/install-build.json') `
-            -RequirementIds @('P5-1','P5-2','P5-3') `
+            -RequirementIds @('P5-1','P5-2','P5-3','X1','X8') `
             -ScenarioId P5-BUILD-001 `
             -FixtureIds @('P5-BUILD-EXACT-001') `
             -ToolName codex `
@@ -183,7 +183,7 @@ jobs:
             -ExecutionClass hosted `
             -StartedAt $env:P5_STARTED_AT `
             -OutputPath (Join-Path $env:RUNNER_TEMP 'p5-evidence/unit.json') `
-            -RequirementIds @('P5-3','P5-6') `
+            -RequirementIds @('P5-3','X2','X8','X9') `
             -ScenarioId P5-UNIT-001 `
             -FixtureIds @('P5-UNIT-PARTITION-001')
 
@@ -260,9 +260,9 @@ jobs:
             -ExecutionClass hosted `
             -StartedAt $env:P5_STARTED_AT `
             -OutputPath (Join-Path $env:RUNNER_TEMP "p5-evidence/core-$env:P5_MATRIX_LANE.json") `
-            -RequirementIds @('P5-3','P5-4','P5-6','P5-7') `
+            -RequirementIds @('P5-3','P5-4','X1','X2','X3','X5','X8') `
             -ScenarioId P5-CONTRACT-001 `
-            -FixtureIds @("P5-LIFECYCLE-$env:P5_MATRIX_LANE-001") `
+            -FixtureIds @('P4-TARGETED-GREEN-001','P5-LIFECYCLE-CURRENT-001','P5-LIFECYCLE-PREVIOUS-001') `
             -ToolName codex `
             -ExpectedToolVersion $env:P5_MATRIX_VERSION `
             -ExpectedToolSha256 $env:P5_MATRIX_SHA256 `
@@ -316,7 +316,7 @@ jobs:
             -ExecutionClass hosted `
             -StartedAt $env:P5_STARTED_AT `
             -OutputPath (Join-Path $env:RUNNER_TEMP 'p5-evidence/windows-integration.json') `
-            -RequirementIds @('P5-3','P5-7','P5-8') `
+            -RequirementIds @('P5-3','P5-7','P5-8','B5','C2','C4','C5','X8') `
             -ScenarioId P5-WINDOWS-001 `
             -FixtureIds @('P5-WINDOWS-SERIAL-001','P5-PROCESS-TREE-001','P5-OPEN-HANDLE-001') `
             -ResourceOracleStatus executed-pass
@@ -403,9 +403,9 @@ jobs:
             -ExecutionClass hosted `
             -StartedAt $env:P5_STARTED_AT `
             -OutputPath (Join-Path $env:RUNNER_TEMP "p5-evidence/claude-$env:P5_MATRIX_LANE.json") `
-            -RequirementIds @('P5-5','P5-6','P5-7') `
+            -RequirementIds @('P5-5','P5-6','P5-7','X5','X8','X9') `
             -ScenarioId P5-CLAUDE-001 `
-            -FixtureIds @("P5-CLAUDE-$env:P5_MATRIX_LANE-001") `
+            -FixtureIds @('P5-CLAUDE-MINIMUM-001','P5-CLAUDE-CURRENT-001') `
             -ToolName claude `
             -ExpectedToolVersion $env:P5_MATRIX_VERSION `
             -ExpectedToolSha256 $env:P5_MATRIX_SHA256 `

@@ -82,6 +82,48 @@ function Invoke-ExactVersion {
 
 $resolvedOutput = Get-NormalizedFullPath -LiteralPath $OutputPath
 $outputParent = Split-Path -Parent $resolvedOutput
+$repoRoot = Get-NormalizedFullPath -LiteralPath (Join-Path $PSScriptRoot '..')
+$profileRegistryPath = Join-Path $repoRoot 'ci\matrix-profiles-v1.json'
+$scenarioRegistryPath = Join-Path $repoRoot 'ci\scenario-registry-v1.json'
+$profileRegistry = Get-Content -Raw -LiteralPath $profileRegistryPath | ConvertFrom-Json
+$scenarioRegistry = Get-Content -Raw -LiteralPath $scenarioRegistryPath | ConvertFrom-Json
+$profileRecord = @($profileRegistry.profiles | Where-Object { $_.id -ceq $Profile })
+$scenarioRecord = @($scenarioRegistry.scenarios | Where-Object { $_.id -ceq $ScenarioId })
+if ($profileRecord.Count -ne 1 -or $scenarioRecord.Count -ne 1) {
+    throw 'P5E_EVIDENCE_REGISTRY: exact profile and scenario records are required'
+}
+$profileRecord = $profileRecord[0]
+$scenarioRecord = $scenarioRecord[0]
+if ($scenarioRecord.profileId -cne $Profile) {
+    throw 'P5E_EVIDENCE_PROFILE: scenario does not belong to the selected profile'
+}
+$expectedRequirementIds = @($scenarioRecord.requirementIds | Sort-Object -Unique)
+$providedRequirementIds = @($RequirementIds | Sort-Object -Unique)
+$expectedFixtureIds = @($scenarioRecord.fixtureIds | Sort-Object -Unique)
+$providedFixtureIds = @($FixtureIds | Sort-Object -Unique)
+if (
+    ($expectedRequirementIds -join "`n") -cne ($providedRequirementIds -join "`n") -or
+    ($expectedFixtureIds -join "`n") -cne ($providedFixtureIds -join "`n")
+) {
+    throw 'P5E_EVIDENCE_TRACE: requirement and fixture IDs must exactly match the scenario registry'
+}
+$oracleRegistryDigest = (
+    Get-FileHash -Algorithm SHA256 -LiteralPath $scenarioRegistryPath
+).Hash.ToLowerInvariant()
+$runtimeImplementedProperty = $profileRecord.PSObject.Properties['runtimeImplemented']
+$runtimeImplemented = if ($null -eq $runtimeImplementedProperty) {
+    $true
+}
+else {
+    [bool]$runtimeImplementedProperty.Value
+}
+$deferredPhaseProperty = $profileRecord.PSObject.Properties['deferredPhase']
+$deferredPhase = if ($null -eq $deferredPhaseProperty) {
+    $null
+}
+else {
+    $deferredPhaseProperty.Value
+}
 if ($ExecutionClass -eq 'hosted') {
     if ([string]::IsNullOrWhiteSpace($env:RUNNER_TEMP)) {
         throw 'P5E_RUNNER_TEMP: hosted evidence requires RUNNER_TEMP'
@@ -168,7 +210,6 @@ if ($null -eq $logicalDisk -or [string]::IsNullOrWhiteSpace($logicalDisk.FileSys
 
 $finishedAt = [datetimeoffset]::UtcNow
 $wallTimeMs = [math]::Max(0, [long]($finishedAt - $StartedAt).TotalMilliseconds)
-$repoRoot = Get-NormalizedFullPath -LiteralPath (Join-Path $PSScriptRoot '..')
 $sourceSha = if (-not [string]::IsNullOrWhiteSpace($env:GITHUB_SHA)) {
     $env:GITHUB_SHA
 }
@@ -216,9 +257,17 @@ $evidence = [ordered]@{
     schemaVersion = 'p5-runner-evidence-v1'
     profile = $Profile
     lane = $Lane
-    requirementIds = @($RequirementIds)
+    blocking = [bool]$profileRecord.blocking
+    requirementIds = @($scenarioRecord.requirementIds)
     scenarioId = $ScenarioId
-    fixtureIds = @($FixtureIds)
+    fixtureIds = @($scenarioRecord.fixtureIds)
+    oracle = [ordered]@{
+        registrySha256 = $oracleRegistryDigest
+        expected = $scenarioRecord.oracle
+        observedStatus = $ObservedStatus
+    }
+    runtimeEnforced = $runtimeImplemented
+    deferredPhase = $deferredPhase
     sourceSha = $sourceSha
     workflowSha = $workflowSha
     executionClass = $ExecutionClass
