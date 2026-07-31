@@ -1,0 +1,287 @@
+{
+  "schemaVersion": "p3-evidence-v1",
+  "evidenceId": "p3-threat-toolchain-20260731",
+  "phase": "P3",
+  "source": {
+    "p2Base": "7c65444eb5c1b372b369f71e1d496eafa7a1fc92",
+    "upstreamBase": "db52e28f4d9ded852ab3942cea316258ae4ef346",
+    "branch": "codex/p3-threat-toolchain-baseline"
+  },
+  "environment": {
+    "os": "windows",
+    "architecture": "x64",
+    "filesystem": "NTFS",
+    "privatePathsPersisted": false
+  },
+  "executionContext": {
+    "sourceCommit": "3a45a1a9dadeda40bf9753c6568728bd36b2708b",
+    "environmentClass": "local-windows-x64-ntfs-run-owned",
+    "defaultTrial": 1,
+    "deterministicRetryLimit": 0,
+    "outerTimeoutSeconds": 300
+  },
+  "toolchain": {
+    "manifest": "toolchain.json",
+    "schema": "evidence/schemas/toolchain-v1.schema.json",
+    "sha256": "a6033a05ebecd4ff5bca3a5924ff06e55a2e2de9b41541da2c050642102dbb5d",
+    "validationStatus": "executed-pass"
+  },
+  "localChecks": [
+    {
+      "id": "p3-targeted-green",
+      "toolId": "node",
+      "version": "24.18.1",
+      "status": "executed-pass",
+      "rawExitCode": 0,
+      "scope": "tests/p3-security-baseline.test.mjs",
+      "summary": "11 tests passed and 0 failed, including installer, exact secret allowlist, link, workflow, evidence, and privacy negative controls.",
+      "artifactSha256": null
+    },
+    {
+      "id": "p3-full-regression",
+      "toolId": "node",
+      "version": "24.18.1",
+      "status": "executed-pass",
+      "rawExitCode": 0,
+      "scope": "tests/*.test.mjs",
+      "summary": "The final hardening source passed 127 tests and 0 failed on its first serial trial; the ledger separately preserves a retry on an earlier source after a known Windows taskkill race.",
+      "artifactSha256": null
+    },
+    {
+      "id": "p3-build-regression",
+      "toolId": "codex-regression-only",
+      "version": "0.146.0",
+      "status": "executed-pass",
+      "rawExitCode": 0,
+      "scope": "npm run build",
+      "summary": "Schema generation retained digest e504c5f04a3157a41a481bfc20cc77b8af58e4c750dcb47ad4453899779d4834 and TypeScript compilation passed.",
+      "artifactSha256": null
+    },
+    {
+      "id": "p3-exact-acquisition",
+      "toolId": "install-p3-tool",
+      "version": "p3-v1",
+      "status": "executed-pass",
+      "rawExitCode": 0,
+      "scope": "all nine independently installable toolchain entries",
+      "summary": "Fresh run-owned acquisition verified archive, executable, reparse ancestry, and applicable exact Authenticode identity.",
+      "artifactSha256": null
+    },
+    {
+      "id": "p3-claude-minimum-strict",
+      "toolId": "claude-minimum",
+      "version": "2.1.196",
+      "status": "executed-pass",
+      "rawExitCode": 0,
+      "scope": "marketplace root and plugins/codex",
+      "summary": "Strict validation passed 2 of 2 targets.",
+      "artifactSha256": null
+    },
+    {
+      "id": "p3-claude-current-strict",
+      "toolId": "claude-current",
+      "version": "2.1.220",
+      "status": "executed-pass",
+      "rawExitCode": 0,
+      "scope": "marketplace root and plugins/codex",
+      "summary": "Strict validation passed 2 of 2 targets.",
+      "artifactSha256": null
+    },
+    {
+      "id": "p3-local-document-links",
+      "toolId": "node",
+      "version": "24.18.1",
+      "status": "executed-pass",
+      "rawExitCode": 0,
+      "scope": "P3 security Markdown",
+      "summary": "Repository-confined links passed and rooted/out-of-repository negative fixtures were rejected.",
+      "artifactSha256": null
+    },
+    {
+      "id": "p3-seeded-secret-controls",
+      "toolId": "node",
+      "version": "24.18.1",
+      "status": "executed-pass",
+      "rawExitCode": 0,
+      "scope": "synthetic evidence fixture",
+      "summary": "The same validator rejected raw input and accepted redacted output while preserving the safe canary.",
+      "artifactSha256": null
+    },
+    {
+      "id": "p3-workflow-lint",
+      "toolId": "actionlint",
+      "version": "1.7.12",
+      "status": "executed-pass",
+      "rawExitCode": 0,
+      "scope": ".github/workflows/pull-request-ci.yml",
+      "summary": "No workflow syntax or semantic findings.",
+      "artifactSha256": null
+    },
+    {
+      "id": "p3-workflow-security",
+      "toolId": "zizmor",
+      "version": "1.28.0",
+      "status": "executed-pass",
+      "rawExitCode": 0,
+      "scope": ".github/workflows",
+      "summary": "Offline pedantic audit reported no findings.",
+      "artifactSha256": null
+    },
+    {
+      "id": "p3-lockfile-vulnerability-scan",
+      "toolId": "osv-scanner",
+      "version": "2.4.0",
+      "status": "executed-pass",
+      "rawExitCode": 0,
+      "scope": "package-lock.json",
+      "summary": "Three locked packages were scanned and no issues were found.",
+      "artifactSha256": null
+    },
+    {
+      "id": "p3-secret-scan",
+      "toolId": "gitleaks",
+      "version": "8.30.1",
+      "status": "executed-pass",
+      "rawExitCode": 0,
+      "scope": "repository working tree",
+      "summary": "No leaks were found.",
+      "artifactSha256": null
+    },
+    {
+      "id": "p3-sbom-spike",
+      "toolId": "syft",
+      "version": "1.50.0",
+      "status": "executed-pass",
+      "rawExitCode": 0,
+      "scope": "repository directory snapshot",
+      "summary": "Ephemeral SPDX 2.3 JSON contained five packages, two files, and no private user path marker.",
+      "artifactSha256": "269aa7f5ad9a471f75fd078492d2918cb0d1deae90aaadebbec4bb036c609dc5"
+    },
+    {
+      "id": "p3-dependency-review-remote",
+      "toolId": "actions/dependency-review-action",
+      "version": "5.0.0",
+      "status": "not-run",
+      "rawExitCode": null,
+      "scope": "pull-request dependency diff",
+      "summary": "Pinned static policy only; no remote pull-request execution was performed.",
+      "artifactSha256": null
+    },
+    {
+      "id": "p3-external-link-check",
+      "toolId": "external-link-check",
+      "version": "not-selected",
+      "status": "not-run",
+      "rawExitCode": null,
+      "scope": "external HTTP links",
+      "summary": "External network link health is separated from the blocking local-link gate and was not executed.",
+      "artifactSha256": null
+    }
+  ],
+  "requirementResults": [
+    {
+      "requirementId": "X3",
+      "status": "specified",
+      "proofKind": "policy",
+      "runtimeEnforcement": "not-observed",
+      "deferredPhase": "P4",
+      "evidence": ["SEC-APPROVAL-002"]
+    },
+    {
+      "requirementId": "X4",
+      "status": "specified",
+      "proofKind": "policy",
+      "runtimeEnforcement": "not-observed",
+      "deferredPhase": "v0.2",
+      "evidence": ["SEC-BOUNDARY-001"]
+    },
+    {
+      "requirementId": "X7",
+      "status": "specified",
+      "proofKind": "policy",
+      "runtimeEnforcement": "not-applicable",
+      "deferredPhase": "P6",
+      "evidence": ["SEC-RELEASE-001"]
+    },
+    {
+      "requirementId": "X8",
+      "status": "static-pass",
+      "proofKind": "validator-fixture",
+      "runtimeEnforcement": "not-applicable",
+      "deferredPhase": null,
+      "evidence": [
+        "p3-final-source-bound-full-suite-001",
+        "evidence/ledgers/p3-attempts.json"
+      ]
+    },
+    {
+      "requirementId": "X9",
+      "status": "specified",
+      "proofKind": "validator-fixture",
+      "runtimeEnforcement": "not-observed",
+      "deferredPhase": "P4",
+      "evidence": ["SEC-LOG-001"]
+    },
+    {
+      "requirementId": "X12",
+      "status": "not-run",
+      "proofKind": "attestation-verification",
+      "runtimeEnforcement": "not-applicable",
+      "deferredPhase": "P6",
+      "evidence": ["attestation-none"]
+    },
+    {
+      "requirementId": "X14",
+      "status": "specified",
+      "proofKind": "policy",
+      "runtimeEnforcement": "not-observed",
+      "deferredPhase": "v0.2",
+      "evidence": ["SEC-BOUNDARY-001", "SEC-EXE-001"]
+    },
+    {
+      "requirementId": "X15",
+      "status": "specified",
+      "proofKind": "validator-fixture",
+      "runtimeEnforcement": "not-observed",
+      "deferredPhase": "v0.2",
+      "evidence": ["SEC-EXE-001"]
+    },
+    {
+      "requirementId": "X17",
+      "status": "not-run",
+      "proofKind": "remote-readback",
+      "runtimeEnforcement": "not-applicable",
+      "deferredPhase": "P6",
+      "evidence": ["public-artifact-none"]
+    }
+  ],
+  "remoteExecution": "not-run",
+  "attestation": {
+    "status": "not-run",
+    "claim": "none"
+  },
+  "sbom": {
+    "scope": "spike-only",
+    "status": "executed-pass",
+    "format": "SPDX-2.3-JSON",
+    "releaseInput": false,
+    "artifactSha256": "269aa7f5ad9a471f75fd078492d2918cb0d1deae90aaadebbec4bb036c609dc5",
+    "artifactRetained": false
+  },
+  "privacy": {
+    "validator": "scripts/lib/p3-validation.mjs",
+    "seedFixtureId": "p3-redaction-negative-control-v1",
+    "seedSha256": "7ac148d121f6e3f01bdfe943a9b3f97c13aec49a28bd23c0311e85d057199bed",
+    "trial": 1,
+    "retryCount": 0,
+    "seededSecretCount": 1,
+    "privatePathCount": 1,
+    "promptCount": 1,
+    "seededNegativeStatus": "executed-pass",
+    "redactedPositiveStatus": "executed-pass",
+    "privatePathsPersisted": false,
+    "rawPromptsPersisted": false,
+    "secretsPersisted": false
+  },
+  "attemptLedger": "evidence/ledgers/p3-attempts.json"
+}
