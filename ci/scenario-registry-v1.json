@@ -1,0 +1,379 @@
+{
+  "schemaVersion": "p5-scenario-registry-v1",
+  "sourceCommit": "84515289913dfe8a7452754ad442d37873bdfd53",
+  "requirements": [
+    {
+      "id": "P5-1",
+      "summary": "exact Windows x64 and Node 24 profile policy"
+    },
+    {
+      "id": "P5-2",
+      "summary": "dependency-free policy validation before installation"
+    },
+    {
+      "id": "P5-3",
+      "summary": "install, build, unit, contract, and Windows integration partition"
+    },
+    {
+      "id": "P5-4",
+      "summary": "P4 current and previous Codex blocking lifecycle"
+    },
+    {
+      "id": "P5-5",
+      "summary": "minimum and current Claude structural lifecycle"
+    },
+    {
+      "id": "P5-6",
+      "summary": "bounded timeout, non-fail-fast matrix, and explicit parallelism"
+    },
+    {
+      "id": "P5-7",
+      "summary": "sanitized runner and exact tool evidence"
+    },
+    {
+      "id": "P5-8",
+      "summary": "run-owned open-handle and orphan process postcondition"
+    },
+    {
+      "id": "P5-9",
+      "summary": "non-blocking exact next canary"
+    },
+    {
+      "id": "P5-10",
+      "summary": "secret-safe and private-path-safe evidence"
+    },
+    {
+      "id": "P5-11",
+      "summary": "state-d1 and Windows 11 C0 false-green prevention"
+    },
+    {
+      "id": "P5-12",
+      "summary": "local, hosted, not-run, canary, and blocked truth separation"
+    }
+  ],
+  "inheritedTests": [
+    {
+      "path": "tests/broker-endpoint.test.mjs",
+      "declaredCount": 2,
+      "sha256": "4dfdeab37209a73539ce1685a5f706a61e528256b5957d919457f715abc7fba8",
+      "profileId": "windows-integration"
+    },
+    {
+      "path": "tests/bump-version.test.mjs",
+      "declaredCount": 2,
+      "sha256": "81bc881a793eb655cf0297924c0e3582470ed1f9e743c0d015afc4fad5f8c78d",
+      "profileId": "unit"
+    },
+    {
+      "path": "tests/commands.test.mjs",
+      "declaredCount": 8,
+      "sha256": "72022c85b03224a31e5da8a9424f98acdf5b651de2937f3da6a349ffed3675b9",
+      "profileId": "unit"
+    },
+    {
+      "path": "tests/downstream-identity.test.mjs",
+      "declaredCount": 3,
+      "sha256": "f625d30b9e7eccf8a869a1071a22c874f52860fb15561612c13c93c4fb0ad9c1",
+      "profileId": "unit"
+    },
+    {
+      "path": "tests/generate-app-server-types.test.mjs",
+      "declaredCount": 20,
+      "sha256": "27fee8e9d84d9082279c8e2de32b6f87a8562aa00a64be84ed6a665fc6eace3b",
+      "profileId": "windows-integration"
+    },
+    {
+      "path": "tests/git.test.mjs",
+      "declaredCount": 10,
+      "sha256": "f0fcec3e64d6c57d75a6bef945b5c2d5ec56079c7a14ad48178bd41db7f469b3",
+      "profileId": "unit"
+    },
+    {
+      "path": "tests/p3-security-baseline.test.mjs",
+      "declaredCount": 11,
+      "sha256": "5992690126965f1e93438d0eb99f47402966d0f7a82a69d1ecd2152abf233ba1",
+      "profileId": "policy-validation"
+    },
+    {
+      "path": "tests/p4-contract-baseline.test.mjs",
+      "declaredCount": 40,
+      "sha256": "6fd6001f5e04e0c1b8f3243dc7ae56566698d84465b32646125c31178691fdd5",
+      "profileId": "core-contract"
+    },
+    {
+      "path": "tests/platform-policy.test.mjs",
+      "declaredCount": 2,
+      "sha256": "bf0382f93235bab0a2891d0d884ae8739ed6612a8c668103fef4b107bfea0bf5",
+      "profileId": "unit"
+    },
+    {
+      "path": "tests/process.test.mjs",
+      "declaredCount": 3,
+      "sha256": "75d8a55c4451627bab36436deb24154bb75563167ff5e2da0ccae0fec451f158",
+      "profileId": "windows-integration"
+    },
+    {
+      "path": "tests/render.test.mjs",
+      "declaredCount": 2,
+      "sha256": "914f1264f694c63a540cf47b8c6eaae29165a264c8fc2730bde2bdc6eae9fb07",
+      "profileId": "unit"
+    },
+    {
+      "path": "tests/runtime.test.mjs",
+      "declaredCount": 61,
+      "sha256": "e0443d4981f662320113c008dbe52295e221ab6a40f05d72f2199280aad6aacb",
+      "profileId": "windows-integration"
+    },
+    {
+      "path": "tests/state.test.mjs",
+      "declaredCount": 3,
+      "sha256": "66fbbfdb02d538bf02e236fbcff93d052bae37014a0d3f10610804257e3453a9",
+      "profileId": "unit"
+    }
+  ],
+  "inheritedTestTotals": {
+    "files": 13,
+    "executedTests": 167,
+    "skippedTests": 0,
+    "fileMappingDuplicates": 0,
+    "fileMappingOmissions": 0
+  },
+  "scenarios": [
+    {
+      "id": "P5-POLICY-001",
+      "profileId": "policy-validation",
+      "requirementIds": [
+        "P5-1",
+        "P5-2",
+        "P5-10",
+        "P5-11",
+        "P5-12",
+        "X5",
+        "X8",
+        "X9"
+      ],
+      "fixtureIds": [
+        "P5-RED-001",
+        "P5-PRIVACY-001",
+        "P5-FALSE-GREEN-001"
+      ],
+      "blocking": true,
+      "testFiles": [
+        "tests/p3-security-baseline.test.mjs",
+        "tests/p5-matrix-profile.test.mjs"
+      ],
+      "oracle": "all dependency-free validators and policy tests exit zero before npm ci"
+    },
+    {
+      "id": "P5-BUILD-001",
+      "profileId": "install-build",
+      "requirementIds": [
+        "P5-1",
+        "P5-2",
+        "P5-3",
+        "X1",
+        "X8"
+      ],
+      "fixtureIds": [
+        "P5-BUILD-EXACT-001"
+      ],
+      "blocking": true,
+      "testFiles": [],
+      "oracle": "exact npm ci, exact build Codex, unchanged lock and generated schema digest, successful TypeScript build"
+    },
+    {
+      "id": "P5-UNIT-001",
+      "profileId": "unit",
+      "requirementIds": [
+        "P5-3",
+        "X2",
+        "X8",
+        "X9"
+      ],
+      "fixtureIds": [
+        "P5-UNIT-PARTITION-001"
+      ],
+      "blocking": true,
+      "testFiles": [
+        "tests/bump-version.test.mjs",
+        "tests/commands.test.mjs",
+        "tests/downstream-identity.test.mjs",
+        "tests/git.test.mjs",
+        "tests/platform-policy.test.mjs",
+        "tests/render.test.mjs",
+        "tests/state.test.mjs"
+      ],
+      "oracle": "all mapped unit files run serially with no file omission or name-pattern skip"
+    },
+    {
+      "id": "P5-CONTRACT-001",
+      "profileId": "core-contract",
+      "requirementIds": [
+        "P5-3",
+        "P5-4",
+        "X1",
+        "X2",
+        "X3",
+        "X5",
+        "X8"
+      ],
+      "fixtureIds": [
+        "P4-TARGETED-GREEN-001",
+        "P5-LIFECYCLE-CURRENT-001",
+        "P5-LIFECYCLE-PREVIOUS-001"
+      ],
+      "blocking": true,
+      "testFiles": [
+        "tests/p4-contract-baseline.test.mjs"
+      ],
+      "oracle": "P4 targeted contract runs once and both exact Codex lanes pass direct then broker lifecycle with exit, version, digest, completion, and interruption readback"
+    },
+    {
+      "id": "P5-WINDOWS-001",
+      "profileId": "windows-integration",
+      "requirementIds": [
+        "P5-3",
+        "P5-7",
+        "P5-8",
+        "B5",
+        "C2",
+        "C4",
+        "C5",
+        "X8"
+      ],
+      "fixtureIds": [
+        "P5-WINDOWS-SERIAL-001",
+        "P5-PROCESS-TREE-001",
+        "P5-OPEN-HANDLE-001"
+      ],
+      "blocking": true,
+      "testFiles": [
+        "tests/broker-endpoint.test.mjs",
+        "tests/generate-app-server-types.test.mjs",
+        "tests/process.test.mjs",
+        "tests/runtime.test.mjs",
+        "tests/p5-windows-resource.test.mjs"
+      ],
+      "oracle": "mapped Windows files run serially and the exact run-owned process tree and retained file handle are absent after bounded taskkill cleanup"
+    },
+    {
+      "id": "P5-CLAUDE-001",
+      "profileId": "claude-lifecycle",
+      "requirementIds": [
+        "P5-5",
+        "P5-6",
+        "P5-7",
+        "X5",
+        "X8",
+        "X9"
+      ],
+      "fixtureIds": [
+        "P5-CLAUDE-MINIMUM-001",
+        "P5-CLAUDE-CURRENT-001"
+      ],
+      "blocking": true,
+      "testFiles": [],
+      "oracle": "both exact binaries use isolated config with updates disabled and pass strict unauthenticated marketplace-root and plugin validation"
+    },
+    {
+      "id": "P5-SECURITY-001",
+      "profileId": "security",
+      "requirementIds": [
+        "P5-10",
+        "X7",
+        "X9",
+        "X15"
+      ],
+      "fixtureIds": [
+        "P5-ACTIONLINT-001",
+        "P5-ZIZMOR-001",
+        "P5-OSV-001",
+        "P5-GITLEAKS-001"
+      ],
+      "blocking": true,
+      "testFiles": [],
+      "oracle": "exact admitted security tools report no workflow, lockfile, or secret finding"
+    },
+    {
+      "id": "P5-RUNNER-001",
+      "profileId": "windows-integration",
+      "requirementIds": [
+        "P5-7",
+        "P5-10",
+        "P5-12"
+      ],
+      "fixtureIds": [
+        "P5-RUNNER-METADATA-001"
+      ],
+      "blocking": true,
+      "testFiles": [],
+      "oracle": "allowlisted metadata includes exact image, OS build, x64, filesystem, Node/npm, source/workflow SHA, timing, retry, and redaction state without a private path or raw environment"
+    },
+    {
+      "id": "P5-CANARY-001",
+      "profileId": "next-canary",
+      "requirementIds": [
+        "P5-6",
+        "P5-9",
+        "P5-12"
+      ],
+      "fixtureIds": [
+        "P5-CODEX-NEXT-001"
+      ],
+      "blocking": false,
+      "testFiles": [],
+      "oracle": "only the exact prerelease digest is observed and its result cannot satisfy or block a supported profile"
+    },
+    {
+      "id": "P5-C0-001",
+      "profileId": "windows-c0",
+      "requirementIds": [
+        "P5-11",
+        "P5-12",
+        "C5"
+      ],
+      "fixtureIds": [
+        "P5-C0-FALSE-GREEN-001",
+        "P5-C0-TARGET-CLASS-001"
+      ],
+      "blocking": false,
+      "testFiles": [],
+      "oracle": "pass is forbidden without shipping native runtime bytes and actual disposable Windows 11 x64 evidence",
+      "expectedStatus": "blocked-with-evidence",
+      "deferredPhase": "v0.2"
+    },
+    {
+      "id": "P5-D1-001",
+      "profileId": "state-d1",
+      "requirementIds": [
+        "P5-11",
+        "P5-12",
+        "X13"
+      ],
+      "fixtureIds": [
+        "P5-D1-FALSE-GREEN-001"
+      ],
+      "blocking": false,
+      "testFiles": [],
+      "oracle": "pass is forbidden without a shipping SQLite binding, profile, DDL, migration, and state runtime",
+      "expectedStatus": "blocked-with-evidence",
+      "deferredPhase": "v0.2"
+    },
+    {
+      "id": "P5-CLAUDE-AUTH-001",
+      "profileId": "claude-lifecycle",
+      "requirementIds": [
+        "P5-5",
+        "P5-10",
+        "P5-12"
+      ],
+      "fixtureIds": [
+        "P5-CLAUDE-AUTH-NOT-RUN-001"
+      ],
+      "blocking": false,
+      "testFiles": [],
+      "oracle": "authenticated inference remains not-run without explicit secret and cost authorization",
+      "expectedStatus": "not-run"
+    }
+  ]
+}

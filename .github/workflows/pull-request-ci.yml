@@ -7,15 +7,144 @@ permissions:
   contents: read
 
 concurrency:
-  group: p3-pr-${{ github.event.pull_request.number }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  ci:
-    name: Windows x64 / Node 24.18.1
+  policy-validation:
+    name: Policy validation
     runs-on: windows-2025
-    timeout-minutes: 20
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
 
+      - name: Set up Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version: 24.18.1
+          architecture: x64
+          check-latest: false
+          package-manager-cache: false
+
+      - name: Start profile evidence clock
+        shell: pwsh
+        run: Add-Content -LiteralPath $env:GITHUB_ENV -Value "P5_STARTED_AT=$([DateTimeOffset]::UtcNow.ToString('o'))"
+
+      - name: Validate P3 baseline
+        run: node scripts/validate-p3.mjs
+
+      - name: Validate exact P4 handoff
+        shell: pwsh
+        run: |
+          ./scripts/invoke-p4-validator-at-handoff.ps1 `
+            -DestinationRoot (Join-Path $env:RUNNER_TEMP 'p5-p4-policy')
+
+      - name: Validate P5 profiles
+        run: node scripts/validate-p5.mjs
+
+      - name: Run policy tests
+        run: >-
+          node --test --test-concurrency=1
+          tests/p3-security-baseline.test.mjs
+          tests/p5-matrix-profile.test.mjs
+
+      - name: Write sanitized runner evidence
+        shell: pwsh
+        run: |
+          ./scripts/write-p5-runner-evidence.ps1 `
+            -Profile policy-validation `
+            -Lane default `
+            -ExecutionClass hosted `
+            -StartedAt $env:P5_STARTED_AT `
+            -OutputPath (Join-Path $env:RUNNER_TEMP 'p5-evidence/policy-validation.json') `
+            -RequirementIds @('P5-1','P5-2','P5-10','P5-12') `
+            -ScenarioId P5-POLICY-001 `
+            -FixtureIds @('P5-RED-001','P5-PRIVACY-001')
+
+  install-build:
+    name: Install and build
+    needs: policy-validation
+    runs-on: windows-2025
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version: 24.18.1
+          architecture: x64
+          check-latest: false
+          package-manager-cache: false
+
+      - name: Start profile evidence clock
+        shell: pwsh
+        run: Add-Content -LiteralPath $env:GITHUB_ENV -Value "P5_STARTED_AT=$([DateTimeOffset]::UtcNow.ToString('o'))"
+
+      - name: Validate P3 baseline before install
+        run: node scripts/validate-p3.mjs
+
+      - name: Validate exact P4 handoff before install
+        shell: pwsh
+        run: |
+          ./scripts/invoke-p4-validator-at-handoff.ps1 `
+            -DestinationRoot (Join-Path $env:RUNNER_TEMP 'p5-p4-build')
+
+      - name: Validate P5 profiles before install
+        run: node scripts/validate-p5.mjs
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify lockfile remained exact
+        run: git diff --exit-code -- package-lock.json
+
+      - name: Acquire exact build Codex
+        shell: pwsh
+        run: |
+          $codexPath = ./scripts/install-p3-tool.ps1 `
+            -ToolId codex-regression-only `
+            -DestinationRoot (Join-Path $env:RUNNER_TEMP 'p5-build-tools')
+          Add-Content -LiteralPath $env:GITHUB_ENV -Value "P5_CODEX_PATH=$codexPath"
+          Add-Content -LiteralPath $env:GITHUB_PATH -Value ([IO.Path]::GetDirectoryName($codexPath))
+
+      - name: Build with exact Codex
+        run: npm run build
+
+      - name: Verify generated tree remained exact
+        run: git diff --exit-code -- plugins/codex/.generated
+
+      - name: Write sanitized runner evidence
+        shell: pwsh
+        run: |
+          ./scripts/write-p5-runner-evidence.ps1 `
+            -Profile install-build `
+            -Lane build `
+            -ExecutionClass hosted `
+            -StartedAt $env:P5_STARTED_AT `
+            -OutputPath (Join-Path $env:RUNNER_TEMP 'p5-evidence/install-build.json') `
+            -RequirementIds @('P5-1','P5-2','P5-3') `
+            -ScenarioId P5-BUILD-001 `
+            -FixtureIds @('P5-BUILD-EXACT-001') `
+            -ToolName codex `
+            -ExpectedToolVersion 0.146.0 `
+            -ExpectedToolSha256 bc343ba420dc2e2e9f59e6fc5e5bf0aae1cd8c771fc319665241fc9c0271fddb `
+            -ExpectedSignerOrganization 'OpenAI OpCo, LLC' `
+            -ToolPath $env:P5_CODEX_PATH
+
+  unit:
+    name: Unit tests
+    needs: policy-validation
+    runs-on: windows-2025
+    timeout-minutes: 30
     steps:
       - name: Check out repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -27,26 +156,284 @@ jobs:
         with:
           node-version: 24.18.1
           architecture: x64
+          check-latest: false
+          package-manager-cache: false
 
-      - name: Validate P3 baseline
-        run: node scripts/validate-p3.mjs
+      - name: Start profile evidence clock
+        shell: pwsh
+        run: Add-Content -LiteralPath $env:GITHUB_ENV -Value "P5_STARTED_AT=$([DateTimeOffset]::UtcNow.ToString('o'))"
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Run unit partition
+        run: >-
+          node --test --test-concurrency=1
+          tests/bump-version.test.mjs
+          tests/commands.test.mjs
+          tests/downstream-identity.test.mjs
+          tests/git.test.mjs
+          tests/platform-policy.test.mjs
+          tests/render.test.mjs
+          tests/state.test.mjs
 
-      - name: Acquire exact Codex regression binary
+      - name: Write sanitized runner evidence
         shell: pwsh
         run: |
-          $codexPath = ./scripts/install-p3-tool.ps1 `
-            -ToolId codex-regression-only `
-            -DestinationRoot (Join-Path $env:RUNNER_TEMP 'p3-tools')
-          Add-Content -LiteralPath $env:GITHUB_PATH -Value (Split-Path -Parent $codexPath)
+          ./scripts/write-p5-runner-evidence.ps1 `
+            -Profile unit `
+            -Lane default `
+            -ExecutionClass hosted `
+            -StartedAt $env:P5_STARTED_AT `
+            -OutputPath (Join-Path $env:RUNNER_TEMP 'p5-evidence/unit.json') `
+            -RequirementIds @('P5-3','P5-6') `
+            -ScenarioId P5-UNIT-001 `
+            -FixtureIds @('P5-UNIT-PARTITION-001')
 
-      - name: Run test suite
-        run: npm test
+  core-contract:
+    name: Core contract / ${{ matrix.lane }}
+    needs: policy-validation
+    runs-on: windows-2025
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        include:
+          - lane: current
+            version: 0.146.0
+            sha256: bc343ba420dc2e2e9f59e6fc5e5bf0aae1cd8c771fc319665241fc9c0271fddb
+            run_contract: true
+          - lane: previous
+            version: 0.145.0
+            sha256: 83751f15cb6a0a7b97df67752c001e3fe1c20e18ffbfec3ff63567296205eb6c
+            run_contract: false
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
-      - name: Run build
-        run: npm run build
+      - name: Set up Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version: 24.18.1
+          architecture: x64
+          check-latest: false
+          package-manager-cache: false
+
+      - name: Start profile evidence clock
+        shell: pwsh
+        run: Add-Content -LiteralPath $env:GITHUB_ENV -Value "P5_STARTED_AT=$([DateTimeOffset]::UtcNow.ToString('o'))"
+
+      - name: Acquire exact Codex lane
+        shell: pwsh
+        env:
+          P5_MATRIX_LANE: ${{ matrix.lane }}
+        run: |
+          $codexPath = ./scripts/install-p4-codex.ps1 `
+            -Lane $env:P5_MATRIX_LANE `
+            -DestinationRoot (Join-Path $env:RUNNER_TEMP 'p5-contract-tools')
+          Add-Content -LiteralPath $env:GITHUB_ENV -Value "P5_CODEX_PATH=$codexPath"
+
+      - name: Run P4 targeted contract once
+        if: ${{ matrix.run_contract }}
+        run: node --test --test-concurrency=1 tests/p4-contract-baseline.test.mjs
+
+      - name: Run direct and broker lifecycle
+        env:
+          P5_MATRIX_LANE: ${{ matrix.lane }}
+          P5_TEMP_ROOT: ${{ runner.temp }}
+        run: >-
+          node scripts/run-p5-core-contract.mjs
+          --lane "$env:P5_MATRIX_LANE"
+          --codex "$env:P5_CODEX_PATH"
+          --root "$env:P5_TEMP_ROOT/p5-lifecycle-$env:P5_MATRIX_LANE"
+
+      - name: Write sanitized runner evidence
+        shell: pwsh
+        env:
+          P5_MATRIX_LANE: ${{ matrix.lane }}
+          P5_MATRIX_VERSION: ${{ matrix.version }}
+          P5_MATRIX_SHA256: ${{ matrix.sha256 }}
+        run: |
+          ./scripts/write-p5-runner-evidence.ps1 `
+            -Profile core-contract `
+            -Lane $env:P5_MATRIX_LANE `
+            -ExecutionClass hosted `
+            -StartedAt $env:P5_STARTED_AT `
+            -OutputPath (Join-Path $env:RUNNER_TEMP "p5-evidence/core-$env:P5_MATRIX_LANE.json") `
+            -RequirementIds @('P5-3','P5-4','P5-6','P5-7') `
+            -ScenarioId P5-CONTRACT-001 `
+            -FixtureIds @("P5-LIFECYCLE-$env:P5_MATRIX_LANE-001") `
+            -ToolName codex `
+            -ExpectedToolVersion $env:P5_MATRIX_VERSION `
+            -ExpectedToolSha256 $env:P5_MATRIX_SHA256 `
+            -ExpectedSignerOrganization 'OpenAI OpCo, LLC' `
+            -ToolPath $env:P5_CODEX_PATH
+
+  windows-integration:
+    name: Windows integration
+    needs: policy-validation
+    runs-on: windows-2025
+    timeout-minutes: 45
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version: 24.18.1
+          architecture: x64
+          check-latest: false
+          package-manager-cache: false
+
+      - name: Isolate Windows run root
+        shell: pwsh
+        run: |
+          $runRoot = Join-Path $env:RUNNER_TEMP 'p5-windows-integration'
+          New-Item -ItemType Directory -Path $runRoot | Out-Null
+          Add-Content -LiteralPath $env:GITHUB_ENV -Value "P5_STARTED_AT=$([DateTimeOffset]::UtcNow.ToString('o'))"
+          Add-Content -LiteralPath $env:GITHUB_ENV -Value "TEMP=$runRoot"
+          Add-Content -LiteralPath $env:GITHUB_ENV -Value "TMP=$runRoot"
+          Add-Content -LiteralPath $env:GITHUB_ENV -Value "CLAUDE_PLUGIN_DATA=$runRoot"
+
+      - name: Run Windows integration partition and resource oracle
+        run: >-
+          node --test --test-concurrency=1
+          tests/broker-endpoint.test.mjs
+          tests/generate-app-server-types.test.mjs
+          tests/process.test.mjs
+          tests/runtime.test.mjs
+          tests/p5-windows-resource.test.mjs
+
+      - name: Write sanitized runner and resource evidence
+        shell: pwsh
+        run: |
+          ./scripts/write-p5-runner-evidence.ps1 `
+            -Profile windows-integration `
+            -Lane default `
+            -ExecutionClass hosted `
+            -StartedAt $env:P5_STARTED_AT `
+            -OutputPath (Join-Path $env:RUNNER_TEMP 'p5-evidence/windows-integration.json') `
+            -RequirementIds @('P5-3','P5-7','P5-8') `
+            -ScenarioId P5-WINDOWS-001 `
+            -FixtureIds @('P5-WINDOWS-SERIAL-001','P5-PROCESS-TREE-001','P5-OPEN-HANDLE-001') `
+            -ResourceOracleStatus executed-pass
+
+  claude-lifecycle:
+    name: Claude structural lifecycle / ${{ matrix.lane }}
+    needs: policy-validation
+    runs-on: windows-2025
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        include:
+          - lane: minimum
+            tool_id: claude-minimum
+            version: 2.1.196
+            sha256: 180d7b279455e8b89d4353a5146447be2f80b80fb0db14bdc6dd9cb98c0aef09
+          - lane: current
+            tool_id: claude-current
+            version: 2.1.220
+            sha256: af5bf1f1b2aadffc768eccd787084c6fdf9ba81624cbe96c1c6d9ac1a1550231
+    env:
+      DISABLE_UPDATES: "1"
+      DISABLE_AUTOUPDATER: "1"
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version: 24.18.1
+          architecture: x64
+          check-latest: false
+          package-manager-cache: false
+
+      - name: Isolate Claude configuration
+        shell: pwsh
+        env:
+          P5_MATRIX_LANE: ${{ matrix.lane }}
+        run: |
+          $configRoot = Join-Path $env:RUNNER_TEMP "p5-claude-$env:P5_MATRIX_LANE"
+          New-Item -ItemType Directory -Path $configRoot | Out-Null
+          Add-Content -LiteralPath $env:GITHUB_ENV -Value "P5_STARTED_AT=$([DateTimeOffset]::UtcNow.ToString('o'))"
+          Add-Content -LiteralPath $env:GITHUB_ENV -Value "CLAUDE_CONFIG_DIR=$configRoot"
+
+      - name: Acquire exact Claude lane
+        shell: pwsh
+        env:
+          P5_MATRIX_TOOL_ID: ${{ matrix.tool_id }}
+        run: |
+          $claudePath = ./scripts/install-p3-tool.ps1 `
+            -ToolId $env:P5_MATRIX_TOOL_ID `
+            -DestinationRoot (Join-Path $env:RUNNER_TEMP 'p5-claude-tools')
+          Add-Content -LiteralPath $env:GITHUB_ENV -Value "P5_CLAUDE_PATH=$claudePath"
+
+      - name: Run strict unauthenticated structural lifecycle
+        shell: pwsh
+        env:
+          P5_MATRIX_VERSION: ${{ matrix.version }}
+        run: |
+          $version = (& $env:P5_CLAUDE_PATH --version | Out-String).Trim()
+          if ($version -notmatch ('(?<![0-9])' + [regex]::Escape($env:P5_MATRIX_VERSION) + '(?![0-9])')) {
+            throw 'P5E_CLAUDE_VERSION'
+          }
+          & $env:P5_CLAUDE_PATH plugin validate . --strict
+          if ($LASTEXITCODE -ne 0) { throw 'P5E_CLAUDE_MARKETPLACE' }
+          & $env:P5_CLAUDE_PATH plugin validate plugins/codex --strict
+          if ($LASTEXITCODE -ne 0) { throw 'P5E_CLAUDE_PLUGIN' }
+
+      - name: Write sanitized runner evidence
+        shell: pwsh
+        env:
+          P5_MATRIX_LANE: ${{ matrix.lane }}
+          P5_MATRIX_VERSION: ${{ matrix.version }}
+          P5_MATRIX_SHA256: ${{ matrix.sha256 }}
+        run: |
+          ./scripts/write-p5-runner-evidence.ps1 `
+            -Profile claude-lifecycle `
+            -Lane $env:P5_MATRIX_LANE `
+            -ExecutionClass hosted `
+            -StartedAt $env:P5_STARTED_AT `
+            -OutputPath (Join-Path $env:RUNNER_TEMP "p5-evidence/claude-$env:P5_MATRIX_LANE.json") `
+            -RequirementIds @('P5-5','P5-6','P5-7') `
+            -ScenarioId P5-CLAUDE-001 `
+            -FixtureIds @("P5-CLAUDE-$env:P5_MATRIX_LANE-001") `
+            -ToolName claude `
+            -ExpectedToolVersion $env:P5_MATRIX_VERSION `
+            -ExpectedToolSha256 $env:P5_MATRIX_SHA256 `
+            -ExpectedSignerOrganization 'Anthropic, PBC' `
+            -ToolPath $env:P5_CLAUDE_PATH
+
+  security:
+    name: Security
+    needs: policy-validation
+    runs-on: windows-2025
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version: 24.18.1
+          architecture: x64
+          check-latest: false
+          package-manager-cache: false
+
+      - name: Start profile evidence clock
+        shell: pwsh
+        run: Add-Content -LiteralPath $env:GITHUB_ENV -Value "P5_STARTED_AT=$([DateTimeOffset]::UtcNow.ToString('o'))"
 
       - name: Acquire exact local security tools
         shell: pwsh
@@ -54,7 +441,7 @@ jobs:
           foreach ($toolId in @('actionlint', 'zizmor', 'osv-scanner', 'gitleaks')) {
             $toolPath = ./scripts/install-p3-tool.ps1 `
               -ToolId $toolId `
-              -DestinationRoot (Join-Path $env:RUNNER_TEMP 'p3-tools')
+              -DestinationRoot (Join-Path $env:RUNNER_TEMP 'p5-security-tools')
             Add-Content -LiteralPath $env:GITHUB_PATH -Value (Split-Path -Parent $toolPath)
           }
 
@@ -70,12 +457,157 @@ jobs:
       - name: Scan repository for secrets
         run: gitleaks.exe dir --redact --no-banner .
 
+      - name: Write sanitized runner evidence
+        shell: pwsh
+        run: |
+          ./scripts/write-p5-runner-evidence.ps1 `
+            -Profile security `
+            -Lane default `
+            -ExecutionClass hosted `
+            -StartedAt $env:P5_STARTED_AT `
+            -OutputPath (Join-Path $env:RUNNER_TEMP 'p5-evidence/security.json') `
+            -RequirementIds @('P5-10','X7','X9','X15') `
+            -ScenarioId P5-SECURITY-001 `
+            -FixtureIds @('P5-ACTIONLINT-001','P5-ZIZMOR-001','P5-OSV-001','P5-GITLEAKS-001')
+
   dependency-review:
     name: Dependency review
     runs-on: windows-2025
     timeout-minutes: 10
-    permissions:
-      contents: read
     steps:
       - name: Review dependency changes
         uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+
+  next-canary:
+    name: Non-blocking Codex canary / ${{ matrix.lane }}
+    needs: policy-validation
+    runs-on: windows-2025
+    timeout-minutes: 15
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        include:
+          - lane: next
+            version: 0.147.0-alpha.2
+            sha256: 40e8f5b6cf031d74912f01a6c67c6896397743fe00ac059903f59a916dd23c68
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version: 24.18.1
+          architecture: x64
+          check-latest: false
+          package-manager-cache: false
+
+      - name: Start profile evidence clock
+        shell: pwsh
+        run: Add-Content -LiteralPath $env:GITHUB_ENV -Value "P5_STARTED_AT=$([DateTimeOffset]::UtcNow.ToString('o'))"
+
+      - name: Probe exact next Codex
+        id: canary
+        shell: pwsh
+        env:
+          P5_MATRIX_VERSION: ${{ matrix.version }}
+          P5_MATRIX_SHA256: ${{ matrix.sha256 }}
+        run: |
+          $toolRoot = Join-Path $env:RUNNER_TEMP 'p5-next-canary'
+          New-Item -ItemType Directory -Path $toolRoot | Out-Null
+          $codexPath = Join-Path $toolRoot 'codex.exe'
+          Invoke-WebRequest `
+            -Uri 'https://releases.openai.com/codex/releases/0.147.0-alpha.2/codex-x86_64-pc-windows-msvc.exe' `
+            -OutFile $codexPath `
+            -MaximumRedirection 3
+          $digest = (Get-FileHash -Algorithm SHA256 -LiteralPath $codexPath).Hash.ToLowerInvariant()
+          if ($digest -ne $env:P5_MATRIX_SHA256) { throw 'P5E_CANARY_DIGEST' }
+          $signature = Get-AuthenticodeSignature -LiteralPath $codexPath
+          $signer = $signature.SignerCertificate.GetNameInfo(
+            [Security.Cryptography.X509Certificates.X509NameType]::SimpleName,
+            $false
+          )
+          if ($signature.Status -ne 'Valid' -or $signer -cne 'OpenAI OpCo, LLC') {
+            throw 'P5E_CANARY_SIGNATURE'
+          }
+          $version = (& $codexPath --version | Out-String).Trim()
+          if ($version -ne "codex-cli $env:P5_MATRIX_VERSION") { throw 'P5E_CANARY_VERSION' }
+          & $codexPath app-server generate-json-schema --out (Join-Path $toolRoot 'json-schema')
+          if ($LASTEXITCODE -ne 0) { throw 'P5E_CANARY_SCHEMA' }
+          Add-Content -LiteralPath $env:GITHUB_ENV -Value "P5_CANARY_PATH=$codexPath"
+
+      - name: Write sanitized canary evidence
+        if: ${{ always() && !cancelled() }}
+        shell: pwsh
+        env:
+          P5_CANARY_OUTCOME: ${{ steps.canary.outcome }}
+          P5_MATRIX_LANE: ${{ matrix.lane }}
+          P5_MATRIX_VERSION: ${{ matrix.version }}
+          P5_MATRIX_SHA256: ${{ matrix.sha256 }}
+        run: |
+          $rawExitCode = if ($env:P5_CANARY_OUTCOME -eq 'success') { 0 } else { 1 }
+          $arguments = @{
+            Profile = 'next-canary'
+            Lane = $env:P5_MATRIX_LANE
+            ExecutionClass = 'hosted'
+            StartedAt = $env:P5_STARTED_AT
+            OutputPath = (Join-Path $env:RUNNER_TEMP 'p5-evidence/next-canary.json')
+            RequirementIds = @('P5-6','P5-9','P5-12')
+            ScenarioId = 'P5-CANARY-001'
+            FixtureIds = @('P5-CODEX-NEXT-001')
+            ObservedStatus = 'non-blocking-canary'
+            RawExitCode = $rawExitCode
+          }
+          if ($rawExitCode -eq 0) {
+            $arguments.ToolName = 'codex'
+            $arguments.ExpectedToolVersion = $env:P5_MATRIX_VERSION
+            $arguments.ExpectedToolSha256 = $env:P5_MATRIX_SHA256
+            $arguments.ExpectedSignerOrganization = 'OpenAI OpCo, LLC'
+            $arguments.ToolPath = $env:P5_CANARY_PATH
+          }
+          ./scripts/write-p5-runner-evidence.ps1 @arguments
+
+  gate:
+    name: CI
+    needs:
+      - policy-validation
+      - install-build
+      - unit
+      - core-contract
+      - windows-integration
+      - claude-lifecycle
+      - security
+      - dependency-review
+    if: ${{ always() }}
+    runs-on: windows-2025
+    timeout-minutes: 5
+    env:
+      POLICY_RESULT: ${{ needs.policy-validation.result }}
+      BUILD_RESULT: ${{ needs.install-build.result }}
+      UNIT_RESULT: ${{ needs.unit.result }}
+      CONTRACT_RESULT: ${{ needs.core-contract.result }}
+      WINDOWS_RESULT: ${{ needs.windows-integration.result }}
+      CLAUDE_RESULT: ${{ needs.claude-lifecycle.result }}
+      SECURITY_RESULT: ${{ needs.security.result }}
+      DEPENDENCY_RESULT: ${{ needs.dependency-review.result }}
+    steps:
+      - name: Require every blocking profile
+        shell: pwsh
+        run: |
+          $results = @(
+            $env:POLICY_RESULT,
+            $env:BUILD_RESULT,
+            $env:UNIT_RESULT,
+            $env:CONTRACT_RESULT,
+            $env:WINDOWS_RESULT,
+            $env:CLAUDE_RESULT,
+            $env:SECURITY_RESULT,
+            $env:DEPENDENCY_RESULT
+          )
+          if ($results.Where({ $_ -ne 'success' }).Count -ne 0) {
+            throw 'P5E_BLOCKING_PROFILE_RESULT'
+          }
