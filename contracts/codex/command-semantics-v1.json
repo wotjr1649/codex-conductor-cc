@@ -2,6 +2,7 @@
   "schemaVersion": "p4-command-semantics-v1",
   "sourceCommit": "34559b5a55fbc3b171e3f472080729795632b74f",
   "entrypoint": "node plugins/codex/scripts/codex-companion.mjs <subcommand>",
+  "transcriptFixture": "tests/contract/command-transcripts-v1.json",
   "environmentPolicy": {
     "allowlistedClasses": [
       "system-runtime",
@@ -38,7 +39,7 @@
       "command": "/codex:adversarial-review",
       "subcommand": "adversarial-review",
       "arguments": ["--wait", "--background", "--base", "--scope", "focus"],
-      "outbound": ["initialize", "initialized", "thread/start", "thread/name/set", "turn/start"],
+      "outbound": ["initialize", "initialized", "thread/start", "turn/start"],
       "transport": "broker-preferred-with-direct-fallback",
       "stdoutClass": "structured-review-or-job-status",
       "stderrClass": "diagnostic",

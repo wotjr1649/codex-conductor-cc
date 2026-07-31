@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import http from "node:http";
 import net from "node:net";
 import path from "node:path";
@@ -293,6 +293,42 @@ async function waitForExit(child, label) {
 }
 
 const options = parseArguments(process.argv.slice(2));
+const selectedCodex = path.resolve(options.codex);
+const tools = JSON.parse(
+  await readFile(
+    path.join(repoRoot, "contracts", "codex", "contract-tools-v1.json"),
+    "utf8"
+  )
+);
+const lane = Object.entries(tools.lanes).find(
+  ([laneName, candidate]) =>
+    ["current", "previous"].includes(laneName) &&
+    candidate.version === options.version
+);
+const artifact = tools.artifacts.find(({ id }) => id === lane?.[1].artifactId);
+if (!lane || !artifact || artifact.version !== options.version) {
+  throw new Error(`P4E_LIFECYCLE_ARTIFACT: unsupported stable lane ${options.version}`);
+}
+const executableBytes = await readFile(selectedCodex);
+const executableSha256 = createHash("sha256").update(executableBytes).digest("hex");
+if (executableSha256 !== artifact.executableSha256) {
+  throw new Error(`P4E_LIFECYCLE_DIGEST: ${options.version} executable digest mismatch`);
+}
+const versionResult = spawnSync(selectedCodex, ["--version"], {
+  cwd: repoRoot,
+  encoding: "utf8",
+  shell: false,
+  windowsHide: true,
+  timeout: 30_000
+});
+if (
+  versionResult.error ||
+  versionResult.status !== 0 ||
+  versionResult.stdout.trim() !== `codex-cli ${options.version}`
+) {
+  throw new Error(`P4E_LIFECYCLE_VERSION: expected codex-cli ${options.version}`);
+}
+
 const runRoot = path.resolve(options.root);
 await mkdir(runRoot, { recursive: false });
 const codexHome = path.join(runRoot, "codex-home");
@@ -304,11 +340,6 @@ for (const directory of [codexHome, appData, localAppData, tempRoot, workRoot]) 
   await mkdir(directory, { recursive: false });
 }
 
-const selectedCodex = path.resolve(options.codex);
-const executableBytes = await import("node:fs/promises").then(({ readFile }) =>
-  readFile(selectedCodex)
-);
-const executableSha256 = createHash("sha256").update(executableBytes).digest("hex");
 const model = await startLoopbackModel();
 await writeFile(
   path.join(codexHome, "config.toml"),
@@ -434,17 +465,17 @@ try {
   });
   client.notify("initialized", {});
 
-  const startThread = async () => {
+  const startThread = async (ephemeral) => {
     const response = await client.request("thread/start", {
       model: "p4-fixture-model",
       modelProvider: "p4-fixture",
       cwd: workRoot,
-      ephemeral: true
+      ephemeral
     });
     return response.thread.id;
   };
 
-  const normalThreadId = await startThread();
+  const normalThreadId = await startThread(false);
   const normalTurn = await client.request("turn/start", {
     threadId: normalThreadId,
     input: [{ type: "text", text: "P4 deterministic lifecycle fixture" }]
@@ -456,8 +487,15 @@ try {
       message.params?.threadId === normalThreadId &&
       message.params?.turn?.id === normalTurnId
   );
+  const resumedThread = await client.request("thread/resume", {
+    threadId: normalThreadId,
+    cwd: workRoot,
+    model: "p4-fixture-model",
+    approvalPolicy: "never",
+    sandbox: "read-only"
+  });
 
-  const cancelThreadId = await startThread();
+  const cancelThreadId = await startThread(true);
   const cancelTurn = await client.request("turn/start", {
     threadId: cancelThreadId,
     input: [{ type: "text", text: "P4 deterministic cancellation fixture" }]
@@ -487,7 +525,8 @@ try {
     normal: {
       threadStarted: Boolean(normalThreadId),
       turnStarted: Boolean(normalTurnId),
-      terminalStatus: normalCompleted.params.turn.status
+      terminalStatus: normalCompleted.params.turn.status,
+      resumedThreadIdMatched: resumedThread.thread.id === normalThreadId
     },
     cancellation: {
       threadStarted: Boolean(cancelThreadId),

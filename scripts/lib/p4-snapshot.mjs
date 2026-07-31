@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
+import process from "node:process";
 
 function ordinalCompare(left, right) {
   return Buffer.compare(Buffer.from(left, "utf8"), Buffer.from(right, "utf8"));
@@ -14,7 +15,7 @@ async function walkFiles(root, directory = root) {
       files.push(...await walkFiles(root, absolute));
     } else if (entry.isFile()) {
       const relative = path.relative(root, absolute).replaceAll("\\", "/");
-      if (!relative.endsWith("snapshot-manifest.json")) {
+      if (relative !== "snapshot-manifest.json") {
         files.push({ absolute, relative });
       }
     } else {
@@ -26,6 +27,14 @@ async function walkFiles(root, directory = root) {
 
 export function sha256(bytes) {
   return createHash("sha256").update(bytes).digest("hex");
+}
+
+export function assertSnapshotHost(platform = process.platform, architecture = process.arch, node = process.versions.node) {
+  if (platform !== "win32" || architecture !== "x64" || node !== "24.18.1") {
+    throw new Error(
+      `P4E_SNAPSHOT_HOST: expected win32/x64/Node 24.18.1, observed ${platform}/${architecture}/Node ${node}`
+    );
+  }
 }
 
 export async function inspectSnapshotTree(root) {

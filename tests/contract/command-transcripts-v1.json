@@ -1,0 +1,247 @@
+{
+  "schemaVersion": "p4-command-transcripts-v1",
+  "capture": "actual plugins/codex/scripts/codex-companion.mjs command entrypoints over the spawned app-server transport; only cwd, source path, IDs, fixture prompts, and output-schema bytes are normalized",
+  "prefixes": {
+    "standardInitialize": [
+      {
+        "kind": "request",
+        "method": "initialize",
+        "params": {
+          "clientInfo": {
+            "title": "Codex Conductor",
+            "name": "codex_conductor",
+            "version": "0.1.0"
+          },
+          "capabilities": {
+            "experimentalApi": false,
+            "requestAttestation": false,
+            "optOutNotificationMethods": [
+              "item/agentMessage/delta",
+              "item/reasoning/summaryTextDelta",
+              "item/reasoning/summaryPartAdded",
+              "item/reasoning/textDelta"
+            ]
+          }
+        }
+      },
+      {
+        "kind": "notification",
+        "method": "initialized",
+        "params": {}
+      }
+    ]
+  },
+  "commands": [
+    {
+      "command": "/codex:setup",
+      "scenario": "setup",
+      "prefix": "standardInitialize",
+      "transcript": [
+        {
+          "kind": "request",
+          "method": "account/read",
+          "params": { "refreshToken": false }
+        },
+        {
+          "kind": "request",
+          "method": "config/read",
+          "params": { "includeLayers": false, "cwd": "<cwd>" }
+        }
+      ]
+    },
+    {
+      "command": "/codex:review",
+      "scenario": "review",
+      "prefix": "standardInitialize",
+      "transcript": [
+        {
+          "kind": "request",
+          "method": "thread/start",
+          "params": {
+            "cwd": "<cwd>",
+            "model": null,
+            "approvalPolicy": "never",
+            "sandbox": "read-only",
+            "serviceName": "claude_code_codex_plugin",
+            "ephemeral": true
+          }
+        },
+        {
+          "kind": "request",
+          "method": "review/start",
+          "params": {
+            "threadId": "<thread-id>",
+            "delivery": "inline",
+            "target": { "type": "uncommittedChanges" }
+          }
+        }
+      ]
+    },
+    {
+      "command": "/codex:adversarial-review",
+      "scenario": "adversarial",
+      "prefix": "standardInitialize",
+      "transcript": [
+        {
+          "kind": "request",
+          "method": "thread/start",
+          "params": {
+            "cwd": "<cwd>",
+            "model": null,
+            "approvalPolicy": "never",
+            "sandbox": "read-only",
+            "serviceName": "claude_code_codex_plugin",
+            "ephemeral": true
+          }
+        },
+        {
+          "kind": "request",
+          "method": "turn/start",
+          "params": {
+            "threadId": "<thread-id>",
+            "input": [
+              { "type": "text", "text": "<prompt>", "text_elements": [] }
+            ],
+            "model": null,
+            "effort": null,
+            "outputSchema": {
+              "sha256": "dae831a59026548e0ac0e9666ce5686ed723f5b6bdbc75945ce63f58f1576eda"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "command": "/codex:rescue",
+      "scenario": "rescue-fresh",
+      "prefix": "standardInitialize",
+      "transcript": [
+        {
+          "kind": "request",
+          "method": "thread/start",
+          "params": {
+            "cwd": "<cwd>",
+            "model": null,
+            "approvalPolicy": "never",
+            "sandbox": "read-only",
+            "serviceName": "claude_code_codex_plugin",
+            "ephemeral": false
+          }
+        },
+        {
+          "kind": "request",
+          "method": "thread/name/set",
+          "params": {
+            "threadId": "<thread-id>",
+            "name": "Codex Companion Task: <prompt>"
+          }
+        },
+        {
+          "kind": "request",
+          "method": "turn/start",
+          "params": {
+            "threadId": "<thread-id>",
+            "input": [
+              { "type": "text", "text": "<prompt>", "text_elements": [] }
+            ],
+            "model": null,
+            "effort": null,
+            "outputSchema": null
+          }
+        }
+      ]
+    },
+    {
+      "command": "/codex:rescue",
+      "scenario": "rescue-resume",
+      "prefix": "standardInitialize",
+      "transcript": [
+        {
+          "kind": "request",
+          "method": "thread/resume",
+          "params": {
+            "threadId": "<thread-id>",
+            "cwd": "<cwd>",
+            "model": null,
+            "approvalPolicy": "never",
+            "sandbox": "read-only"
+          }
+        },
+        {
+          "kind": "request",
+          "method": "turn/start",
+          "params": {
+            "threadId": "<thread-id>",
+            "input": [
+              { "type": "text", "text": "<prompt>", "text_elements": [] }
+            ],
+            "model": null,
+            "effort": null,
+            "outputSchema": null
+          }
+        }
+      ]
+    },
+    {
+      "command": "/codex:transfer",
+      "scenario": "transfer",
+      "prefix": "standardInitialize",
+      "transcript": [
+        {
+          "kind": "request",
+          "method": "externalAgentConfig/import",
+          "params": {
+            "migrationItems": [
+              {
+                "itemType": "SESSIONS",
+                "description": "Transfer Claude session session.jsonl",
+                "cwd": null,
+                "details": {
+                  "plugins": [],
+                  "sessions": [
+                    {
+                      "path": "<source>",
+                      "cwd": "<cwd>",
+                      "title": null
+                    }
+                  ],
+                  "mcpServers": [],
+                  "hooks": [],
+                  "subagents": [],
+                  "commands": []
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "command": "/codex:status",
+      "scenario": "status",
+      "prefix": null,
+      "transcript": []
+    },
+    {
+      "command": "/codex:result",
+      "scenario": "result",
+      "prefix": null,
+      "transcript": []
+    },
+    {
+      "command": "/codex:cancel",
+      "scenario": "cancel",
+      "prefix": "standardInitialize",
+      "transcript": [
+        {
+          "kind": "request",
+          "method": "turn/interrupt",
+          "params": {
+            "threadId": "<thread-id>",
+            "turnId": "<turn-id>"
+          }
+        }
+      ]
+    }
+  ]
+}

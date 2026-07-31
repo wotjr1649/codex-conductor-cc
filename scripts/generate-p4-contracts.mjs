@@ -8,6 +8,7 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 
 import {
+  assertSnapshotHost,
   inspectSnapshotTree,
   readMethodInventory,
   sha256
@@ -124,6 +125,7 @@ async function generateSurface(executable, versionRoot, mode, format) {
   };
 }
 
+assertSnapshotHost();
 const options = parseArguments(process.argv.slice(2));
 const outputRoot = path.resolve(options.out);
 await mkdir(outputRoot, { recursive: false });

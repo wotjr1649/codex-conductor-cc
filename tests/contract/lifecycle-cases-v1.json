@@ -72,6 +72,39 @@
       ],
       "terminal": true,
       "duplicates": 1
+    },
+    {
+      "id": "PROTO-LIFECYCLE-LATE-CHILD-001",
+      "events": [
+        { "type": "turn-response", "turnId": "turn-1" },
+        { "type": "turn-completed", "turnId": "turn-1", "status": "completed" },
+        { "type": "child-started", "childId": "child-late", "parentTurnId": "turn-1" },
+        { "type": "child-completed", "childId": "child-late", "parentTurnId": "turn-1" }
+      ],
+      "terminalStates": [false, true, false, true],
+      "terminal": true
+    },
+    {
+      "id": "PROTO-LIFECYCLE-LATE-WRONG-COMPLETION-001",
+      "events": [
+        { "type": "turn-response", "turnId": "turn-1" },
+        { "type": "turn-completed", "turnId": "turn-late", "status": "completed" },
+        { "type": "turn-completed", "turnId": "turn-1", "status": "completed" }
+      ],
+      "terminalStates": [false, false, true],
+      "terminal": true,
+      "lateEvents": 1
+    },
+    {
+      "id": "PROTO-LIFECYCLE-COMPLETION-BEFORE-INTERRUPT-001",
+      "events": [
+        { "type": "turn-response", "turnId": "turn-1" },
+        { "type": "turn-completed", "turnId": "turn-1", "status": "interrupted" },
+        { "type": "interrupt-ack" }
+      ],
+      "terminalStates": [false, true, true],
+      "terminal": true,
+      "cancelAcknowledged": true
     }
   ]
 }

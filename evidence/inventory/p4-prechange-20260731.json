@@ -1,0 +1,107 @@
+{
+  "schemaVersion": "p4-prechange-inventory-v1",
+  "capturedAtDate": "2026-07-31",
+  "source": {
+    "branch": "codex/p4-contract-baseline",
+    "baseCommit": "34559b5a55fbc3b171e3f472080729795632b74f",
+    "p2Final": "7c65444eb5c1b372b369f71e1d496eafa7a1fc92",
+    "p15Final": "9be83f26780429cd693bef62a20eebc70f54cec1",
+    "upstreamBase": "db52e28f4d9ded852ab3942cea316258ae4ef346"
+  },
+  "environmentClass": {
+    "os": "windows",
+    "architecture": "x64",
+    "nodeSupport": ">=24.0.0",
+    "exactEvidenceNode": "24.18.1",
+    "exactEvidenceNpm": "11.16.0",
+    "filesystem": "local-fixed-ntfs",
+    "privatePathsCommitted": false
+  },
+  "protectedSurfaces": {
+    "commandsTree": "01dee9ba76393439e179c5676ea92e538358d86b",
+    "agentsTree": "e3d07a2c1a1acf9a986ecccd7e2b1c865b9da709",
+    "skillsTree": "1272de32547df5bb365e114feb590bfa002e53c1",
+    "hooksTree": "39821e61e8b99bf415b7b05098b97d545fd377af",
+    "canonicalProtectedDigest": "b24fec394e331f6b550dfdb614be07ec19955c9f95288951afbcac4e4c8d0473",
+    "generatedProtocolSha256": "c4d141174754e04ef1cd1b904cd800d05e3174a772f86f0fc9c3f4d30ec3daf5",
+    "canonicalGeneratedSchemaDigest": "e504c5f04a3157a41a481bfc20cc77b8af58e4c750dcb47ad4453899779d4834",
+    "toolchainSha256": "a6033a05ebecd4ff5bca3a5924ff06e55a2e2de9b41541da2c050642102dbb5d",
+    "securityPolicySha256": "f4353ad5c207396f6c6c314aa522e16b556db81f2b0f18bb10741d5f4d8a9957",
+    "licenseSha256": "5382d9ba43803da42433ae0025fe38d93c6e730d8824bd9e01af8e2f3c9c3833",
+    "noticeSha256": "d8d0168f4940626032fe7a9d6e7a9b767b37f6c777a2140679e72e07afd1b8e0"
+  },
+  "packageSurface": {
+    "packageSha256": "0cc1a48bb1d2f74fe8fad565ee80b2c94261980318d35afcd968c585f811c8d5",
+    "lockfileSha256": "db1fb9ad6eb54eaabddc2f138c48435bd04feb04079b51c37838375e2b3e4f8b",
+    "runtimeDependencies": [],
+    "devDependencies": [
+      "@types/node@^25.5.0",
+      "typescript@^6.0.2"
+    ],
+    "lifecycleScripts": [
+      "prebuild=node scripts/generate-app-server-types.mjs"
+    ],
+    "installScripts": [],
+    "generator": {
+      "path": "scripts/generate-app-server-types.mjs",
+      "gitBlob": "fbb9e09277b69001e89cff59501148afc9c6c3b1",
+      "output": "plugins/codex/scripts/lib/app-server-protocol.d.ts",
+      "codexResolution": "PATH lookup constrained by caller environment"
+    }
+  },
+  "runtimeCharacterization": {
+    "clientInfo": {
+      "name": "codex_conductor",
+      "title": "Codex Conductor",
+      "version": "0.1.0"
+    },
+    "directInitialize": "forwards app-server initialize",
+    "brokerInitialize": "synthetic initialize response; does not expose a separate broker/hello",
+    "jsonParser": "JSON.parse with line-oriented readline/buffer handling",
+    "correlation": "JavaScript number Map keys",
+    "serverRequests": "unknown requests receive -32601",
+    "defaultApprovalPolicy": "never",
+    "defaultSandbox": "read-only",
+    "permissionOverrideKeys": "approvalPolicy and sandbox are serialized by task/review builders",
+    "transportFallback": "broker-to-direct fallback is present",
+    "guardedFinalizer": "not implemented",
+    "snapshotRecovery": "not implemented"
+  },
+  "existingValidation": {
+    "productTestCountAtBase": 127,
+    "p3TargetedCount": 11,
+    "p3Validator": "scripts/validate-p3.mjs",
+    "workflow": ".github/workflows/pull-request-ci.yml",
+    "fakeServer": "tests/fake-codex-fixture.mjs",
+    "knownWindowsRace": "direct app-server uses shell process and bounded tree cleanup"
+  },
+  "p4Allowlist": [
+    "contracts/codex/**",
+    "tests/contract/**",
+    "tests/p4-contract-baseline.test.mjs",
+    "scripts/generate-p4-contracts.mjs",
+    "scripts/install-p4-codex.ps1",
+    "scripts/validate-p4.mjs",
+    "scripts/lib/p4-*.mjs",
+    "evidence/inventory/p4-*.json",
+    "evidence/ledgers/p4-*.json",
+    "evidence/manifests/p4/**",
+    "evidence/schemas/p4-*.schema.json",
+    "docs/baselines/*-p4-*.md",
+    "package.json"
+  ],
+  "forbiddenScope": [
+    "plugins/codex/runtime behavior changes",
+    "P2 generated protocol replacement",
+    "P3 toolchain/security policy weakening",
+    "P5 hosted matrix activation",
+    "P6 sync/tag/publication",
+    "v0.2 parser/broker/state/finalizer implementation",
+    "push/pr/tag/release/publication"
+  ],
+  "ambientSeparation": {
+    "ambientToolsAreEvidence": false,
+    "selectedCodexMustBeExactRunOwned": true,
+    "mutableLatestAllowed": false
+  }
+}
