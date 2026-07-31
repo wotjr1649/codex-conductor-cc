@@ -8,7 +8,7 @@
   "hostedGateStatus": "not-run",
   "source": {
     "handoffCommit": "84515289913dfe8a7452754ad442d37873bdfd53",
-    "sourceCommit": "b5d76d220bb19e11c36d833c0bb2595433bbc727",
+    "sourceCommit": "57e5b8881009fe799602aa4dab2c22db79d2473a",
     "branch": "codex/p5-matrix-profile-bootstrap",
     "upstreamBase": "db52e28f4d9ded852ab3942cea316258ae4ef346"
   },
@@ -566,11 +566,11 @@
   "remoteExecution": "not-run",
   "review": {
     "status": "executed-pass",
-    "findingCount": 20,
-    "acceptedCount": 19,
+    "findingCount": 28,
+    "acceptedCount": 27,
     "rejectedCount": 1,
     "deferredCount": 0,
-    "summary": "Nine bounded reviews plus final evidence validation produced twenty adjudicated findings: nineteen were accepted, fixed or retained as an explicit inherited or remote residual, and one deterministic fork-failure claim was rejected because read-only dependency comparison succeeded."
+    "summary": "Thirteen bounded reviews plus main-agent reproduction produced twenty-eight adjudicated findings: twenty-seven were accepted and fixed or retained as an explicit inherited or remote residual, and one deterministic fork-failure claim was rejected because read-only dependency comparison succeeded. Four final frozen-tree reviews reported no actionable P0 through P2 finding."
   },
   "attemptLedger": "evidence/ledgers/p5-attempts.json"
 }

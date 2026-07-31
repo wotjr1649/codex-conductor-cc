@@ -1,7 +1,7 @@
 {
   "schemaVersion": "p5-attempt-ledger-v1",
   "phase": "P5",
-  "sourceCommit": "b5d76d220bb19e11c36d833c0bb2595433bbc727",
+  "sourceCommit": "57e5b8881009fe799602aa4dab2c22db79d2473a",
   "automaticRetryPolicy": {
     "count": 0,
     "cancelledIsPassing": false,
@@ -811,6 +811,198 @@
       "expected": "diff checks, P5 and P3 validators, source/evidence scope, protected readback, and owned-process zero pass",
       "observed": "both validators passed, post-source changes were exactly three evidence files, protected surfaces were unchanged, and run-owned process count was zero",
       "disposition": "accepted-final-source"
+    },
+    {
+      "ordinal": 68,
+      "id": "p5-full-regression-hosted-pre-freeze-001",
+      "commandClass": "full-exact-node-regression",
+      "executionStatus": "executed-pass",
+      "rawExitCode": 0,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "all inherited and hosted-provenance P5 tests pass serially after the first complete hosted-gate hardening pass",
+      "observed": "184 of 184 tests passed with zero failure, cancellation, or skip in approximately 235 seconds",
+      "disposition": "accepted-pre-final-collector-delta"
+    },
+    {
+      "ordinal": 69,
+      "id": "p5-targeted-hosted-frozen-001",
+      "commandClass": "targeted-p5-contract-test",
+      "executionStatus": "executed-pass",
+      "rawExitCode": 0,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "the frozen hosted workflow, writers, schemas, collector, privacy filters, and false-green controls pass their exact semantic tests",
+      "observed": "16 of 16 targeted P5 tests passed after the final artifact and cache readback hardening",
+      "disposition": "accepted-final-source-tree"
+    },
+    {
+      "ordinal": 70,
+      "id": "p5-p4-validator-local-timeout-001",
+      "commandClass": "detached-p4-handoff-validation",
+      "executionStatus": "executed-fail",
+      "rawExitCode": 1,
+      "retryCount": 0,
+      "timeout": true,
+      "expected": "the byte-identical P4 validator completes within the first local harness bound",
+      "observed": "the first isolated handoff validation exceeded the local harness bound; no P4 evidence or protected file was changed",
+      "disposition": "retained-timeout-then-reran-with-bounded-expanded-time"
+    },
+    {
+      "ordinal": 71,
+      "id": "p5-p4-validator-local-final-001",
+      "commandClass": "detached-p4-handoff-validation",
+      "executionStatus": "executed-pass",
+      "rawExitCode": 0,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "the byte-identical P4 validator passes from the exact P4 handoff tree",
+      "observed": "P4 validation passed from an isolated worktree with the immutable invalid historical source claim unchanged",
+      "disposition": "accepted"
+    },
+    {
+      "ordinal": 72,
+      "id": "p5-powershell-parser-hosted-final-001",
+      "commandClass": "powershell-parser-validation",
+      "executionStatus": "executed-pass",
+      "rawExitCode": 0,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "all modified and new PowerShell provenance scripts parse without syntax errors",
+      "observed": "five of five PowerShell parser checks passed",
+      "disposition": "accepted-final-source-tree"
+    },
+    {
+      "ordinal": 73,
+      "id": "p5-security-hosted-final-001",
+      "commandClass": "exact-local-security-suite",
+      "executionStatus": "executed-pass",
+      "rawExitCode": 0,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "the exact admitted workflow, dependency, and source scanners pass the hosted provenance tree",
+      "observed": "actionlint passed, offline pedantic strict zizmor reported no finding, OSV reported no issue, and the final gitleaks scan reported no leak",
+      "disposition": "accepted-final-source-tree"
+    },
+    {
+      "ordinal": 74,
+      "id": "p5-gitleaks-hosted-credential-fixture-red-001",
+      "commandClass": "credential-privacy-negative-scan",
+      "executionStatus": "executed-fail",
+      "rawExitCode": 1,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "credential-shape negative tests exercise rejection without persisting a scanner-detectable literal",
+      "observed": "gitleaks correctly flagged newly added fine-grained personal-access-token literals in negative-test and runtime pattern source",
+      "disposition": "retained-security-red-then-split-literal-with-runtime-negative-coverage"
+    },
+    {
+      "ordinal": 75,
+      "id": "p5-gitleaks-hosted-credential-fixture-green-001",
+      "commandClass": "credential-privacy-negative-scan",
+      "executionStatus": "executed-pass",
+      "rawExitCode": 0,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "the scanner reports no committed credential literal while runtime privacy rejection remains covered",
+      "observed": "gitleaks reported no leak and the exact runtime serialization negative test still rejected the credential shape",
+      "disposition": "accepted-fixed"
+    },
+    {
+      "ordinal": 76,
+      "id": "p5-build-hosted-final-001",
+      "commandClass": "exact-install-and-build",
+      "executionStatus": "executed-pass",
+      "rawExitCode": 0,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "exact npm clean install and deterministic generated TypeScript build pass after hosted provenance hardening",
+      "observed": "npm ci completed with zero vulnerability and the build preserved generated digest e504c5f04a3157a41a481bfc20cc77b8af58e4c750dcb47ad4453899779d4834",
+      "disposition": "accepted-final-source-tree"
+    },
+    {
+      "ordinal": 77,
+      "id": "p5-full-regression-source-57e-final-red-001",
+      "commandClass": "full-exact-node-regression",
+      "executionStatus": "executed-fail",
+      "rawExitCode": 1,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "all 184 tests pass serially at the frozen source tree later committed as 57e5b8881009fe799602aa4dab2c22db79d2473a",
+      "observed": "183 of 184 passed; the sole inherited Windows cancel fixture received taskkill exit 1 after its brokered worker tree had already ended",
+      "disposition": "retained-noncausal-protected-runtime-race"
+    },
+    {
+      "ordinal": 78,
+      "id": "p5-cancel-isolated-source-57e-red-001",
+      "commandClass": "isolated-inherited-runtime-test",
+      "executionStatus": "executed-fail",
+      "rawExitCode": 1,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "the named broker cancel fixture passes alone with serial execution",
+      "observed": "zero of one passed; taskkill returned exit 1 because child processes ended between the successful turn interrupt and process-tree cleanup",
+      "disposition": "retained-reproduced-protected-runtime-race"
+    },
+    {
+      "ordinal": 79,
+      "id": "p5-cancel-isolated-source-57e-red-002",
+      "commandClass": "isolated-inherited-runtime-test",
+      "executionStatus": "executed-fail",
+      "rawExitCode": 1,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "the same named fixture passes after exact related-process readback is zero",
+      "observed": "zero of one passed again; localized taskkill output reported already-ended descendants with exit 1 and no related process remained afterward",
+      "disposition": "retained-deterministic-under-current-timing-out-of-provenance-scope"
+    },
+    {
+      "ordinal": 80,
+      "id": "p5-targeted-windows-source-57e-final-001",
+      "commandClass": "targeted-p5-and-windows-resource-test",
+      "executionStatus": "executed-pass",
+      "rawExitCode": 0,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "all final hosted-provenance semantics and the independent Windows process-handle oracle pass at source 57e5b8881009fe799602aa4dab2c22db79d2473a",
+      "observed": "17 of 17 passed with zero failure, cancellation, or skip; the exact Windows resource oracle completed in 919 milliseconds",
+      "disposition": "accepted-final-source"
+    },
+    {
+      "ordinal": 81,
+      "id": "p5-independent-review-source-57e-final-001",
+      "commandClass": "bounded-independent-review",
+      "executionStatus": "executed-pass",
+      "rawExitCode": 0,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "workflow, PowerShell, collector, and protected-scope reviewers report no actionable P0 through P2 finding on the frozen tree",
+      "observed": "four bounded reviews passed; the additional read-only runtime diagnosis classified the sole full-suite failure as an existing product-test lifecycle race unrelated to the P5 diff",
+      "disposition": "accepted-main-agent-reproduced-and-adjudicated"
+    },
+    {
+      "ordinal": 82,
+      "id": "p5-evidence-rebind-source-57e-final-001",
+      "commandClass": "source-evidence-hygiene",
+      "executionStatus": "executed-pass",
+      "rawExitCode": 0,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "manifest, ledger, and baseline bind only to source 57e5b8881009fe799602aa4dab2c22db79d2473a while protected P2, P3, and P4 readbacks remain exact",
+      "observed": "P5 validation passed with exactly the three authorized post-source evidence paths, ordered attempts, privacy controls, and immutable readbacks consistent",
+      "disposition": "accepted-final-evidence"
+    },
+    {
+      "ordinal": 83,
+      "id": "p5-full-regression-source-57e-confirmation-red-001",
+      "commandClass": "full-exact-node-regression",
+      "executionStatus": "executed-fail",
+      "rawExitCode": 1,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "all 184 tests pass in one final isolated exact-Node invocation without changing protected product source",
+      "observed": "183 of 184 passed in 240880 milliseconds; the same inherited Windows cancel fixture alone failed when taskkill returned exit 1 for an already-ended child, and related process readback was zero afterward",
+      "disposition": "retained-confirmed-protected-runtime-blocker-no-further-green-mining"
     }
   ],
   "reviewFindings": [
@@ -953,6 +1145,62 @@
       "disposition": "accepted-fixed",
       "summary": "a block-scalar no-op could satisfy the exact-command regex by embedding a decoy step sequence inside inert PowerShell text",
       "correction": "require one unique inline command step at exact YAML job-step indentation and retain a block-scalar here-string negative mutation"
+    },
+    {
+      "id": "P5-REVIEW-021",
+      "severity": "P1",
+      "disposition": "accepted-fixed",
+      "summary": "selective workflow assertions still allowed unreviewed executable workflow drift outside individually matched commands",
+      "correction": "bind validation to the exact complete workflow SHA-256 while retaining exact structural step guards and negative mutations"
+    },
+    {
+      "id": "P5-REVIEW-022",
+      "severity": "P1",
+      "disposition": "accepted-fixed",
+      "summary": "runner fragments alone could not prove immutable pull-request, run, job, check-run, source-object, and interval provenance",
+      "correction": "add a fail-closed REST collector that binds immutable workflow-run pull-request data, attempt-specific jobs, canonical identifiers and URLs, exact source object digests, and nested fragment semantics"
+    },
+    {
+      "id": "P5-REVIEW-023",
+      "severity": "P1",
+      "disposition": "accepted-fixed",
+      "summary": "artifact and cache dispositions were asserted by the workflow without top-level GitHub API readback or safe rerun attribution",
+      "correction": "read artifact metadata and PR-ref cache inventory through read-only APIs, hash cache keys before persistence, enforce one-day retention, and fail closed on ambiguous rerun artifact ownership"
+    },
+    {
+      "id": "P5-REVIEW-024",
+      "severity": "P1",
+      "disposition": "accepted-fixed",
+      "summary": "early setup, Node identity, failed canary, or partial Windows resource outcomes could lose truthful timing and terminal evidence",
+      "correction": "start attempt clocks after checkout, preserve failure-only identity and resource states, add failure clock fallback, and validate writer reachability for every non-cancelled outcome"
+    },
+    {
+      "id": "P5-REVIEW-025",
+      "severity": "P2",
+      "disposition": "accepted-fixed",
+      "summary": "private-path and credential classifiers had both a path false positive and a scanner-visible fine-grained token literal",
+      "correction": "narrow absolute-path matching, split the credential prefix in source, and retain direct runtime serialization rejection tests without persisting the seed"
+    },
+    {
+      "id": "P5-REVIEW-026",
+      "severity": "P2",
+      "disposition": "accepted-fixed",
+      "summary": "hosted log parsing and job discovery were not exact enough for rerun attempt and GitHub log timestamp semantics",
+      "correction": "use the attempt-specific jobs endpoint, parse the exact three-tab log form, and apply only the documented millisecond precision tolerance"
+    },
+    {
+      "id": "P5-REVIEW-027",
+      "severity": "P2",
+      "disposition": "accepted-fixed",
+      "summary": "a mutable current pull-request readback could diverge from the pull-request snapshot that triggered the workflow run",
+      "correction": "derive pull-request identity and source head from the immutable workflow-run snapshot and cross-check repository, workflow, run, and fragment bindings"
+    },
+    {
+      "id": "P5-REVIEW-028",
+      "severity": "P2",
+      "disposition": "accepted-fixed",
+      "summary": "canary, named-step extraction, and aggregate gate boundaries still admitted false-green or decoy configurations",
+      "correction": "bind the exact gate guard and needs results, isolate the non-blocking canary, and restrict extraction to exact named workflow steps under the complete workflow digest"
     }
   ],
   "privacy": {

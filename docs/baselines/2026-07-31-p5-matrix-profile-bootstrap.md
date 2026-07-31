@@ -1,7 +1,7 @@
 # P5 Windows x64 matrix/profile bootstrap
 
 Date: 2026-07-31
-Source commit: `b5d76d220bb19e11c36d833c0bb2595433bbc727`
+Source commit: `57e5b8881009fe799602aa4dab2c22db79d2473a`
 Handoff commit: `84515289913dfe8a7452754ad442d37873bdfd53`
 Platform: Windows x64, exact Node.js 24.18.1 and npm 11.16.0
 
@@ -56,18 +56,23 @@ P4 total remains 167 tests with zero skip:
 - P4 targeted contract: 40; and
 - Windows integration: 86.
 
-P5 adds 14 semantic/profile and independent Windows resource tests. The
+P5 adds 17 semantic/profile and independent Windows resource tests. The
 resource oracle starts an exact owned root and child PID, proves an exclusive
 file handle blocks rename, calls the exact `taskkill /PID <root> /T /F`
 executable through a five-second bounded process, reads back that both PIDs are
 gone, then proves rename/delete succeeds. This is not a native Job Object C0
 claim.
 
-The final exact-Node full regression passed 181/181 with zero failure,
-cancel, or skip at source
-`b5d76d220bb19e11c36d833c0bb2595433bbc727`. An earlier source revision's
-176/177 broker-cancel race and a later 124-second local harness timeout both
-remain in the attempt ledger; neither was rewritten as a pass.
+The last wholly green exact-Node full regression passed 184/184 with zero
+failure, cancel, or skip before the final collector-only provenance delta.
+At source `57e5b8881009fe799602aa4dab2c22db79d2473a`, the final P5 and independent
+Windows resource partition passed 17/17. Two subsequent full reruns each passed
+183/184, and two isolated runs reproduced the sole inherited Windows
+broker-cancel race: the turn interrupt completed and its worker tree exited
+before `taskkill /T` read back already-ended descendants as exit 1. The P5
+diff does not touch the fixture, broker, cancel, or process implementation;
+the same race is retained in earlier P4 and P5 ledgers. All four new failures
+remain ordered in the attempt ledger and are not rewritten as passes.
 
 ## Exact tools
 
@@ -94,6 +99,15 @@ plugin validation, Windows process/handle postconditions, and the four security
 tools. The Claude checks are structural marketplace/plugin validation only;
 they are not authenticated inference or install/update/rollback/uninstall
 lifecycle evidence.
+
+The final source also passed 17/17 targeted P5 and Windows checks, five of five
+PowerShell parser checks, actionlint, offline pedantic strict zizmor, OSV
+Scanner, gitleaks, clean install, and build. Four independent frozen-tree
+reviews found no actionable P0-P2 issue in the workflow, PowerShell writers,
+hosted collector, or protected-scope boundary. The inherited cancel race is a
+local pre-push regression blocker unless a clean full run is observed or a
+separately authorized product-scope repair is made; it is not represented as a
+hosted failure because remote execution remains `NOT-RUN`.
 
 The ordered attempt ledger retains all material failures. In particular:
 
@@ -141,7 +155,17 @@ The ordered attempt ledger retains all material failures. In particular:
   negative passed, and targeted validation returned 14/14. The first full run
   overlapped unrelated exact-lane checks and retained an inherited
   broker-cancel `taskkill` race at 180/181; after zero owned-process readback,
-  the full suite ran alone and passed 181/181 at the final source commit.
+  the full suite ran alone and passed 181/181 at that source commit; and
+- hosted provenance hardening added exact workflow-byte binding, failure-path
+  clocks and writers, immutable run/PR/job/check provenance, exact source-object
+  digests, nested fragment validation, and read-only artifact/cache trust
+  readback. The hardened partition passed 17/17 at the new source commit; and
+- two post-hardening full reruns retained the existing Windows broker-cancel
+  race at 183/184, with two isolated 0/1 reproductions between them after related
+  process count was zero. Independent diagnosis confirmed that the fixture
+  emits turn completion before the interrupt RPC response and the protected
+  localized `taskkill` handler treats this partial-success exit 1 as fatal.
+  No product/runtime file was changed under the provenance-only authorization.
 
 No failed or cancelled attempt was rewritten as a pass.
 
