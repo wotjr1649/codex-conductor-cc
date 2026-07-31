@@ -697,7 +697,7 @@ export function validateP5Workflow(workflow, admittedActions, profileRegistry) {
     !/- lane:\s+current/.test(core) ||
     !/- lane:\s+previous/.test(core) ||
     !/- lane:\s+current[\s\S]*?run_contract:\s+true[\s\S]*?- lane:\s+previous[\s\S]*?run_contract:\s+false/.test(core) ||
-    !/- name:\s+Run P4 targeted contract once[\s\S]*?if:\s+\$\{\{\s*matrix\.run_contract\s*\}\}[\s\S]*?tests\/p4-contract-baseline\.test\.mjs/.test(core) ||
+    !/- name:[ \t]+Run P4 targeted contract once[ \t]*\r?\n[ \t]+if:[ \t]+\$\{\{[ \t]*matrix\.run_contract[ \t]*\}\}[ \t]*\r?\n[ \t]+run:[ \t]+node --test --test-concurrency=1 tests\/p4-contract-baseline\.test\.mjs[ \t]*\r?\n(?:[ \t]*\r?\n)*(?=[ \t]*- name:)/.test(core) ||
     !/install-p4-codex\.ps1/.test(core) ||
     !/run-p5-core-contract\.mjs/.test(core) ||
     !/tests\/p4-contract-baseline\.test\.mjs/.test(core)

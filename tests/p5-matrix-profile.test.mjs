@@ -104,6 +104,24 @@ test("P5-WORKFLOW-NEGATIVE-001 gate, cache, timeout, and early Node identity fai
       (entry) => entry.includes("P5E_CORE_MATRIX")
     )
   );
+  const noOpContract = workflow.replace(
+    "        run: node --test --test-concurrency=1 tests/p4-contract-baseline.test.mjs",
+    "        run: Write-Output tests/p4-contract-baseline.test.mjs"
+  );
+  assert.ok(
+    validateP5Workflow(noOpContract, toolchain.actions, profiles).some(
+      (entry) => entry.includes("P5E_CORE_MATRIX")
+    )
+  );
+  const maskedContract = workflow.replace(
+    "        run: node --test --test-concurrency=1 tests/p4-contract-baseline.test.mjs",
+    "        run: node --test --test-concurrency=1 tests/p4-contract-baseline.test.mjs; exit 0"
+  );
+  assert.ok(
+    validateP5Workflow(maskedContract, toolchain.actions, profiles).some(
+      (entry) => entry.includes("P5E_CORE_MATRIX")
+    )
+  );
   const mismatchedTimeouts = structuredClone(profiles);
   mismatchedTimeouts.profiles.find(({ id }) => id === "unit").timeoutMinutes = 29;
   assert.ok(
