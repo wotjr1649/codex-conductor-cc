@@ -1,7 +1,7 @@
 {
   "schemaVersion": "p5-attempt-ledger-v1",
   "phase": "P5",
-  "sourceCommit": "1411de6d40e8907b11f42c352f706712d1fe6516",
+  "sourceCommit": "9e0649e81555f6affb216985896a8d935d378a47",
   "automaticRetryPolicy": {
     "count": 0,
     "cancelledIsPassing": false,
@@ -390,7 +390,7 @@
       "timeout": false,
       "expected": "the restricted schema engine and all P5 source-binding checks pass at source revision 1411",
       "observed": "profile, scenario, workflow, execution-truth, privacy, and immutable readbacks were consistent",
-      "disposition": "accepted-final-source"
+      "disposition": "accepted-before-final-review-fix"
     },
     {
       "ordinal": 33,
@@ -402,7 +402,7 @@
       "timeout": false,
       "expected": "all inherited and hardened P5 tests pass serially at final source revision 1411",
       "observed": "181 of 181 passed with zero failure, zero cancellation, and zero skip in 259505 milliseconds",
-      "disposition": "accepted-final-source"
+      "disposition": "accepted-before-final-review-fix"
     },
     {
       "ordinal": 34,
@@ -414,7 +414,7 @@
       "timeout": false,
       "expected": "current and previous exact Codex lanes pass both transports at final source revision 1411",
       "observed": "four lifecycle runs passed with exact versions, executable digests, terminal states, and exit zero",
-      "disposition": "accepted-final-source"
+      "disposition": "accepted-before-final-review-fix"
     },
     {
       "ordinal": 35,
@@ -426,7 +426,7 @@
       "timeout": false,
       "expected": "minimum and current exact Claude binaries strictly validate both manifests at final source revision 1411",
       "observed": "both versions validated the marketplace and plugin manifests with updates disabled and no authentication or inference",
-      "disposition": "accepted-final-source-structural-only"
+      "disposition": "accepted-before-final-review-fix-structural-only"
     },
     {
       "ordinal": 36,
@@ -438,7 +438,7 @@
       "timeout": false,
       "expected": "all four exact admitted security tools exit zero at final source revision 1411",
       "observed": "actionlint and zizmor reported no workflow finding, OSV found no issue in three packages, and gitleaks found no leak",
-      "disposition": "accepted-final-source"
+      "disposition": "accepted-before-final-review-fix"
     },
     {
       "ordinal": 37,
@@ -450,7 +450,7 @@
       "timeout": false,
       "expected": "exact Node identity, clean install, audit, deterministic generation, and TypeScript build pass at final source revision 1411",
       "observed": "Node and npm identities matched, three packages installed, four audited with zero vulnerability, the generated digest stayed exact, and TypeScript compiled",
-      "disposition": "accepted-final-source"
+      "disposition": "accepted-before-final-review-fix"
     },
     {
       "ordinal": 38,
@@ -461,6 +461,114 @@
       "retryCount": 0,
       "timeout": false,
       "expected": "diff checks, P5 and P3 validators, scope controls, and protected-surface readback pass",
+      "observed": "both validators passed, diff checking was clean, and no P4-protected product, contract, lockfile, toolchain, or P3 policy surface changed",
+      "disposition": "accepted-before-final-review-fix"
+    },
+    {
+      "ordinal": 39,
+      "id": "p5-final-review-failure-writer-red-001",
+      "commandClass": "sanitized-failure-evidence",
+      "executionStatus": "executed-fail",
+      "rawExitCode": 1,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "an executed failure remains recordable when exact Node identity is unavailable or mismatched",
+      "observed": "the writer threw P5E_NODE_IDENTITY before creating failure JSON",
+      "disposition": "accepted-review-red"
+    },
+    {
+      "ordinal": 40,
+      "id": "p5-final-review-failure-writer-green-001",
+      "commandClass": "sanitized-failure-evidence",
+      "executionStatus": "executed-pass",
+      "rawExitCode": 0,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "a mismatch remains failure-only and produces sanitized structured evidence without a false tool identity",
+      "observed": "the writer emitted executed-fail with raw exit one, mismatch identity, finalizer-fallback clock source, and null selected tool",
+      "disposition": "accepted"
+    },
+    {
+      "ordinal": 41,
+      "id": "p5-full-regression-source-9e06-final-001",
+      "commandClass": "full-exact-node-regression",
+      "executionStatus": "executed-pass",
+      "rawExitCode": 0,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "all inherited and hardened P5 tests pass serially at final source revision 9e06",
+      "observed": "181 of 181 passed with zero failure, zero cancellation, and zero skip in 267430 milliseconds",
+      "disposition": "accepted-final-source"
+    },
+    {
+      "ordinal": 42,
+      "id": "p5-core-source-9e06-final-001",
+      "commandClass": "codex-direct-broker-lifecycle",
+      "executionStatus": "executed-pass",
+      "rawExitCode": 0,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "current and previous exact Codex lanes pass both transports at final source revision 9e06",
+      "observed": "four lifecycle runs passed with exact versions, executable digests, terminal states, and exit zero",
+      "disposition": "accepted-final-source"
+    },
+    {
+      "ordinal": 43,
+      "id": "p5-claude-structural-source-9e06-final-001",
+      "commandClass": "claude-structural-validation",
+      "executionStatus": "executed-pass",
+      "rawExitCode": 0,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "minimum and current exact Claude binaries strictly validate both manifests at final source revision 9e06",
+      "observed": "both versions validated marketplace and plugin manifests with updates disabled and no authentication or inference",
+      "disposition": "accepted-final-source-structural-only"
+    },
+    {
+      "ordinal": 44,
+      "id": "p5-security-source-9e06-final-001",
+      "commandClass": "exact-local-security-suite",
+      "executionStatus": "executed-pass",
+      "rawExitCode": 0,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "all four exact admitted security tools exit zero at final source revision 9e06",
+      "observed": "actionlint and zizmor reported no workflow finding, OSV found no issue in three packages, and gitleaks found no leak",
+      "disposition": "accepted-final-source"
+    },
+    {
+      "ordinal": 45,
+      "id": "p5-build-source-9e06-final-001",
+      "commandClass": "exact-install-and-build",
+      "executionStatus": "executed-pass",
+      "rawExitCode": 0,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "exact Node identity, clean install, audit, deterministic generation, and TypeScript build pass at final source revision 9e06",
+      "observed": "Node and npm identities matched, three packages installed, four audited with zero vulnerability, generated digest stayed exact, and TypeScript compiled",
+      "disposition": "accepted-final-source"
+    },
+    {
+      "ordinal": 46,
+      "id": "p5-targeted-source-9e06-final-001",
+      "commandClass": "targeted-p5-contract-test",
+      "executionStatus": "executed-pass",
+      "rawExitCode": 0,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "all hardened P5 workflow, false-green, evidence, privacy, and Windows resource assertions pass",
+      "observed": "14 of 14 targeted tests passed with zero failure and zero skip after the final review fixes",
+      "disposition": "accepted-final-source"
+    },
+    {
+      "ordinal": 47,
+      "id": "p5-hygiene-source-9e06-final-001",
+      "commandClass": "source-evidence-hygiene",
+      "executionStatus": "executed-pass",
+      "rawExitCode": 0,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "diff checks, P5 and P3 validators, scope controls, and protected-surface readback pass after final review fixes",
       "observed": "both validators passed, diff checking was clean, and no P4-protected product, contract, lockfile, toolchain, or P3 policy surface changed",
       "disposition": "accepted-final-source"
     }
@@ -577,6 +685,20 @@
       "disposition": "accepted-fixed",
       "summary": "the hardened digest schema used a standard keyword unsupported by the repository's restricted validator",
       "correction": "encode the same null-or-exact-SHA-256 constraint with the supported type array and retain the failed validation attempt"
+    },
+    {
+      "id": "P5-REVIEW-017",
+      "severity": "P1",
+      "disposition": "accepted-fixed",
+      "summary": "the workflow validator allowed the only P4 targeted-contract lane flag to be changed to false",
+      "correction": "require exact current true and previous false lane values plus the exact matrix-conditioned P4 test step, with a negative mutation test"
+    },
+    {
+      "id": "P5-REVIEW-018",
+      "severity": "P1",
+      "disposition": "accepted-fixed",
+      "summary": "setup or exact-Node failure could prevent the non-cancelled failure finalizer from producing structured evidence",
+      "correction": "start the clock immediately after checkout, allow failure-only nullable Node readback with an explicit identity status, and retain exact Node as mandatory for every pass"
     }
   ],
   "privacy": {

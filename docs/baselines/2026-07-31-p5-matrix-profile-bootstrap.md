@@ -1,7 +1,7 @@
 # P5 Windows x64 matrix/profile bootstrap
 
 Date: 2026-07-31
-Source commit: `1411de6d40e8907b11f42c352f706712d1fe6516`
+Source commit: `9e0649e81555f6affb216985896a8d935d378a47`
 Handoff commit: `84515289913dfe8a7452754ad442d37873bdfd53`
 Platform: Windows x64, exact Node.js 24.18.1 and npm 11.16.0
 
@@ -65,7 +65,7 @@ claim.
 
 The final exact-Node full regression passed 181/181 with zero failure,
 cancel, or skip at source
-`1411de6d40e8907b11f42c352f706712d1fe6516`. An earlier source revision's
+`9e0649e81555f6affb216985896a8d935d378a47`. An earlier source revision's
 176/177 broker-cancel race and a later 124-second local harness timeout both
 remain in the attempt ledger; neither was rewritten as a pass.
 
@@ -120,7 +120,14 @@ The ordered attempt ledger retains all material failures. In particular:
 - final evidence validation rejected a standard `anyOf` keyword that the
   repository's restricted schema engine does not implement; the equivalent
   null-or-SHA-256 constraint was re-encoded with a supported type array, and
-  validation plus 181/181 tests passed at the new final source commit.
+  validation plus 181/181 tests passed at the new final source commit; and
+- the final independent review found that the current-only P4 contract flag
+  could be disabled without a validator error and that setup/Node failures
+  could prevent failure JSON. Both P1 findings were reproduced, accepted, and
+  fixed: the validator now pins the lane flags and exact conditional step, the
+  clock starts immediately after checkout, failure-only Node identity can be
+  nullable with an explicit status, and every passing record still requires
+  exact Node/npm/x64 bytes.
 
 No failed or cancelled attempt was rewritten as a pass.
 
