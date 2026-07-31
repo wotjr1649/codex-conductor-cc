@@ -73,6 +73,12 @@ const evidence = readJson(
 const schema = readJson("evidence/schemas/p5-evidence-v1.schema.json");
 const ledger = readJson("evidence/ledgers/p5-attempts.json");
 const inventory = readJson("evidence/inventory/p5-prechange-20260731.json");
+const baselinePath = path.join(
+  ROOT,
+  "docs",
+  "baselines",
+  "2026-07-31-p5-matrix-profile-bootstrap.md"
+);
 
 if (profiles) errors.push(...validateProfileRegistry(profiles, toolchain));
 if (scenarios && profiles) {
@@ -87,6 +93,21 @@ if (fs.existsSync(workflowPath) && profiles) {
       profiles
     )
   );
+}
+const runnerWriterPath = path.join(ROOT, "scripts", "write-p5-runner-evidence.ps1");
+if (fs.existsSync(runnerWriterPath)) {
+  const runnerWriter = fs.readFileSync(runnerWriterPath, "utf8");
+  for (const invariant of [
+    "$runnerEnvironment -cne 'github-hosted'",
+    "$runnerOS -cne 'Windows'",
+    "$runnerArch -cne 'X64'",
+    "$logicalDisk.FileSystem -cne 'NTFS'",
+    "P5E_HOSTED_RUNNER"
+  ]) {
+    if (!runnerWriter.includes(invariant)) {
+      errors.push(`P5E_RUNNER_WRITER_INVARIANT:${invariant}`);
+    }
+  }
 }
 if (evidence && schema) {
   errors.push(...validateJsonSchema(evidence, schema, "P5 evidence"));
@@ -105,6 +126,59 @@ if (
   )
 ) {
   errors.push("P5E_LEDGER: meaningful RED and ordered material attempts are required");
+}
+const boundSource = evidence?.source?.sourceCommit ?? "";
+const boundSourceType = spawnSync("git", ["cat-file", "-t", boundSource], {
+  cwd: ROOT,
+  encoding: "utf8",
+  shell: false,
+  windowsHide: true
+});
+const p4ToSource = spawnSync(
+  "git",
+  ["merge-base", "--is-ancestor", P4_FINAL, boundSource],
+  { cwd: ROOT, encoding: "utf8", shell: false, windowsHide: true }
+);
+const sourceToHead = spawnSync(
+  "git",
+  ["merge-base", "--is-ancestor", boundSource, "HEAD"],
+  { cwd: ROOT, encoding: "utf8", shell: false, windowsHide: true }
+);
+const baseline = fs.existsSync(baselinePath)
+  ? fs.readFileSync(baselinePath, "utf8")
+  : "";
+if (
+  boundSourceType.status !== 0 ||
+  boundSourceType.stdout.trim() !== "commit" ||
+  p4ToSource.status !== 0 ||
+  sourceToHead.status !== 0 ||
+  ledger?.sourceCommit !== boundSource ||
+  !baseline.includes(`Source commit: \`${boundSource}\``)
+) {
+  errors.push(
+    "P5E_SOURCE_BINDING: manifest, ledger, baseline, resolvable source commit, and P4 ancestry must agree"
+  );
+}
+const evidenceOnlyFiles = new Set([
+  "docs/baselines/2026-07-31-p5-matrix-profile-bootstrap.md",
+  "evidence/ledgers/p5-attempts.json"
+]);
+const evidenceOnlyPrefixes = ["evidence/manifests/p5/"];
+const postSourcePaths = [
+  ...git(["diff", "--name-only", `${boundSource}..HEAD`]).split(/\r?\n/),
+  ...git(["diff", "--name-only"]).split(/\r?\n/),
+  ...git(["diff", "--name-only", "--cached"]).split(/\r?\n/),
+  ...git(["ls-files", "--others", "--exclude-standard"]).split(/\r?\n/)
+]
+  .filter(Boolean)
+  .map((item) => item.replaceAll("\\", "/"));
+for (const relativePath of new Set(postSourcePaths)) {
+  if (
+    !evidenceOnlyFiles.has(relativePath) &&
+    !evidenceOnlyPrefixes.some((allowedPath) => relativePath.startsWith(allowedPath))
+  ) {
+    errors.push(`P5E_POST_SOURCE_CHANGE:${relativePath}`);
+  }
 }
 if (
   inventory?.source?.handoffCommit !== P4_FINAL ||

@@ -28,6 +28,10 @@ param(
     [Parameter(Mandatory = $true)]
     [string[]]$FixtureIds,
 
+    [Parameter(Mandatory = $true)]
+    [ValidateNotNullOrEmpty()]
+    [string]$ExpectedOracle,
+
     [string]$ExpectedNodeVersion = '24.18.1',
     [string]$ExpectedNpmVersion = '11.16.0',
     [string]$ExpectedNodeSha256 = 'ac51903c4c111815d52280b1fdcc8da067cbb37e2fe1a765097b85c3292c8582',
@@ -102,10 +106,16 @@ $providedRequirementIds = @($RequirementIds | Sort-Object -Unique)
 $expectedFixtureIds = @($scenarioRecord.fixtureIds | Sort-Object -Unique)
 $providedFixtureIds = @($FixtureIds | Sort-Object -Unique)
 if (
-    ($expectedRequirementIds -join "`n") -cne ($providedRequirementIds -join "`n") -or
-    ($expectedFixtureIds -join "`n") -cne ($providedFixtureIds -join "`n")
+    ($expectedRequirementIds -join "`n") -cne ($providedRequirementIds -join "`n")
 ) {
-    throw 'P5E_EVIDENCE_TRACE: requirement and fixture IDs must exactly match the scenario registry'
+    throw 'P5E_EVIDENCE_REQUIREMENT: requirement IDs must exactly match the scenario registry'
+}
+if (
+    $providedFixtureIds.Count -eq 0 -or
+    $providedFixtureIds.Count -ne $FixtureIds.Count -or
+    @($providedFixtureIds | Where-Object { $_ -cnotin $expectedFixtureIds }).Count -ne 0
+) {
+    throw 'P5E_EVIDENCE_FIXTURE: executed fixture IDs must be a unique subset of the scenario registry'
 }
 $oracleRegistryDigest = (
     Get-FileHash -Algorithm SHA256 -LiteralPath $scenarioRegistryPath
@@ -210,8 +220,14 @@ if ($null -eq $logicalDisk -or [string]::IsNullOrWhiteSpace($logicalDisk.FileSys
 
 $finishedAt = [datetimeoffset]::UtcNow
 $wallTimeMs = [math]::Max(0, [long]($finishedAt - $StartedAt).TotalMilliseconds)
-$sourceSha = if (-not [string]::IsNullOrWhiteSpace($env:GITHUB_SHA)) {
+$checkoutSha = if (-not [string]::IsNullOrWhiteSpace($env:GITHUB_SHA)) {
     $env:GITHUB_SHA
+}
+else {
+    (& git -C $repoRoot rev-parse HEAD).Trim()
+}
+$sourceSha = if ($ExecutionClass -eq 'hosted') {
+    $env:P5_SOURCE_SHA
 }
 else {
     (& git -C $repoRoot rev-parse HEAD).Trim()
@@ -220,10 +236,14 @@ $workflowSha = if (-not [string]::IsNullOrWhiteSpace($env:GITHUB_WORKFLOW_SHA)) 
     $env:GITHUB_WORKFLOW_SHA
 }
 else {
-    $sourceSha
+    $checkoutSha
 }
-if ($sourceSha -notmatch '^[0-9a-f]{40}$' -or $workflowSha -notmatch '^[0-9a-f]{40}$') {
-    throw 'P5E_SOURCE_SHA: exact source and workflow commit identities are required'
+if (
+    $sourceSha -notmatch '^[0-9a-f]{40}$' -or
+    $checkoutSha -notmatch '^[0-9a-f]{40}$' -or
+    $workflowSha -notmatch '^[0-9a-f]{40}$'
+) {
+    throw 'P5E_SOURCE_SHA: exact source, checkout, and workflow commit identities are required'
 }
 
 $runAttempt = if ($env:GITHUB_RUN_ATTEMPT -match '^[1-9][0-9]*$') {
@@ -252,6 +272,25 @@ $imageVersion = if ($ExecutionClass -eq 'hosted' -and -not [string]::IsNullOrWhi
 else {
     $null
 }
+$storageClass = if ($ExecutionClass -eq 'hosted') {
+    'github-hosted-ephemeral-runner-temp'
+}
+else {
+    'run-owned-temp-volume'
+}
+if (
+    $ExecutionClass -eq 'hosted' -and (
+        $runnerEnvironment -cne 'github-hosted' -or
+        $runnerOS -cne 'Windows' -or
+        $runnerArch -cne 'X64' -or
+        [string]::IsNullOrWhiteSpace($imageOS) -or
+        [string]::IsNullOrWhiteSpace($imageVersion) -or
+        $logicalDisk.FileSystem -cne 'NTFS' -or
+        [string]::IsNullOrWhiteSpace($os.BuildNumber)
+    )
+) {
+    throw 'P5E_HOSTED_RUNNER: exact GitHub-hosted Windows x64 image and NTFS readback are required'
+}
 
 $evidence = [ordered]@{
     schemaVersion = 'p5-runner-evidence-v1'
@@ -260,15 +299,18 @@ $evidence = [ordered]@{
     blocking = [bool]$profileRecord.blocking
     requirementIds = @($scenarioRecord.requirementIds)
     scenarioId = $ScenarioId
-    fixtureIds = @($scenarioRecord.fixtureIds)
+    scenarioFixtureIds = @($scenarioRecord.fixtureIds)
+    executedFixtureIds = @($FixtureIds)
     oracle = [ordered]@{
         registrySha256 = $oracleRegistryDigest
-        expected = $scenarioRecord.oracle
+        aggregateExpected = $scenarioRecord.oracle
+        expected = $ExpectedOracle
         observedStatus = $ObservedStatus
     }
     runtimeEnforced = $runtimeImplemented
     deferredPhase = $deferredPhase
     sourceSha = $sourceSha
+    checkoutSha = $checkoutSha
     workflowSha = $workflowSha
     executionClass = $ExecutionClass
     runner = [ordered]@{
@@ -284,7 +326,7 @@ $evidence = [ordered]@{
         osArchitecture = $os.OSArchitecture
         powershellVersion = $PSVersionTable.PSVersion.ToString()
         filesystem = $logicalDisk.FileSystem
-        storageClass = 'run-owned-temp-volume'
+        storageClass = $storageClass
     }
     tools = [ordered]@{
         node = $nodeVersion

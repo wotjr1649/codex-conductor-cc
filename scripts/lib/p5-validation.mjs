@@ -375,6 +375,13 @@ export function extractWorkflowJobs(workflow) {
 export function validateP5Workflow(workflow, admittedActions, profileRegistry) {
   const errors = [...validateP3WorkflowText(workflow, admittedActions)];
   const jobs = extractWorkflowJobs(workflow);
+  if (
+    !/^env:\s*\n\s{2}P5_SOURCE_SHA:\s+\$\{\{\s*github\.event\.pull_request\.head\.sha\s*\}\}\s*$/m.test(
+      workflow
+    )
+  ) {
+    errors.push("P5E_SOURCE_HEAD_SHA: exact pull-request head SHA evidence binding is required");
+  }
   if (!includesExactSet([...jobs.keys()], EXPECTED_JOBS)) {
     errors.push("P5E_JOB_SET: exact P5 workflow jobs are required");
   }
