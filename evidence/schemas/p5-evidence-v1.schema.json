@@ -501,7 +501,17 @@
           "minLength": 1,
           "type": "string"
         },
-        "artifactSha256": {},
+        "artifactSha256": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "runtimeEnforced": {
           "type": "boolean"
         },

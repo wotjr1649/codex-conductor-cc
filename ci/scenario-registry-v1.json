@@ -244,7 +244,8 @@
       "fixtureIds": [
         "P5-WINDOWS-SERIAL-001",
         "P5-PROCESS-TREE-001",
-        "P5-OPEN-HANDLE-001"
+        "P5-OPEN-HANDLE-001",
+        "P5-RUNNER-METADATA-001"
       ],
       "blocking": true,
       "testFiles": [
@@ -254,7 +255,7 @@
         "tests/runtime.test.mjs",
         "tests/p5-windows-resource.test.mjs"
       ],
-      "oracle": "mapped Windows files run serially and the exact run-owned process tree and retained file handle are absent after bounded taskkill cleanup"
+      "oracle": "mapped Windows files run serially, the exact run-owned process tree and retained file handle are absent after bounded taskkill cleanup, and sanitized runner metadata is fail-closed"
     },
     {
       "id": "P5-CLAUDE-001",
@@ -295,19 +296,19 @@
       "oracle": "exact admitted security tools report no workflow, lockfile, or secret finding"
     },
     {
-      "id": "P5-RUNNER-001",
-      "profileId": "windows-integration",
+      "id": "P5-DEPENDENCY-001",
+      "profileId": "dependency-review",
       "requirementIds": [
-        "P5-7",
         "P5-10",
-        "P5-12"
+        "X7",
+        "X9"
       ],
       "fixtureIds": [
-        "P5-RUNNER-METADATA-001"
+        "P5-DEPENDENCY-REVIEW-001"
       ],
       "blocking": true,
       "testFiles": [],
-      "oracle": "allowlisted metadata includes exact image, OS build, x64, filesystem, Node/npm, source/workflow SHA, timing, retry, and redaction state without a private path or raw environment"
+      "oracle": "the exact pinned GitHub dependency comparison action fails closed on vulnerable or invalid dependency changes"
     },
     {
       "id": "P5-CANARY-001",

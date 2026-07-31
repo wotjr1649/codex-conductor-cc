@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import {
   mkdtempSync,
   readFileSync,
@@ -12,8 +12,6 @@ import path from "node:path";
 import process from "node:process";
 import test from "node:test";
 
-import { terminateProcessTree } from "../plugins/codex/scripts/lib/process.mjs";
-
 function processExists(pid) {
   try {
     process.kill(pid, 0);
@@ -22,6 +20,25 @@ function processExists(pid) {
     if (error?.code === "ESRCH") return false;
     throw error;
   }
+}
+
+function terminateOwnedTree(pid) {
+  const result = spawnSync(
+    "taskkill.exe",
+    ["/PID", String(pid), "/T", "/F"],
+    {
+      encoding: "utf8",
+      shell: false,
+      windowsHide: true,
+      timeout: 5000
+    }
+  );
+  assert.notEqual(result.error?.code, "ETIMEDOUT", "P5E_TASKKILL_TIMEOUT");
+  return {
+    attempted: true,
+    delivered: result.status === 0,
+    method: "taskkill"
+  };
 }
 
 async function waitFor(predicate, timeoutMs, diagnostic) {
@@ -73,7 +90,7 @@ test("P5-PROCESS-TREE-001 taskkill releases the exact child and retained file ha
   let childPid = null;
   t.after(() => {
     if (processExists(root.pid)) {
-      terminateProcessTree(root.pid);
+      terminateOwnedTree(root.pid);
     }
     rmSync(runRoot, { recursive: true, force: true });
   });
@@ -104,7 +121,7 @@ test("P5-PROCESS-TREE-001 taskkill releases the exact child and retained file ha
     "P5E_OPEN_HANDLE_PROBE"
   );
 
-  const outcome = terminateProcessTree(root.pid);
+  const outcome = terminateOwnedTree(root.pid);
   assert.deepEqual(
     {
       attempted: outcome.attempted,

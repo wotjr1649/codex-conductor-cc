@@ -41,7 +41,13 @@
     "cancelledAttemptIsPassing": false,
     "automaticRetryCount": 0,
     "cacheEnabled": false,
-    "artifactUploadEnabled": false,
+    "repositoryAuthoredArtifactUploadEnabled": false,
+    "dependencyReviewLargeSummaryArtifact": {
+      "possible": true,
+      "thresholdBytes": 1048576,
+      "retentionDays": 1,
+      "releaseTrustInput": false
+    },
     "prArtifactsAreReleaseTrustInputs": false,
     "authenticatedClaudeEnabled": false,
     "oidcEnabled": false

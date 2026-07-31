@@ -46,7 +46,9 @@ param(
     [ValidateSet('executed-pass', 'executed-fail', 'non-blocking-canary')]
     [string]$ObservedStatus = 'executed-pass',
     [int]$RawExitCode = 0,
-    [ValidateSet('executed-pass', 'not-applicable', 'not-run')]
+    [ValidateSet('direct-process', 'github-job-status-normalized')]
+    [string]$ExitCodeSource = 'direct-process',
+    [ValidateSet('executed-pass', 'executed-fail', 'not-applicable', 'not-run')]
     [string]$ResourceOracleStatus = 'not-applicable'
 )
 
@@ -133,6 +135,13 @@ $deferredPhase = if ($null -eq $deferredPhaseProperty) {
 }
 else {
     $deferredPhaseProperty.Value
+}
+if (
+    -not $runtimeImplemented -or
+    [string]::IsNullOrWhiteSpace([string]$profileRecord.workflowJob) -or
+    $profileRecord.workflowJob -cne $Profile
+) {
+    throw 'P5E_FALSE_GREEN: runner evidence is forbidden for a blocked or unbound profile'
 }
 if ($ExecutionClass -eq 'hosted') {
     if ([string]::IsNullOrWhiteSpace($env:RUNNER_TEMP)) {
@@ -341,6 +350,7 @@ $evidence = [ordered]@{
         automaticRetryCount = 0
         timeout = $false
         rawExitCode = $RawExitCode
+        rawExitCodeSource = $ExitCodeSource
         startedAt = $StartedAt.ToUniversalTime().ToString('o')
         finishedAt = $finishedAt.ToString('o')
         wallTimeMs = $wallTimeMs

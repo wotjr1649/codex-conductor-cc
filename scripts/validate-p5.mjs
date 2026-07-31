@@ -8,9 +8,11 @@ import { fileURLToPath } from "node:url";
 
 import { validateJsonSchema } from "./lib/p4-schema-validator.mjs";
 import {
+  validateAttemptLedger,
   validateP5Evidence,
   validateP5Privacy,
   validateP5Workflow,
+  isP5AllowedPath,
   validateProfileRegistry,
   validateScenarioRegistry
 } from "./lib/p5-validation.mjs";
@@ -51,6 +53,7 @@ const requiredFiles = [
   "evidence/manifests/p5/p5-matrix-profile-bootstrap-20260731.json",
   "evidence/ledgers/p5-attempts.json",
   "scripts/invoke-p4-validator-at-handoff.ps1",
+  "scripts/run-p5-node-identity.ps1",
   "scripts/run-p5-core-contract.mjs",
   "scripts/run-p5-p4-generator.mjs",
   "scripts/write-p5-runner-evidence.ps1",
@@ -102,6 +105,8 @@ if (fs.existsSync(runnerWriterPath)) {
     "$runnerOS -cne 'Windows'",
     "$runnerArch -cne 'X64'",
     "$logicalDisk.FileSystem -cne 'NTFS'",
+    "P5E_FALSE_GREEN",
+    "rawExitCodeSource",
     "P5E_HOSTED_RUNNER"
   ]) {
     if (!runnerWriter.includes(invariant)) {
@@ -113,11 +118,9 @@ if (evidence && schema) {
   errors.push(...validateJsonSchema(evidence, schema, "P5 evidence"));
   errors.push(...validateP5Evidence(evidence, profiles));
 }
+if (ledger) errors.push(...validateAttemptLedger(ledger));
 if (
-  ledger?.schemaVersion !== "p5-attempt-ledger-v1" ||
-  !Array.isArray(ledger.attempts) ||
-  ledger.attempts.length === 0 ||
-  !ledger.attempts.some(
+  !ledger?.attempts?.some(
     (attempt) =>
       attempt.id === "p5-red-001" &&
       attempt.executionStatus === "executed-fail" &&
@@ -125,7 +128,7 @@ if (
       attempt.retryCount === 0
   )
 ) {
-  errors.push("P5E_LEDGER: meaningful RED and ordered material attempts are required");
+  errors.push("P5E_LEDGER_RED: meaningful RED must remain in the ordered ledger");
 }
 const boundSource = evidence?.source?.sourceCommit ?? "";
 const boundSourceType = spawnSync("git", ["cat-file", "-t", boundSource], {
@@ -253,21 +256,6 @@ if (
   errors.push("P5E_P4_CONTRACT_TREE: exact P4 contract tree changed");
 }
 
-const allowed = [
-  ".github/workflows/pull-request-ci.yml",
-  "ci/",
-  "docs/baselines/2026-07-31-p5-",
-  "evidence/inventory/p5-",
-  "evidence/ledgers/p5-",
-  "evidence/manifests/p5/",
-  "evidence/schemas/p5-",
-  "scripts/invoke-p4-validator-at-handoff.ps1",
-  "scripts/run-p5-",
-  "scripts/validate-p5.mjs",
-  "scripts/write-p5-runner-evidence.ps1",
-  "scripts/lib/p5-",
-  "tests/p5-"
-];
 const changed = [
   ...git(["diff", "--name-only", `${P4_FINAL}..HEAD`]).split(/\r?\n/),
   ...git(["diff", "--name-only"]).split(/\r?\n/),
@@ -275,7 +263,7 @@ const changed = [
   ...git(["ls-files", "--others", "--exclude-standard"]).split(/\r?\n/)
 ].filter(Boolean);
 for (const relativePath of new Set(changed.map((item) => item.replaceAll("\\", "/")))) {
-  if (!allowed.some((prefix) => relativePath.startsWith(prefix))) {
+  if (!isP5AllowedPath(relativePath)) {
     errors.push(`P5E_SCOPE: path outside P5 allowlist: ${relativePath}`);
   }
 }

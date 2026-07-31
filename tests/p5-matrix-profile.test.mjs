@@ -5,9 +5,11 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 import {
+  validateAttemptLedger,
   validateP5Evidence,
   validateP5Privacy,
   validateP5Workflow,
+  isP5AllowedPath,
   validateProfileRegistry,
   validateScenarioRegistry
 } from "../scripts/lib/p5-validation.mjs";
@@ -55,6 +57,64 @@ test("P5-WORKFLOW-001 job-scoped security and matrix policy validates", () => {
   );
 });
 
+test("P5-WORKFLOW-NEGATIVE-001 gate, cache, timeout, and early Node identity fail closed", () => {
+  const weakGate = workflow.replace(
+    "DEPENDENCY_RESULT: ${{ needs.dependency-review.result }}",
+    "DEPENDENCY_RESULT: success"
+  );
+  assert.ok(
+    validateP5Workflow(weakGate, toolchain.actions, profiles).some((entry) =>
+      entry.includes("P5E_GATE")
+    )
+  );
+  const cached = workflow.replace(
+    "package-manager-cache: false",
+    "package-manager-cache: false\n          cache: npm"
+  );
+  assert.ok(
+    validateP5Workflow(cached, toolchain.actions, profiles).some((entry) =>
+      entry.includes("P5E_NPM_CACHE")
+    )
+  );
+  const lateIdentity = workflow.replace(
+    "        run: ./scripts/run-p5-node-identity.ps1",
+    "        run: Write-Output missing-identity"
+  );
+  assert.ok(
+    validateP5Workflow(lateIdentity, toolchain.actions, profiles).some((entry) =>
+      entry.includes("P5E_NODE_IDENTITY_ORDER")
+    )
+  );
+  const mismatchedTimeouts = structuredClone(profiles);
+  mismatchedTimeouts.profiles.find(({ id }) => id === "unit").timeoutMinutes = 29;
+  assert.ok(
+    validateP5Workflow(workflow, toolchain.actions, mismatchedTimeouts).some(
+      (entry) => entry.includes("P5E_PROFILE_JOB_POLICY:unit")
+    )
+  );
+  const successOnlyEvidence = workflow.replace(
+    "        if: ${{ !cancelled() }}",
+    "        if: ${{ success() }}"
+  );
+  assert.ok(
+    validateP5Workflow(successOnlyEvidence, toolchain.actions, profiles).some(
+      (entry) => entry.includes("P5E_FAILURE_EVIDENCE")
+    )
+  );
+});
+
+test("P5-COVERAGE-NEGATIVE-001 every test and blocking profile maps exactly once", () => {
+  const mutated = structuredClone(scenarios);
+  const windows = mutated.scenarios.find(({ id }) => id === "P5-WINDOWS-001");
+  windows.testFiles = windows.testFiles.filter(
+    (testFile) => testFile !== "tests/p5-windows-resource.test.mjs"
+  );
+  const diagnostics = validateScenarioRegistry(mutated, root, profiles);
+  assert.ok(
+    diagnostics.some((entry) => entry.includes("P5E_BLOCKING_TEST_COVERAGE"))
+  );
+});
+
 test("P5-EVIDENCE-001 local, hosted, not-run, canary, and blocked truth stays disjoint", () => {
   const evidence = readJson(
     "evidence/manifests/p5/p5-matrix-profile-bootstrap-20260731.json"
@@ -85,9 +145,36 @@ test("P5-FALSE-GREEN-001 state D1 and Windows C0 cannot pass without runtime evi
   c0.definitionStatus = "hosted-pass";
   d1.shippingBinding = "placeholder";
   d1.definitionStatus = "local-pass";
+  c0.workflowJob = "windows-integration";
+  c0.allowedEvidenceStatuses.push("hosted-pass");
+  d1.workflowJob = "windows-integration";
+  d1.allowedEvidenceStatuses.push("local-pass");
   const diagnostics = validateProfileRegistry(mutated, toolchain);
   assert.ok(diagnostics.some((entry) => entry.includes("P5E_C0_FALSE_GREEN")));
   assert.ok(diagnostics.some((entry) => entry.includes("P5E_D1_FALSE_GREEN")));
+});
+
+test("P5-SCOPE-NEGATIVE-001 exact allowlist entries reject suffix lookalikes", () => {
+  assert.equal(isP5AllowedPath(".github/workflows/pull-request-ci.yml"), true);
+  assert.equal(isP5AllowedPath("scripts/validate-p5.mjs"), true);
+  assert.equal(isP5AllowedPath("tests/p5-new.test.mjs"), true);
+  assert.equal(isP5AllowedPath(".github/workflows/pull-request-ci.yml.bak"), false);
+  assert.equal(isP5AllowedPath("scripts/validate-p5.mjs.unreviewed"), false);
+});
+
+test("P5-LEDGER-NEGATIVE-001 attempt order, identity, and outcomes fail closed", () => {
+  const ledger = readJson("evidence/ledgers/p5-attempts.json");
+  assert.deepEqual(validateAttemptLedger(ledger), []);
+  const mutated = structuredClone(ledger);
+  mutated.attempts[1].ordinal = 999;
+  mutated.attempts[1].id = mutated.attempts[0].id;
+  mutated.attempts[1].executionStatus = "executed-pass";
+  mutated.attempts[1].unreviewed = true;
+  const diagnostics = validateAttemptLedger(mutated);
+  assert.ok(diagnostics.some((entry) => entry.includes("P5E_LEDGER_ORDINAL")));
+  assert.ok(diagnostics.some((entry) => entry.includes("P5E_LEDGER_ID")));
+  assert.ok(diagnostics.some((entry) => entry.includes("P5E_LEDGER_OUTCOME")));
+  assert.ok(diagnostics.some((entry) => entry.includes("P5E_LEDGER_PROPERTIES")));
 });
 
 test("P5-CANARY-NEGATIVE-001 canary cannot satisfy a blocking profile", () => {

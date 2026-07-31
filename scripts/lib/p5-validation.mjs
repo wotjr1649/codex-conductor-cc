@@ -38,9 +38,35 @@ const EXPECTED_JOBS = [
 const BLOCKING_JOBS = EXPECTED_JOBS.filter(
   (job) => !["next-canary", "gate"].includes(job)
 );
+const P5_EXACT_PATHS = new Set([
+  ".github/CODEOWNERS",
+  ".github/workflows/pull-request-ci.yml",
+  "scripts/invoke-p4-validator-at-handoff.ps1",
+  "scripts/validate-p5.mjs",
+  "scripts/write-p5-runner-evidence.ps1"
+]);
+const P5_PATH_PREFIXES = [
+  "ci/",
+  "docs/baselines/2026-07-31-p5-",
+  "evidence/inventory/p5-",
+  "evidence/ledgers/p5-",
+  "evidence/manifests/p5/",
+  "evidence/schemas/p5-",
+  "scripts/run-p5-",
+  "scripts/lib/p5-",
+  "tests/p5-"
+];
 
 export function sha256File(absolutePath) {
   return createHash("sha256").update(fs.readFileSync(absolutePath)).digest("hex");
+}
+
+export function isP5AllowedPath(relativePath) {
+  const normalized = relativePath.replaceAll("\\", "/");
+  return (
+    P5_EXACT_PATHS.has(normalized) ||
+    P5_PATH_PREFIXES.some((prefix) => normalized.startsWith(prefix))
+  );
 }
 
 function sha256CanonicalTextFile(absolutePath) {
@@ -96,6 +122,103 @@ export function validateP5Privacy(value, location = "$") {
   return errors;
 }
 
+export function validateAttemptLedger(ledger) {
+  const errors = [];
+  const rootKeys = [
+    "schemaVersion",
+    "phase",
+    "sourceCommit",
+    "automaticRetryPolicy",
+    "attempts",
+    "reviewFindings",
+    "privacy"
+  ];
+  if (
+    !includesExactSet(Object.keys(ledger ?? {}), rootKeys) ||
+    ledger?.schemaVersion !== "p5-attempt-ledger-v1" ||
+    !COMMIT.test(ledger?.sourceCommit ?? "") ||
+    ledger?.automaticRetryPolicy?.count !== 0 ||
+    ledger?.automaticRetryPolicy?.cancelledIsPassing !== false ||
+    ledger?.automaticRetryPolicy?.failedAttemptMayBeRewritten !== false ||
+    !Array.isArray(ledger?.attempts) ||
+    ledger.attempts.length === 0
+  ) {
+    errors.push("P5E_LEDGER_IDENTITY: exact source and no-automatic-retry policy required");
+    return errors;
+  }
+  const ids = new Set();
+  const attemptKeys = [
+    "ordinal",
+    "id",
+    "commandClass",
+    "executionStatus",
+    "rawExitCode",
+    "retryCount",
+    "timeout",
+    "expected",
+    "observed",
+    "disposition"
+  ];
+  ledger.attempts.forEach((attempt, index) => {
+    const location = `attempts[${index}]`;
+    if (!includesExactSet(Object.keys(attempt ?? {}), attemptKeys)) {
+      errors.push(`P5E_LEDGER_PROPERTIES:${location}`);
+    }
+    if (attempt?.ordinal !== index + 1) {
+      errors.push(`P5E_LEDGER_ORDINAL:${location}`);
+    }
+    if (typeof attempt?.id !== "string" || ids.has(attempt.id)) {
+      errors.push(`P5E_LEDGER_ID:${location}`);
+    } else {
+      ids.add(attempt.id);
+    }
+    if (
+      typeof attempt?.commandClass !== "string" ||
+      typeof attempt?.expected !== "string" ||
+      typeof attempt?.observed !== "string" ||
+      typeof attempt?.disposition !== "string" ||
+      !Number.isInteger(attempt?.rawExitCode) ||
+      !Number.isInteger(attempt?.retryCount) ||
+      attempt.retryCount < 0 ||
+      typeof attempt?.timeout !== "boolean"
+    ) {
+      errors.push(`P5E_LEDGER_FIELDS:${location}`);
+    }
+    if (
+      (attempt?.executionStatus === "executed-pass" &&
+        (attempt.rawExitCode !== 0 || attempt.timeout !== false)) ||
+      (attempt?.executionStatus === "executed-fail" && attempt.rawExitCode === 0) ||
+      !["executed-pass", "executed-fail"].includes(attempt?.executionStatus) ||
+      (attempt?.timeout === true && attempt.executionStatus !== "executed-fail")
+    ) {
+      errors.push(`P5E_LEDGER_OUTCOME:${location}`);
+    }
+  });
+  const reviewIds = new Set();
+  for (const [index, finding] of (ledger.reviewFindings ?? []).entries()) {
+    if (
+      !includesExactSet(Object.keys(finding ?? {}), [
+        "id",
+        "severity",
+        "disposition",
+        "summary",
+        "correction"
+      ]) ||
+      typeof finding.id !== "string" ||
+      reviewIds.has(finding.id) ||
+      !["P1", "P2", "P3"].includes(finding.severity) ||
+      typeof finding.disposition !== "string" ||
+      typeof finding.summary !== "string" ||
+      typeof finding.correction !== "string"
+    ) {
+      errors.push(`P5E_LEDGER_REVIEW:reviewFindings[${index}]`);
+    }
+    reviewIds.add(finding.id);
+  }
+  errors.push(...validateP5Privacy(ledger, "attemptLedger"));
+  return errors;
+}
+
 export function validateProfileRegistry(registry, toolchain) {
   const errors = [];
   if (
@@ -119,7 +242,13 @@ export function validateProfileRegistry(registry, toolchain) {
     registry.workflowPolicy?.cancelledAttemptIsPassing !== false ||
     registry.workflowPolicy?.automaticRetryCount !== 0 ||
     registry.workflowPolicy?.cacheEnabled !== false ||
-    registry.workflowPolicy?.artifactUploadEnabled !== false ||
+    registry.workflowPolicy?.repositoryAuthoredArtifactUploadEnabled !== false ||
+    registry.workflowPolicy?.dependencyReviewLargeSummaryArtifact?.possible !== true ||
+    registry.workflowPolicy?.dependencyReviewLargeSummaryArtifact?.thresholdBytes !==
+      1048576 ||
+    registry.workflowPolicy?.dependencyReviewLargeSummaryArtifact?.retentionDays !== 1 ||
+    registry.workflowPolicy?.dependencyReviewLargeSummaryArtifact?.releaseTrustInput !==
+      false ||
     registry.workflowPolicy?.authenticatedClaudeEnabled !== false ||
     registry.workflowPolicy?.oidcEnabled !== false
   ) {
@@ -228,6 +357,10 @@ export function validateProfileRegistry(registry, toolchain) {
   }
   const c0 = profileById(registry, "windows-c0");
   if (
+    c0?.workflowJob !== null ||
+    c0?.blocking !== false ||
+    c0?.timeoutMinutes !== null ||
+    !includesExactSet(c0?.allowedEvidenceStatuses, ["blocked-with-evidence"]) ||
     c0?.runtimeImplemented !== false ||
     c0?.nativeArtifactDigest !== null ||
     c0?.priorEvidenceMaySatisfyRuntime !== false ||
@@ -238,6 +371,10 @@ export function validateProfileRegistry(registry, toolchain) {
   }
   const d1 = profileById(registry, "state-d1");
   if (
+    d1?.workflowJob !== null ||
+    d1?.blocking !== false ||
+    d1?.timeoutMinutes !== null ||
+    !includesExactSet(d1?.allowedEvidenceStatuses, ["blocked-with-evidence"]) ||
     d1?.runtimeImplemented !== false ||
     d1?.shippingBinding !== null ||
     d1?.ddlDigest !== null ||
@@ -318,6 +455,20 @@ export function validateScenarioRegistry(registry, root, profileRegistry) {
       errors.push(`P5E_TEST_PROFILE:${entry.path}`);
     }
   }
+  const blockingMappedTests = (registry.scenarios ?? [])
+    .filter(({ blocking }) => blocking === true)
+    .flatMap(({ testFiles }) => testFiles ?? []);
+  const allDiskTests = fs
+    .readdirSync(path.join(root, "tests"))
+    .filter((name) => name.endsWith(".test.mjs"))
+    .map((name) => `tests/${name}`)
+    .sort();
+  if (
+    blockingMappedTests.length !== new Set(blockingMappedTests).size ||
+    !includesExactSet(blockingMappedTests, allDiskTests)
+  ) {
+    errors.push("P5E_BLOCKING_TEST_COVERAGE: every test file must map exactly once");
+  }
   const profileIds = new Set(profileRegistry?.profiles?.map(({ id }) => id));
   for (const scenario of registry.scenarios ?? []) {
     if (
@@ -328,6 +479,14 @@ export function validateScenarioRegistry(registry, root, profileRegistry) {
       scenario.fixtureIds.length === 0
     ) {
       errors.push(`P5E_SCENARIO_FIELDS:${scenario.id ?? "unknown"}`);
+    }
+  }
+  for (const profile of profileRegistry?.profiles?.filter(({ blocking }) => blocking) ?? []) {
+    const blockingScenarios = registry.scenarios?.filter(
+      ({ profileId, blocking }) => profileId === profile.id && blocking === true
+    );
+    if (blockingScenarios?.length !== 1) {
+      errors.push(`P5E_BLOCKING_SCENARIO:${profile.id}`);
     }
   }
   const c0 = registry.scenarios?.find(({ id }) => id === "P5-C0-001");
@@ -400,6 +559,18 @@ export function validateP5Workflow(workflow, admittedActions, profileRegistry) {
       errors.push(`P5E_RUNNER_LABEL:${id}`);
     }
   }
+  for (const profile of profileRegistry?.profiles ?? []) {
+    if (!profile.workflowJob) continue;
+    const block = jobs.get(profile.workflowJob) ?? "";
+    const timeout = /^\s{4}timeout-minutes:\s+([1-9][0-9]*)\s*$/m.exec(block);
+    if (
+      profile.workflowJob !== profile.id ||
+      !timeout ||
+      Number(timeout[1]) !== profile.timeoutMinutes
+    ) {
+      errors.push(`P5E_PROFILE_JOB_POLICY:${profile.id}`);
+    }
+  }
   for (const id of [
     "policy-validation",
     "install-build",
@@ -423,6 +594,23 @@ export function validateP5Workflow(workflow, admittedActions, profileRegistry) {
     ) {
       errors.push(`P5E_EXACT_SETUP:${id}`);
     }
+    const identityIndex = block.indexOf("./scripts/run-p5-node-identity.ps1");
+    const firstProfileCommand = [
+      "node scripts/",
+      "npm ci",
+      "install-p3-tool.ps1",
+      "install-p4-codex.ps1",
+      "node --test"
+    ]
+      .map((command) => block.indexOf(command))
+      .filter((index) => index >= 0)
+      .sort((left, right) => left - right)[0];
+    if (
+      identityIndex < 0 ||
+      (firstProfileCommand !== undefined && identityIndex > firstProfileCommand)
+    ) {
+      errors.push(`P5E_NODE_IDENTITY_ORDER:${id}`);
+    }
   }
   for (const id of [
     "policy-validation",
@@ -436,6 +624,25 @@ export function validateP5Workflow(workflow, admittedActions, profileRegistry) {
   ]) {
     if (!/write-p5-runner-evidence\.ps1/.test(jobs.get(id) ?? "")) {
       errors.push(`P5E_RUNNER_WRITER:${id}`);
+    }
+  }
+  for (const id of [
+    "policy-validation",
+    "install-build",
+    "unit",
+    "core-contract",
+    "windows-integration",
+    "claude-lifecycle",
+    "security"
+  ]) {
+    const block = jobs.get(id) ?? "";
+    if (
+      !/if:\s+\$\{\{\s*!cancelled\(\)\s*\}\}/.test(block) ||
+      !/P5_JOB_STATUS:\s+\$\{\{\s*job\.status\s*\}\}/.test(block) ||
+      !/executed-fail/.test(block) ||
+      !/github-job-status-normalized/.test(block)
+    ) {
+      errors.push(`P5E_FAILURE_EVIDENCE:${id}`);
     }
   }
   const policy = jobs.get("policy-validation") ?? "";
@@ -502,7 +709,10 @@ export function validateP5Workflow(workflow, admittedActions, profileRegistry) {
       errors.push(`P5E_WINDOWS_PARTITION:${name}`);
     }
   }
-  if (!/ResourceOracleStatus\s+executed-pass/.test(windows)) {
+  if (
+    !/ResourceOracleStatus\s+\$observedStatus/.test(windows) ||
+    !/P5-RUNNER-METADATA-001/.test(windows)
+  ) {
     errors.push("P5E_RESOURCE_ORACLE_MISSING: Windows postcondition is not evidence-bound");
   }
   const claude = jobs.get("claude-lifecycle") ?? "";
@@ -546,11 +756,42 @@ export function validateP5Workflow(workflow, admittedActions, profileRegistry) {
   if (/continue-on-error:\s+true/.test(withoutCanary)) {
     errors.push("P5E_CONTINUE_ON_ERROR: only next-canary may allow failure");
   }
+  if (/^\s+cache:\s+npm\s*$/m.test(workflow)) {
+    errors.push("P5E_NPM_CACHE: PR dependency cache is not admitted");
+  }
   const gate = jobs.get("gate") ?? "";
+  const gateNeeds = /^\s{4}needs:\s*\n((?:\s{6}-\s+[a-z0-9-]+\s*\n)+)/m.exec(
+    gate
+  );
+  const parsedGateNeeds = gateNeeds
+    ? [...gateNeeds[1].matchAll(/^\s{6}-\s+([a-z0-9-]+)\s*$/gm)].map(
+        (match) => match[1]
+      )
+    : [];
+  const gateResultVariables = new Map([
+    ["policy-validation", "POLICY_RESULT"],
+    ["install-build", "BUILD_RESULT"],
+    ["unit", "UNIT_RESULT"],
+    ["core-contract", "CONTRACT_RESULT"],
+    ["windows-integration", "WINDOWS_RESULT"],
+    ["claude-lifecycle", "CLAUDE_RESULT"],
+    ["security", "SECURITY_RESULT"],
+    ["dependency-review", "DEPENDENCY_RESULT"]
+  ]);
+  const gateBindingsAreExact = [...gateResultVariables].every(([job, variable]) => {
+    const binding = new RegExp(
+      `^\\s{6}${variable}:\\s+\\$\\{\\{\\s*needs\\.${job}\\.result\\s*\\}\\}\\s*$`,
+      "m"
+    );
+    const use = new RegExp(`\\$env:${variable}\\b`, "g");
+    return binding.test(gate) && (gate.match(use) ?? []).length === 1;
+  });
   if (
     !/name:\s+CI/.test(gate) ||
     !/if:\s+\$\{\{\s*always\(\)\s*\}\}/.test(gate) ||
-    !BLOCKING_JOBS.every((job) => gate.includes(job)) ||
+    !includesExactSet(parsedGateNeeds, BLOCKING_JOBS) ||
+    !gateBindingsAreExact ||
+    !/\.Where\(\{ \$_ -ne 'success' \}\)\.Count -ne 0/.test(gate) ||
     gate.includes("next-canary")
   ) {
     errors.push("P5E_GATE_GRAPH: legacy CI must aggregate every blocking job only");
