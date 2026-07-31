@@ -1,7 +1,7 @@
 {
   "schemaVersion": "p5-attempt-ledger-v1",
   "phase": "P5",
-  "sourceCommit": "e6314909cbb99cd823bc2a5e0f6c6b10973e6842",
+  "sourceCommit": "8e3edc48a869d92609726036ddb717ee7245c0e7",
   "automaticRetryPolicy": {
     "count": 0,
     "cancelledIsPassing": false,
@@ -1075,6 +1075,18 @@
       "expected": "all 184 tests pass once at the local provenance-repair source without repeating a failed invocation",
       "observed": "182 of 184 passed in 245136 milliseconds; one unchanged background worker state disappeared before status readback and the unchanged cancel fixture again treated taskkill exit 1 for already-ended descendants as fatal; exact related-process readback was zero afterward",
       "disposition": "retained-final-local-regression-no-rerun"
+    },
+    {
+      "ordinal": 90,
+      "id": "p5-hosted-binding-source-8e3-final-001",
+      "commandClass": "targeted-hosted-evidence-negative-test",
+      "executionStatus": "executed-pass",
+      "rawExitCode": 0,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "fabricated collector errors, fragment tuples, clocks, wall time, and remote evidence identifiers are rejected",
+      "observed": "all 16 P5 tests passed after six new hosted-failure mutations were required to produce P5E_HOSTED_FAILURE_BINDING",
+      "disposition": "accepted-final-local-source"
     }
   ],
   "reviewFindings": [
@@ -1301,6 +1313,20 @@
       "disposition": "accepted-fixed-local",
       "summary": "the v1 manifest could only claim remote execution was not run after a real failed hosted attempt",
       "correction": "add a versioned v2 evidence schema that binds failed gate status, skipped profiles, exact run and runner fragments, collector incompleteness, and artifact-cache readback without rewriting v1"
+    },
+    {
+      "id": "P5-REVIEW-033",
+      "severity": "P1",
+      "disposition": "accepted-fixed-local",
+      "summary": "the first v2 semantic validator accepted fabricated collector errors, fragment job names, PowerShell versions, clocks, wall times, and remote evidence identifiers",
+      "correction": "bind the exact collection-error array, complete ordered fragment tuples, run URL, and remote profile evidence identifiers with six negative mutation tests"
+    },
+    {
+      "id": "P5-REVIEW-034",
+      "severity": "P2",
+      "disposition": "accepted-fixed-local",
+      "summary": "the baseline still described hosted runner fields as null after v2 recorded the failed attempt's terminal runner",
+      "correction": "distinguish the superseded v1 local-only bootstrap from v2 failed-attempt runner evidence"
     }
   ],
   "privacy": {

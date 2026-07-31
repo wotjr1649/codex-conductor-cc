@@ -1,7 +1,7 @@
 # P5 Windows x64 matrix/profile bootstrap
 
 Date: 2026-07-31
-Source commit: `e6314909cbb99cd823bc2a5e0f6c6b10973e6842`
+Source commit: `8e3edc48a869d92609726036ddb717ee7245c0e7`
 Handoff commit: `84515289913dfe8a7452754ad442d37873bdfd53`
 Platform: Windows x64, exact Node.js 24.18.1 and npm 11.16.0
 
@@ -26,7 +26,8 @@ workflow/ref concurrency group, cancellation, job timeouts, and the mutable
 `windows-2025` label. Every executable profile except GitHub's
 dependency-review action has a sanitized runner-evidence step. The evidence
 writer records the actual hosted image/build/filesystem only after a real run;
-the committed bootstrap keeps those fields null. Blocking-job finalizers run
+the superseded v1 local-only bootstrap kept those fields null, while v2 binds
+the terminal runner from failed hosted attempt 1. Blocking-job finalizers run
 after any non-cancelled outcome, distinguish a direct process exit from a
 GitHub job-status normalization, and cannot turn a blocked or unimplemented
 profile into an executed pass.
@@ -194,12 +195,13 @@ mutation used an LF-only needle and became a no-op on the CRLF hosted checkout.
 The subsequent failure writer also failed because an empty conditional array
 collapsed to null before binding mandatory `FixtureIds`. The same empty-array
 pattern existed in seven finalizers. Local source
-`e6314909cbb99cd823bc2a5e0f6c6b10973e6842` repairs only these provenance
+`8e3edc48a869d92609726036ddb717ee7245c0e7` repairs only these provenance
 surfaces, adds CRLF parity and empty-array regression coverage, and introduces
 the v2 evidence schema used here. Its P3 plus P5 policy set passed 27/27 and
 all five PowerShell sources parsed. This source is local-only and has not been
-pushed or run on GitHub. Its one exact-Node full-suite invocation passed
-182/184 in 245136 milliseconds. Two unchanged runtime lifecycle fixtures
+pushed or run on GitHub. Its immediate predecessor source `e6314909` had one
+exact-Node full-suite invocation that passed 182/184 in 245136 milliseconds.
+Two unchanged runtime lifecycle fixtures
 failed: a background worker state disappeared before status readback, and the
 known cancel cleanup again treated `taskkill` exit 1 for already-ended
 descendants as fatal. The failure is retained as attempt 89, was not rerun,
