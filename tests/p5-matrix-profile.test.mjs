@@ -1214,6 +1214,29 @@ test("P5-EVIDENCE-001 local, hosted, not-run, canary, and blocked truth stays di
     "evidence/manifests/p5/p5-matrix-profile-bootstrap-20260731.json"
   );
   assert.deepEqual(validateP5Evidence(evidence, profiles), []);
+  for (const [label, mutate] of [
+    ["collector-error", (value) => { value.hostedObservation.collectionErrors[0] = "fabricated"; }],
+    ["fragment-job", (value) => { value.hostedObservation.validatedFragments[0].jobName = "CI"; }],
+    ["fragment-powershell", (value) => { value.hostedObservation.validatedFragments[0].powershellVersion = "0.0.0"; }],
+    ["fragment-clock", (value) => { value.hostedObservation.validatedFragments[0].startedAt = "2030-01-01T00:00:00Z"; }],
+    ["fragment-wall", (value) => { value.hostedObservation.validatedFragments[0].wallTimeMs = 0; }],
+    [
+      "evidence-id",
+      (value) => {
+        value.profileResults.find(({ profileId }) => profileId === "dependency-review")
+          .evidenceIds[0] = "fabricated";
+      }
+    ]
+  ]) {
+    const fabricated = structuredClone(evidence);
+    mutate(fabricated);
+    assert.ok(
+      validateP5Evidence(fabricated, profiles).some((entry) =>
+        entry.includes("P5E_HOSTED_FAILURE_BINDING")
+      ),
+      label
+    );
+  }
 });
 
 test("P5-PRIVACY-001 seeded credential, private path, and raw payload are rejected", () => {

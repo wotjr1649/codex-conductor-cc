@@ -2001,11 +2001,75 @@ export function validateP5Evidence(manifest, profileRegistry) {
   }
   if (hostedFailure) {
     const observation = manifest.hostedObservation;
-    const fragments = new Map(
-      (observation?.validatedFragments ?? []).map((fragment) => [fragment.jobKey, fragment])
+    const expectedCollectionErrors = [
+      "P5E_COLLECT_JOB_SET: exact attempt allocation set differs",
+      ...Array(5).fill("P5E_COLLECT_STEP: exact successful evidence step is absent")
+    ];
+    const expectedFragments = [
+      {
+        jobName: "Dependency review",
+        jobKey: "dependency-review",
+        checkRunId: 91198526087,
+        conclusion: "success",
+        markerSha256:
+          "5d7f57ad58da0370160fdaad4ac2c2431803baf7235bf6c481a808cd984379d6",
+        imageOS: "win25-vs2026",
+        imageVersion: "20260728.188.1",
+        osCaption: "Microsoft Windows Server 2025 Datacenter",
+        osVersion: "10.0.26100",
+        osBuild: "26100",
+        architecture: "X64",
+        powershellVersion: "7.6.4",
+        filesystem: "NTFS",
+        node: "24.18.1",
+        npm: "11.16.0",
+        nodeExecutableSha256:
+          "ac51903c4c111815d52280b1fdcc8da067cbb37e2fe1a765097b85c3292c8582",
+        startedAt: "2026-07-31T15:33:08.9061482+00:00",
+        finishedAt: "2026-07-31T15:33:28.6664146+00:00",
+        wallTimeMs: 19760
+      },
+      {
+        jobName: "CI",
+        jobKey: "gate",
+        checkRunId: 91198731832,
+        conclusion: "failure",
+        markerSha256:
+          "8813a43e28df050ac7b3b6a089e1998f30b783c32cd54bb049b7cd513fdb5450",
+        imageOS: "win25-vs2026",
+        imageVersion: "20260714.173.1",
+        osCaption: "Microsoft Windows Server 2025 Datacenter",
+        osVersion: "10.0.26100",
+        osBuild: "26100",
+        architecture: "X64",
+        powershellVersion: "7.6.3",
+        filesystem: "NTFS",
+        node: "24.18.1",
+        npm: "11.16.0",
+        nodeExecutableSha256:
+          "ac51903c4c111815d52280b1fdcc8da067cbb37e2fe1a765097b85c3292c8582",
+        startedAt: "2026-07-31T15:33:57.7579972+00:00",
+        finishedAt: "2026-07-31T15:34:09.6007735+00:00",
+        wallTimeMs: 11843
+      }
+    ];
+    const expectedRemoteEvidenceIds = new Map([
+      [
+        "policy-validation",
+        [
+          "p5-p3-validator",
+          "p5-p4-validator-at-handoff",
+          "p5-targeted",
+          "p5-hosted-run-30643349422-attempt-1"
+        ]
+      ],
+      ["dependency-review", ["p5-hosted-dependency-91198526087"]],
+      ["next-canary", []]
+    ]);
+    const remoteEvidenceIdsDiffer = [...expectedRemoteEvidenceIds].some(
+      ([profileId, evidenceIds]) =>
+        JSON.stringify(actual.get(profileId)?.evidenceIds) !== JSON.stringify(evidenceIds)
     );
-    const dependencyFragment = fragments.get("dependency-review");
-    const gateFragment = fragments.get("gate");
     if (
       manifest.overallStatus !== "blocked" ||
       manifest.hostedGateStatus !== "executed-fail" ||
@@ -2023,6 +2087,8 @@ export function validateP5Evidence(manifest, profileRegistry) {
       observation?.runAttempt !== 1 ||
       observation?.rerunCount !== 0 ||
       observation?.event !== "pull_request" ||
+      observation?.runUrl !==
+        "https://github.com/wotjr1649/codex-conductor-cc/actions/runs/30643349422" ||
       observation?.sourceHeadSha !== "4eeeb17b0ca3f2c248e7523dc65bddd69ca26f07" ||
       observation?.eventMergeSha !== "de9c7dfc766716f53aa2dcc3c417d33fcb557bf2" ||
       observation?.workflowSha !== "de9c7dfc766716f53aa2dcc3c417d33fcb557bf2" ||
@@ -2032,18 +2098,11 @@ export function validateP5Evidence(manifest, profileRegistry) {
       observation?.observedRestJobCount !== 10 ||
       observation?.placeholderJobCount !== 3 ||
       observation?.collectionStatus !== "incomplete-or-invalid" ||
-      observation?.collectionErrors?.length !== 6 ||
-      fragments.size !== 2 ||
-      dependencyFragment?.checkRunId !== 91198526087 ||
-      dependencyFragment?.conclusion !== "success" ||
-      dependencyFragment?.markerSha256 !==
-        "5d7f57ad58da0370160fdaad4ac2c2431803baf7235bf6c481a808cd984379d6" ||
-      dependencyFragment?.imageVersion !== "20260728.188.1" ||
-      gateFragment?.checkRunId !== 91198731832 ||
-      gateFragment?.conclusion !== "failure" ||
-      gateFragment?.markerSha256 !==
-        "8813a43e28df050ac7b3b6a089e1998f30b783c32cd54bb049b7cd513fdb5450" ||
-      gateFragment?.imageVersion !== "20260714.173.1" ||
+      JSON.stringify(observation?.collectionErrors) !==
+        JSON.stringify(expectedCollectionErrors) ||
+      JSON.stringify(observation?.validatedFragments) !==
+        JSON.stringify(expectedFragments) ||
+      remoteEvidenceIdsDiffer ||
       observation?.artifacts?.readbackStatus !== "resolved" ||
       observation?.artifacts?.observedCount !== 0 ||
       observation?.artifacts?.releaseTrustInput !== false ||
