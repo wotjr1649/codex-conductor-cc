@@ -594,6 +594,8 @@ export function validateP5Workflow(workflow, admittedActions, profileRegistry) {
     ) {
       errors.push(`P5E_EXACT_SETUP:${id}`);
     }
+    const clockIndex = block.indexOf("./scripts/run-p5-attempt-clock.ps1");
+    const setupNodeIndex = block.indexOf("actions/setup-node@");
     const identityIndex = block.indexOf("./scripts/run-p5-node-identity.ps1");
     const firstProfileCommand = [
       "node scripts/",
@@ -605,6 +607,9 @@ export function validateP5Workflow(workflow, admittedActions, profileRegistry) {
       .map((command) => block.indexOf(command))
       .filter((index) => index >= 0)
       .sort((left, right) => left - right)[0];
+    if (clockIndex < 0 || setupNodeIndex < 0 || clockIndex > setupNodeIndex) {
+      errors.push(`P5E_ATTEMPT_CLOCK:${id}`);
+    }
     if (
       identityIndex < 0 ||
       (firstProfileCommand !== undefined && identityIndex > firstProfileCommand)
@@ -691,6 +696,8 @@ export function validateP5Workflow(workflow, admittedActions, profileRegistry) {
     !/max-parallel:\s+2/.test(core) ||
     !/- lane:\s+current/.test(core) ||
     !/- lane:\s+previous/.test(core) ||
+    !/- lane:\s+current[\s\S]*?run_contract:\s+true[\s\S]*?- lane:\s+previous[\s\S]*?run_contract:\s+false/.test(core) ||
+    !/- name:\s+Run P4 targeted contract once[\s\S]*?if:\s+\$\{\{\s*matrix\.run_contract\s*\}\}[\s\S]*?tests\/p4-contract-baseline\.test\.mjs/.test(core) ||
     !/install-p4-codex\.ps1/.test(core) ||
     !/run-p5-core-contract\.mjs/.test(core) ||
     !/tests\/p4-contract-baseline\.test\.mjs/.test(core)

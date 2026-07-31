@@ -53,6 +53,7 @@ const requiredFiles = [
   "evidence/manifests/p5/p5-matrix-profile-bootstrap-20260731.json",
   "evidence/ledgers/p5-attempts.json",
   "scripts/invoke-p4-validator-at-handoff.ps1",
+  "scripts/run-p5-attempt-clock.ps1",
   "scripts/run-p5-node-identity.ps1",
   "scripts/run-p5-core-contract.mjs",
   "scripts/run-p5-p4-generator.mjs",
@@ -106,6 +107,9 @@ if (fs.existsSync(runnerWriterPath)) {
     "$runnerArch -cne 'X64'",
     "$logicalDisk.FileSystem -cne 'NTFS'",
     "P5E_FALSE_GREEN",
+    "nodeIdentityStatus",
+    "nodeIdentityRequired",
+    "finalizer-fallback",
     "rawExitCodeSource",
     "P5E_HOSTED_RUNNER"
   ]) {

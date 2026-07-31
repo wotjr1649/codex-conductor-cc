@@ -12,8 +12,7 @@ param(
     [ValidateSet('local', 'hosted')]
     [string]$ExecutionClass,
 
-    [Parameter(Mandatory = $true)]
-    [datetimeoffset]$StartedAt,
+    [string]$StartedAt = '',
 
     [Parameter(Mandatory = $true)]
     [string]$OutputPath,
@@ -156,19 +155,38 @@ if (Test-Path -LiteralPath $resolvedOutput) {
     throw 'P5E_EVIDENCE_EXISTS: evidence output must be newly run-owned'
 }
 
-$nodeCommand = Get-Command node -CommandType Application -ErrorAction Stop |
-    Select-Object -First 1
-$nodePath = $nodeCommand.Source
-$nodeVersion = (& $nodePath --version).Trim().TrimStart('v')
-$npmVersion = (& npm --version).Trim()
-$nodeArchitecture = (& $nodePath -p 'process.arch').Trim()
-$nodeDigest = (Get-FileHash -Algorithm SHA256 -LiteralPath $nodePath).Hash.ToLowerInvariant()
-if (
-    $nodeVersion -ne $ExpectedNodeVersion -or
-    $npmVersion -ne $ExpectedNpmVersion -or
-    $nodeArchitecture -ne 'x64' -or
-    $nodeDigest -ne $ExpectedNodeSha256
-) {
+$nodeVersion = $null
+$npmVersion = $null
+$nodeArchitecture = $null
+$nodeDigest = $null
+$nodeIdentityStatus = 'unavailable'
+try {
+    $nodeCommand = Get-Command node -CommandType Application -ErrorAction Stop |
+        Select-Object -First 1
+    $nodePath = $nodeCommand.Source
+    $nodeVersion = (& $nodePath --version).Trim().TrimStart('v')
+    $npmVersion = (& npm --version).Trim()
+    $nodeArchitecture = (& $nodePath -p 'process.arch').Trim()
+    $nodeDigest = (Get-FileHash -Algorithm SHA256 -LiteralPath $nodePath).Hash.ToLowerInvariant()
+    $nodeIdentityStatus = if (
+        $nodeVersion -ceq $ExpectedNodeVersion -and
+        $npmVersion -ceq $ExpectedNpmVersion -and
+        $nodeArchitecture -ceq 'x64' -and
+        $nodeDigest -ceq $ExpectedNodeSha256
+    ) {
+        'verified-exact'
+    }
+    else {
+        'mismatch'
+    }
+}
+catch {
+    $nodeIdentityStatus = 'unavailable'
+}
+$nodeIdentityRequired =
+    $ObservedStatus -ceq 'executed-pass' -or
+    ($ObservedStatus -ceq 'non-blocking-canary' -and $RawExitCode -eq 0)
+if ($nodeIdentityRequired -and $nodeIdentityStatus -cne 'verified-exact') {
     throw 'P5E_NODE_IDENTITY: exact Node/npm/x64 executable identity is required'
 }
 
@@ -228,7 +246,20 @@ if ($null -eq $logicalDisk -or [string]::IsNullOrWhiteSpace($logicalDisk.FileSys
 }
 
 $finishedAt = [datetimeoffset]::UtcNow
-$wallTimeMs = [math]::Max(0, [long]($finishedAt - $StartedAt).TotalMilliseconds)
+$startedAtValue = [datetimeoffset]::MinValue
+$startedAtSource = 'profile-clock'
+try {
+    $startedAtValue = [datetimeoffset]::Parse(
+        $StartedAt,
+        [Globalization.CultureInfo]::InvariantCulture,
+        [Globalization.DateTimeStyles]::RoundtripKind
+    )
+}
+catch {
+    $startedAtValue = $finishedAt
+    $startedAtSource = 'finalizer-fallback'
+}
+$wallTimeMs = [math]::Max(0, [long]($finishedAt - $startedAtValue).TotalMilliseconds)
 $checkoutSha = if (-not [string]::IsNullOrWhiteSpace($env:GITHUB_SHA)) {
     $env:GITHUB_SHA
 }
@@ -338,6 +369,7 @@ $evidence = [ordered]@{
         storageClass = $storageClass
     }
     tools = [ordered]@{
+        nodeIdentityStatus = $nodeIdentityStatus
         node = $nodeVersion
         npm = $npmVersion
         nodeArchitecture = $nodeArchitecture
@@ -351,7 +383,8 @@ $evidence = [ordered]@{
         timeout = $false
         rawExitCode = $RawExitCode
         rawExitCodeSource = $ExitCodeSource
-        startedAt = $StartedAt.ToUniversalTime().ToString('o')
+        startedAt = $startedAtValue.ToUniversalTime().ToString('o')
+        startedAtSource = $startedAtSource
         finishedAt = $finishedAt.ToString('o')
         wallTimeMs = $wallTimeMs
         observedStatus = $ObservedStatus

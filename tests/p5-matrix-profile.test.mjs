@@ -36,6 +36,7 @@ test("P5-RED-001 versioned profile, scenario, schema, and evidence sources exist
     "evidence/manifests/p5/p5-matrix-profile-bootstrap-20260731.json",
     "evidence/ledgers/p5-attempts.json",
     "scripts/validate-p5.mjs",
+    "scripts/run-p5-attempt-clock.ps1",
     "scripts/write-p5-runner-evidence.ps1"
   ]) {
     assert.equal(existsSync(path.join(root, relativePath)), true, relativePath);
@@ -83,6 +84,24 @@ test("P5-WORKFLOW-NEGATIVE-001 gate, cache, timeout, and early Node identity fai
   assert.ok(
     validateP5Workflow(lateIdentity, toolchain.actions, profiles).some((entry) =>
       entry.includes("P5E_NODE_IDENTITY_ORDER")
+    )
+  );
+  const missingClock = workflow.replace(
+    "        run: ./scripts/run-p5-attempt-clock.ps1",
+    "        run: Write-Output missing-clock"
+  );
+  assert.ok(
+    validateP5Workflow(missingClock, toolchain.actions, profiles).some((entry) =>
+      entry.includes("P5E_ATTEMPT_CLOCK")
+    )
+  );
+  const skippedContract = workflow.replace(
+    "            run_contract: true",
+    "            run_contract: false"
+  );
+  assert.ok(
+    validateP5Workflow(skippedContract, toolchain.actions, profiles).some(
+      (entry) => entry.includes("P5E_CORE_MATRIX")
     )
   );
   const mismatchedTimeouts = structuredClone(profiles);

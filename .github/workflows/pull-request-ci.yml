@@ -25,6 +25,10 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Start profile clock
+        shell: pwsh
+        run: ./scripts/run-p5-attempt-clock.ps1
+
       - name: Set up Node.js
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
@@ -33,7 +37,7 @@ jobs:
           check-latest: false
           package-manager-cache: false
 
-      - name: Verify exact Node identity and start profile clock
+      - name: Verify exact Node identity
         shell: pwsh
         run: ./scripts/run-p5-node-identity.ps1
 
@@ -89,6 +93,10 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Start profile clock
+        shell: pwsh
+        run: ./scripts/run-p5-attempt-clock.ps1
+
       - name: Set up Node.js
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
@@ -97,7 +105,7 @@ jobs:
           check-latest: false
           package-manager-cache: false
 
-      - name: Verify exact Node identity and start profile clock
+      - name: Verify exact Node identity
         shell: pwsh
         run: ./scripts/run-p5-node-identity.ps1
 
@@ -175,6 +183,10 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Start profile clock
+        shell: pwsh
+        run: ./scripts/run-p5-attempt-clock.ps1
+
       - name: Set up Node.js
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
@@ -183,7 +195,7 @@ jobs:
           check-latest: false
           package-manager-cache: false
 
-      - name: Verify exact Node identity and start profile clock
+      - name: Verify exact Node identity
         shell: pwsh
         run: ./scripts/run-p5-node-identity.ps1
 
@@ -244,6 +256,10 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Start profile clock
+        shell: pwsh
+        run: ./scripts/run-p5-attempt-clock.ps1
+
       - name: Set up Node.js
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
@@ -252,7 +268,7 @@ jobs:
           check-latest: false
           package-manager-cache: false
 
-      - name: Verify exact Node identity and start profile clock
+      - name: Verify exact Node identity
         shell: pwsh
         run: ./scripts/run-p5-node-identity.ps1
 
@@ -332,6 +348,10 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Start profile clock
+        shell: pwsh
+        run: ./scripts/run-p5-attempt-clock.ps1
+
       - name: Set up Node.js
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
@@ -340,7 +360,7 @@ jobs:
           check-latest: false
           package-manager-cache: false
 
-      - name: Verify exact Node identity and start profile clock
+      - name: Verify exact Node identity
         shell: pwsh
         run: ./scripts/run-p5-node-identity.ps1
 
@@ -412,6 +432,10 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Start profile clock
+        shell: pwsh
+        run: ./scripts/run-p5-attempt-clock.ps1
+
       - name: Set up Node.js
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
@@ -420,7 +444,7 @@ jobs:
           check-latest: false
           package-manager-cache: false
 
-      - name: Verify exact Node identity and start profile clock
+      - name: Verify exact Node identity
         shell: pwsh
         run: ./scripts/run-p5-node-identity.ps1
 
@@ -509,6 +533,10 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Start profile clock
+        shell: pwsh
+        run: ./scripts/run-p5-attempt-clock.ps1
+
       - name: Set up Node.js
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
@@ -517,7 +545,7 @@ jobs:
           check-latest: false
           package-manager-cache: false
 
-      - name: Verify exact Node identity and start profile clock
+      - name: Verify exact Node identity
         shell: pwsh
         run: ./scripts/run-p5-node-identity.ps1
 
@@ -593,6 +621,10 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Start profile clock
+        shell: pwsh
+        run: ./scripts/run-p5-attempt-clock.ps1
+
       - name: Set up Node.js
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
@@ -601,7 +633,7 @@ jobs:
           check-latest: false
           package-manager-cache: false
 
-      - name: Verify exact Node identity and start profile clock
+      - name: Verify exact Node identity
         shell: pwsh
         run: ./scripts/run-p5-node-identity.ps1
 
