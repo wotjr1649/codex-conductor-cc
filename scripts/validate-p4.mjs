@@ -359,7 +359,7 @@ function validateLedger() {
   );
   if (
     ledger.schemaVersion !== "p4-attempt-ledger-v1" ||
-    ledger.sourceCommit !== "a94232decb474de32e1b19a26764005ab9cada51" ||
+    ledger.sourceCommit !== "843e679a90d4ef6946af251d36f43d257f8a5a10" ||
     ledger.defaultTrial !== 1 ||
     ledger.deterministicRetryLimit !== 0 ||
     !Array.isArray(ledger.entries) ||
@@ -439,7 +439,7 @@ function validateEvidence() {
     evidence.phase !== "P4" ||
     evidence.source?.baseCommit !== BASE ||
     evidence.source?.contractCommit !==
-      "a94232decb474de32e1b19a26764005ab9cada51" ||
+      "843e679a90d4ef6946af251d36f43d257f8a5a10" ||
     evidence.source?.branch !== "codex/p4-contract-baseline" ||
     evidence.remoteExecution !== "not-run"
   ) {
@@ -524,9 +524,9 @@ function validateEvidence() {
   }
   if (
     evidence.review?.status !== "executed-pass" ||
-    evidence.review?.findingCount !== 7 ||
+    evidence.review?.findingCount !== 11 ||
     evidence.review?.disposition !==
-      "all seven actionable findings accepted, corrected, and revalidated"
+      "all eleven findings from two independent review passes accepted, corrected, and revalidated"
   ) {
     errors.push("P4 evidence: independent review disposition is incomplete");
   }

@@ -5,7 +5,7 @@
   "phase": "P4",
   "source": {
     "baseCommit": "34559b5a55fbc3b171e3f472080729795632b74f",
-    "contractCommit": "9cc83ee0b2b993bc3e3acff99ccdfb7d5cb6aa07",
+    "contractCommit": "843e679a90d4ef6946af251d36f43d257f8a5a10",
     "branch": "codex/p4-contract-baseline",
     "upstreamBase": "db52e28f4d9ded852ab3942cea316258ae4ef346"
   },
@@ -89,7 +89,7 @@
       "executionStatus": "executed-pass",
       "behaviorStatus": null,
       "expected": "all P4 contract tests pass",
-      "observed": "33 of 33 contract tests passed",
+      "observed": "40 of 40 contract tests passed after all eleven findings from two independent review passes were corrected",
       "artifactSha256": null,
       "runtimeEnforced": false,
       "deferredPhase": null
@@ -97,7 +97,7 @@
     {
       "id": "p4-current-previous-lifecycle",
       "requirementIds": ["P4-5", "X13", "X14"],
-      "fixtureIds": ["P4-LIFECYCLE-CURRENT-DIRECT-001", "P4-LIFECYCLE-CURRENT-BROKER-001", "P4-LIFECYCLE-PREVIOUS-DIRECT-BROKER-001"],
+      "fixtureIds": ["P4-LIFECYCLE-CURRENT-DIRECT-001", "P4-LIFECYCLE-CURRENT-BROKER-001", "P4-LIFECYCLE-PREVIOUS-DIRECT-BROKER-001", "P4-LIFECYCLE-RESUME-GREEN-001"],
       "trial": 1,
       "retryCount": 0,
       "timeout": false,
@@ -105,7 +105,7 @@
       "executionStatus": "executed-pass",
       "behaviorStatus": "red",
       "expected": "both stable lanes execute core direct and broker lifecycle while broker handshake drift remains visible",
-      "observed": "four runs passed; broker hello unsupported and broker initialize synthetic",
+      "observed": "four digest/version-bound start/resume/complete/interrupt runs passed; broker hello unsupported and broker initialize synthetic",
       "artifactSha256": null,
       "runtimeEnforced": false,
       "deferredPhase": "v0.2"
@@ -165,11 +165,11 @@
       "trial": 1,
       "retryCount": 0,
       "timeout": false,
-      "rawExitCode": 1,
-      "executionStatus": "executed-fail",
-      "behaviorStatus": "blocked-with-evidence",
+      "rawExitCode": 0,
+      "executionStatus": "executed-pass",
+      "behaviorStatus": null,
       "expected": "P3 final tests plus additive P4 tests pass without skips",
-      "observed": "pre-final source passed 159 of 160; the unchanged localized taskkill child-exit race failed and passed 1 of 1 alone",
+      "observed": "exact review-corrected source 843e679a90d4ef6946af251d36f43d257f8a5a10 passed 167 of 167 with zero failures, cancellations, or skips; earlier retained failures remain in the ledger",
       "artifactSha256": null,
       "runtimeEnforced": false,
       "deferredPhase": null
@@ -309,11 +309,11 @@
       "trial": 1,
       "retryCount": 0,
       "timeout": false,
-      "rawExitCode": null,
-      "executionStatus": "not-run",
+      "rawExitCode": 0,
+      "executionStatus": "executed-pass",
       "behaviorStatus": null,
       "expected": "fail-closed P4 evidence and immutable readback validator passes",
-      "observed": "not run",
+      "observed": "exact lanes, recomputed method inventories, nested Draft 2020-12 schemas, snapshot host/digests, evidence truth, scope, privacy, and immutable readbacks passed",
       "artifactSha256": null,
       "runtimeEnforced": false,
       "deferredPhase": null
@@ -356,9 +356,9 @@
   },
   "remoteExecution": "not-run",
   "review": {
-    "status": "not-run",
-    "findingCount": null,
-    "disposition": "independent final review pending"
+    "status": "executed-pass",
+    "findingCount": 11,
+    "disposition": "all eleven findings from two independent review passes accepted, corrected, and revalidated"
   },
   "attemptLedger": "evidence/ledgers/p4-attempts.json"
 }
