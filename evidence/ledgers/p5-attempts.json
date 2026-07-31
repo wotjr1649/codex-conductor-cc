@@ -1,7 +1,7 @@
 {
   "schemaVersion": "p5-attempt-ledger-v1",
   "phase": "P5",
-  "sourceCommit": "6fe4694018075782e9e80e7de9fe11a4b54c6dee",
+  "sourceCommit": "1411de6d40e8907b11f42c352f706712d1fe6516",
   "automaticRetryPolicy": {
     "count": 0,
     "cancelledIsPassing": false,
@@ -270,6 +270,198 @@
       "timeout": false,
       "expected": "177 tests pass serially at final bound source revision 6fe",
       "observed": "177 passed with zero failure, zero cancellation, and zero skip",
+      "disposition": "accepted-source-before-validator-compatibility-fix"
+    },
+    {
+      "ordinal": 23,
+      "id": "p5-review-hardening-red-001",
+      "commandClass": "targeted-p5-contract-test",
+      "executionStatus": "executed-fail",
+      "rawExitCode": 1,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "all hardened P5 evidence and resource assertions pass",
+      "observed": "13 of 14 passed; the validator required a literal pass status and rejected the dynamic failure-finalizer status",
+      "disposition": "validator-corrected-to-accept-bounded-dynamic-status-with-resource-fixture"
+    },
+    {
+      "ordinal": 24,
+      "id": "p5-review-hardening-green-001",
+      "commandClass": "targeted-p5-contract-test",
+      "executionStatus": "executed-pass",
+      "rawExitCode": 0,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "all hardened P5 evidence and resource assertions pass",
+      "observed": "14 of 14 targeted tests passed with zero failure and zero skip",
+      "disposition": "accepted"
+    },
+    {
+      "ordinal": 25,
+      "id": "p5-full-regression-source-95e-timeout-001",
+      "commandClass": "full-exact-node-regression",
+      "executionStatus": "executed-fail",
+      "rawExitCode": 124,
+      "retryCount": 0,
+      "timeout": true,
+      "expected": "the complete exact-Node suite finishes inside the first local harness bound",
+      "observed": "the 124-second shell harness bound expired before the serial suite completed",
+      "disposition": "exact-run-owned-node-processes-stopped-then-new-300-second-invocation-used"
+    },
+    {
+      "ordinal": 26,
+      "id": "p5-full-regression-source-95e-final-001",
+      "commandClass": "full-exact-node-regression",
+      "executionStatus": "executed-pass",
+      "rawExitCode": 0,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "all inherited and hardened P5 tests pass serially at source revision 95e6",
+      "observed": "181 of 181 passed with zero failure, zero cancellation, and zero skip in 255066 milliseconds",
+      "disposition": "accepted-pre-final-schema-fix"
+    },
+    {
+      "ordinal": 27,
+      "id": "p5-core-source-95e-final-001",
+      "commandClass": "codex-direct-broker-lifecycle",
+      "executionStatus": "executed-pass",
+      "rawExitCode": 0,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "current and previous exact Codex lanes pass both transports at source revision 95e6",
+      "observed": "four lifecycle runs passed with exact versions, executable digests, terminal states, and exit zero",
+      "disposition": "accepted-pre-final-schema-fix"
+    },
+    {
+      "ordinal": 28,
+      "id": "p5-claude-structural-source-95e-final-001",
+      "commandClass": "claude-structural-validation",
+      "executionStatus": "executed-pass",
+      "rawExitCode": 0,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "minimum and current exact Claude binaries strictly validate both manifests without authentication",
+      "observed": "both versions validated the marketplace and plugin manifests with updates disabled and no inference",
+      "disposition": "accepted-pre-final-schema-fix-structural-only"
+    },
+    {
+      "ordinal": 29,
+      "id": "p5-security-source-95e-final-001",
+      "commandClass": "exact-local-security-suite",
+      "executionStatus": "executed-pass",
+      "rawExitCode": 0,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "all four exact admitted security tools exit zero at source revision 95e6",
+      "observed": "actionlint and zizmor reported no workflow finding, OSV found no issue in three packages, and gitleaks found no leak",
+      "disposition": "accepted-pre-final-schema-fix"
+    },
+    {
+      "ordinal": 30,
+      "id": "p5-build-source-95e-final-001",
+      "commandClass": "exact-install-and-build",
+      "executionStatus": "executed-pass",
+      "rawExitCode": 0,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "clean install, audit, deterministic generation, and TypeScript build pass at source revision 95e6",
+      "observed": "three packages installed, four audited with zero vulnerability, generated digest stayed exact, and TypeScript compiled",
+      "disposition": "accepted-pre-final-schema-fix"
+    },
+    {
+      "ordinal": 31,
+      "id": "p5-schema-validator-compat-red-001",
+      "commandClass": "p5-evidence-validation",
+      "executionStatus": "executed-fail",
+      "rawExitCode": 1,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "the restricted repository schema engine validates the hardened artifact digest constraint",
+      "observed": "the engine rejected the unsupported anyOf keyword before validating evidence",
+      "disposition": "equivalent-null-or-sha256-constraint-reencoded-with-supported-type-array"
+    },
+    {
+      "ordinal": 32,
+      "id": "p5-evidence-validator-source-1411-final-001",
+      "commandClass": "p5-evidence-validation",
+      "executionStatus": "executed-pass",
+      "rawExitCode": 0,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "the restricted schema engine and all P5 source-binding checks pass at source revision 1411",
+      "observed": "profile, scenario, workflow, execution-truth, privacy, and immutable readbacks were consistent",
+      "disposition": "accepted-final-source"
+    },
+    {
+      "ordinal": 33,
+      "id": "p5-full-regression-source-1411-final-001",
+      "commandClass": "full-exact-node-regression",
+      "executionStatus": "executed-pass",
+      "rawExitCode": 0,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "all inherited and hardened P5 tests pass serially at final source revision 1411",
+      "observed": "181 of 181 passed with zero failure, zero cancellation, and zero skip in 259505 milliseconds",
+      "disposition": "accepted-final-source"
+    },
+    {
+      "ordinal": 34,
+      "id": "p5-core-source-1411-final-001",
+      "commandClass": "codex-direct-broker-lifecycle",
+      "executionStatus": "executed-pass",
+      "rawExitCode": 0,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "current and previous exact Codex lanes pass both transports at final source revision 1411",
+      "observed": "four lifecycle runs passed with exact versions, executable digests, terminal states, and exit zero",
+      "disposition": "accepted-final-source"
+    },
+    {
+      "ordinal": 35,
+      "id": "p5-claude-structural-source-1411-final-001",
+      "commandClass": "claude-structural-validation",
+      "executionStatus": "executed-pass",
+      "rawExitCode": 0,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "minimum and current exact Claude binaries strictly validate both manifests at final source revision 1411",
+      "observed": "both versions validated the marketplace and plugin manifests with updates disabled and no authentication or inference",
+      "disposition": "accepted-final-source-structural-only"
+    },
+    {
+      "ordinal": 36,
+      "id": "p5-security-source-1411-final-001",
+      "commandClass": "exact-local-security-suite",
+      "executionStatus": "executed-pass",
+      "rawExitCode": 0,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "all four exact admitted security tools exit zero at final source revision 1411",
+      "observed": "actionlint and zizmor reported no workflow finding, OSV found no issue in three packages, and gitleaks found no leak",
+      "disposition": "accepted-final-source"
+    },
+    {
+      "ordinal": 37,
+      "id": "p5-build-source-1411-final-001",
+      "commandClass": "exact-install-and-build",
+      "executionStatus": "executed-pass",
+      "rawExitCode": 0,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "exact Node identity, clean install, audit, deterministic generation, and TypeScript build pass at final source revision 1411",
+      "observed": "Node and npm identities matched, three packages installed, four audited with zero vulnerability, the generated digest stayed exact, and TypeScript compiled",
+      "disposition": "accepted-final-source"
+    },
+    {
+      "ordinal": 38,
+      "id": "p5-hygiene-source-1411-final-001",
+      "commandClass": "source-evidence-hygiene",
+      "executionStatus": "executed-pass",
+      "rawExitCode": 0,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "diff checks, P5 and P3 validators, scope controls, and protected-surface readback pass",
+      "observed": "both validators passed, diff checking was clean, and no P4-protected product, contract, lockfile, toolchain, or P3 policy surface changed",
       "disposition": "accepted-final-source"
     }
   ],
@@ -308,6 +500,83 @@
       "disposition": "accepted-resolved",
       "summary": "the claimed final full-regression pass predated the bound final source revision",
       "correction": "retain the earlier-source failure and execute the complete suite once at the final bound source revision"
+    },
+    {
+      "id": "P5-REVIEW-006",
+      "severity": "P1",
+      "disposition": "accepted-fixed",
+      "summary": "blocking jobs wrote sanitized evidence only on success and could lose an executed failure",
+      "correction": "run finalizers on every non-cancelled outcome and label GitHub job-status normalization separately from a direct process exit"
+    },
+    {
+      "id": "P5-REVIEW-007",
+      "severity": "P1",
+      "disposition": "accepted-fixed",
+      "summary": "exact P5 allowlist entries accepted suffix lookalikes through prefix matching",
+      "correction": "distinguish exact file entries from directory prefixes and add a negative suffix-lookalike test"
+    },
+    {
+      "id": "P5-REVIEW-008",
+      "severity": "P1",
+      "disposition": "accepted-fixed",
+      "summary": "profile coverage, scenario ownership, timeout equality, early Node identity, and gate result aggregation were under-validated",
+      "correction": "require one-to-one test and blocking-profile mappings, exact timeouts, Node identity before use, and exact needs/result bindings"
+    },
+    {
+      "id": "P5-REVIEW-009",
+      "severity": "P1",
+      "disposition": "accepted-fixed",
+      "summary": "the evidence writer could emit an executed pass for a blocked profile without a workflow job",
+      "correction": "forbid runner evidence for unimplemented profiles and require the exact declared workflow job for implemented profiles"
+    },
+    {
+      "id": "P5-REVIEW-010",
+      "severity": "P2",
+      "disposition": "accepted-fixed",
+      "summary": "the Windows resource oracle delegated to a taskkill call without an internal time bound",
+      "correction": "invoke the exact taskkill executable and PID tree arguments through a five-second bounded child process"
+    },
+    {
+      "id": "P5-REVIEW-011",
+      "severity": "P2",
+      "disposition": "accepted-fixed",
+      "summary": "attempt ledger and artifact digest shapes did not fully enforce ordered execution truth",
+      "correction": "validate exact keys, contiguous ordinals, unique identities, outcome consistency, privacy, and null-or-SHA-256 artifact identity"
+    },
+    {
+      "id": "P5-REVIEW-012",
+      "severity": "P2",
+      "disposition": "accepted-fixed",
+      "summary": "the no-artifact claim omitted dependency-review's conditional large-summary artifact",
+      "correction": "limit the claim to repository-authored uploads and record the exact one-megabyte threshold, one-day retention, and non-trust role"
+    },
+    {
+      "id": "P5-REVIEW-013",
+      "severity": "P2",
+      "disposition": "accepted-fixed-with-remote-residual",
+      "summary": "new CI and P5 evidence surfaces had no repository ownership entries",
+      "correction": "add exact CODEOWNERS entries while retaining that remote enforcement and administrator policy were only read, not changed"
+    },
+    {
+      "id": "P5-REVIEW-014",
+      "severity": "P2",
+      "disposition": "accepted-residual-inherited-scope",
+      "summary": "some inherited runtime tests contain conditional early returns that reduce their individual oracle strength",
+      "correction": "do not claim exhaustive lifecycle coverage; retain this inherited limitation because P5 does not change protected product or inherited test behavior"
+    },
+    {
+      "id": "P5-REVIEW-015",
+      "severity": "P2",
+      "disposition": "rejected-not-demonstrated",
+      "summary": "dependency review was asserted to fail deterministically because the repository is a fork",
+      "correction": "keep the hosted job blocking and NOT-RUN because authenticated read-only dependency comparison succeeded and no deterministic hosted failure was reproduced"
+    },
+    {
+      "id": "P5-REVIEW-016",
+      "severity": "P1",
+      "disposition": "accepted-fixed",
+      "summary": "the hardened digest schema used a standard keyword unsupported by the repository's restricted validator",
+      "correction": "encode the same null-or-exact-SHA-256 constraint with the supported type array and retain the failed validation attempt"
     }
   ],
   "privacy": {

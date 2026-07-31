@@ -1,7 +1,7 @@
 # P5 Windows x64 matrix/profile bootstrap
 
 Date: 2026-07-31
-Source commit: `6fe4694018075782e9e80e7de9fe11a4b54c6dee`
+Source commit: `1411de6d40e8907b11f42c352f706712d1fe6516`
 Handoff commit: `84515289913dfe8a7452754ad442d37873bdfd53`
 Platform: Windows x64, exact Node.js 24.18.1 and npm 11.16.0
 
@@ -26,7 +26,10 @@ workflow/ref concurrency group, cancellation, job timeouts, and the mutable
 `windows-2025` label. Every executable profile except GitHub's
 dependency-review action has a sanitized runner-evidence step. The evidence
 writer records the actual hosted image/build/filesystem only after a real run;
-the committed bootstrap keeps those fields null.
+the committed bootstrap keeps those fields null. Blocking-job finalizers run
+after any non-cancelled outcome, distinguish a direct process exit from a
+GitHub job-status normalization, and cannot turn a blocked or unimplemented
+profile into an executed pass.
 
 The blocking profiles are:
 
@@ -53,15 +56,18 @@ P4 total remains 167 tests with zero skip:
 - P4 targeted contract: 40; and
 - Windows integration: 86.
 
-P5 adds semantic profile tests and an independent Windows resource oracle. The
+P5 adds 14 semantic/profile and independent Windows resource tests. The
 resource oracle starts an exact owned root and child PID, proves an exclusive
-file handle blocks rename, calls the existing `taskkill /PID <root> /T /F`
-implementation, reads back that both PIDs are gone, then proves rename/delete
-succeeds. This is not a native Job Object C0 claim.
+file handle blocks rename, calls the exact `taskkill /PID <root> /T /F`
+executable through a five-second bounded process, reads back that both PIDs are
+gone, then proves rename/delete succeeds. This is not a native Job Object C0
+claim.
 
-The final exact-Node full regression passed 177/177 with zero failure and zero
-skip at source `6fe4694018075782e9e80e7de9fe11a4b54c6dee`. An earlier source
-revision's 176/177 broker-cancel race remains in the attempt ledger.
+The final exact-Node full regression passed 181/181 with zero failure,
+cancel, or skip at source
+`1411de6d40e8907b11f42c352f706712d1fe6516`. An earlier source revision's
+176/177 broker-cancel race and a later 124-second local harness timeout both
+remain in the attempt ledger; neither was rewritten as a pass.
 
 ## Exact tools
 
@@ -85,7 +91,9 @@ Exact local checks passed for clean install, P3 validation, detached P4
 validation, targeted P4 tests, generated schema reproduction, TypeScript build,
 current/previous direct and broker lifecycle, minimum/current Claude strict
 plugin validation, Windows process/handle postconditions, and the four security
-tools.
+tools. The Claude checks are structural marketplace/plugin validation only;
+they are not authenticated inference or install/update/rollback/uninstall
+lifecycle evidence.
 
 The ordered attempt ledger retains all material failures. In particular:
 
@@ -102,7 +110,17 @@ The ordered attempt ledger retains all material failures. In particular:
   `taskkill` race, while the same exact serial command passed 87/87 alone; and
 - the first P5 lifecycle wrapper incorrectly expected an uncontracted `lane`
   field; the unchanged P4 runner demonstrated correct CLI behavior and the
-  wrapper check was corrected.
+  wrapper check was corrected;
+- review hardening initially passed 13/14 because its validator required a
+  literal pass status instead of the bounded dynamic failure finalizer; the
+  validator was corrected and the same targeted set then passed 14/14; and
+- a first full-suite invocation hit its 124-second local harness bound, after
+  which only exact run-owned Node processes were stopped and a new 300-second
+  invocation passed 181/181; and
+- final evidence validation rejected a standard `anyOf` keyword that the
+  repository's restricted schema engine does not implement; the equivalent
+  null-or-SHA-256 constraint was re-encoded with a supported type array, and
+  validation plus 181/181 tests passed at the new final source commit.
 
 No failed or cancelled attempt was rewritten as a pass.
 
@@ -111,9 +129,17 @@ No failed or cancelled attempt was rewritten as a pass.
 No secret, credential value, raw environment, raw prompt, raw command output,
 private host path, downloaded binary, or archive is committed. Tool acquisition
 and process fixtures use run-owned paths outside the repository. Workflow
-caches and artifact uploads are disabled. Pull-request artifacts are not
-release trust inputs. Authenticated Claude inference was not authorized and was
-not run.
+caches and repository-authored artifact uploads are disabled. The pinned
+dependency-review action can conditionally upload its own summary when rendered
+content exceeds 1 MiB; that action-owned artifact has one-day retention and is
+not a release-trust input. Authenticated Claude inference was not authorized
+and was not run.
+
+P5 adds repository ownership entries for the workflow, CI policy, P5 scripts,
+tests, and evidence. The current remote protection snapshot requires the
+legacy `CI` context and resolved conversations but does not demonstrate
+CODEOWNERS review or administrator enforcement. P5 did not change those remote
+settings.
 
 ## Explicit gaps
 
@@ -121,6 +147,8 @@ The following remain false or not run:
 
 - GitHub-hosted `windows-2025` image/build/architecture/filesystem evidence;
 - hosted dependency review and the aggregate required `CI` status;
+- hosted confirmation that the fork pull-request dependency-review job can
+  read its comparison in the workflow token context;
 - authenticated Claude lifecycle or paid inference;
 - the non-blocking next-Codex canary;
 - disposable Windows 11 x64 runner evidence;
@@ -138,3 +166,6 @@ runner's actual image version, OS build, x64 architecture, NTFS filesystem,
 exact tool identities, attempt number, timeout, raw exit code, and resource
 postconditions using the sanitized writer. A cancelled run, a canary pass, a
 YAML definition, or a local pass must not satisfy a hosted blocking profile.
+The requested `windows-2025` label denotes a GitHub-hosted Windows Server 2025
+x64 image, not Windows 11; Windows 11 remains an explicit disposable-runner
+gap.
