@@ -50,13 +50,19 @@ const requiredFiles = [
   "ci/scenario-registry-v1.json",
   "evidence/inventory/p5-prechange-20260731.json",
   "evidence/schemas/p5-evidence-v1.schema.json",
+  "evidence/schemas/p5-runner-evidence-v2.schema.json",
+  "evidence/schemas/p5-gate-evidence-v1.schema.json",
+  "evidence/schemas/p5-hosted-harvest-v1.schema.json",
   "evidence/manifests/p5/p5-matrix-profile-bootstrap-20260731.json",
   "evidence/ledgers/p5-attempts.json",
   "scripts/invoke-p4-validator-at-handoff.ps1",
   "scripts/run-p5-attempt-clock.ps1",
   "scripts/run-p5-node-identity.ps1",
+  "scripts/run-p5-hosted-evidence-collector.mjs",
   "scripts/run-p5-core-contract.mjs",
   "scripts/run-p5-p4-generator.mjs",
+  "scripts/lib/p5-runner-provenance.psm1",
+  "scripts/write-p5-gate-evidence.ps1",
   "scripts/write-p5-runner-evidence.ps1",
   "tests/p5-matrix-profile.test.mjs",
   "tests/p5-windows-resource.test.mjs",
@@ -75,6 +81,9 @@ const evidence = readJson(
   "evidence/manifests/p5/p5-matrix-profile-bootstrap-20260731.json"
 );
 const schema = readJson("evidence/schemas/p5-evidence-v1.schema.json");
+const runnerEvidenceSchema = readJson("evidence/schemas/p5-runner-evidence-v2.schema.json");
+const gateEvidenceSchema = readJson("evidence/schemas/p5-gate-evidence-v1.schema.json");
+const hostedHarvestSchema = readJson("evidence/schemas/p5-hosted-harvest-v1.schema.json");
 const ledger = readJson("evidence/ledgers/p5-attempts.json");
 const inventory = readJson("evidence/inventory/p5-prechange-20260731.json");
 const baselinePath = path.join(
@@ -101,6 +110,15 @@ if (fs.existsSync(workflowPath) && profiles) {
 const runnerWriterPath = path.join(ROOT, "scripts", "write-p5-runner-evidence.ps1");
 if (fs.existsSync(runnerWriterPath)) {
   const runnerWriter = fs.readFileSync(runnerWriterPath, "utf8");
+  const provenanceModule = fs.readFileSync(
+    path.join(ROOT, "scripts", "lib", "p5-runner-provenance.psm1"),
+    "utf8"
+  );
+  const gateWriter = fs.readFileSync(
+    path.join(ROOT, "scripts", "write-p5-gate-evidence.ps1"),
+    "utf8"
+  );
+  const provenanceSources = `${runnerWriter}\n${provenanceModule}\n${gateWriter}`;
   for (const invariant of [
     "$runnerEnvironment -cne 'github-hosted'",
     "$runnerOS -cne 'Windows'",
@@ -111,12 +129,31 @@ if (fs.existsSync(runnerWriterPath)) {
     "nodeIdentityRequired",
     "finalizer-fallback",
     "rawExitCodeSource",
-    "P5E_HOSTED_RUNNER"
+    "P5E_HOSTED_RUNNER",
+    "actualCheckoutSha",
+    "eventMergeSha",
+    "checkRunId",
+    "jobAttempt",
+    "workflowRerunCount",
+    "P5_SANITIZED_EVIDENCE_JSON=",
+    "Windows Server 2025",
+    "$sourceHeadSha = $pullRequest.headSha",
+    "$actualCheckoutSha -cne $eventMergeSha",
+    "$repository -cne [string]$event.repository.full_name",
+    "$pullRequest.baseRepository -cne $repository",
+    "[int]$os.ProductType -ne 3"
   ]) {
-    if (!runnerWriter.includes(invariant)) {
+    if (!provenanceSources.includes(invariant)) {
       errors.push(`P5E_RUNNER_WRITER_INVARIANT:${invariant}`);
     }
   }
+}
+if (
+  runnerEvidenceSchema?.properties?.schemaVersion?.const !== "p5-runner-evidence-v2" ||
+  gateEvidenceSchema?.properties?.schemaVersion?.const !== "p5-gate-evidence-v1" ||
+  hostedHarvestSchema?.properties?.schemaVersion?.const !== "p5-hosted-harvest-v1"
+) {
+  errors.push("P5E_HOSTED_EVIDENCE_SCHEMA: versioned runner and gate schemas are required");
 }
 if (evidence && schema) {
   errors.push(...validateJsonSchema(evidence, schema, "P5 evidence"));

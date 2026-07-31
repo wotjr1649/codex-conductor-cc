@@ -6,9 +6,6 @@ on:
 permissions:
   contents: read
 
-env:
-  P5_SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
-
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -26,6 +23,7 @@ jobs:
           persist-credentials: false
 
       - name: Start profile clock
+        id: p5_clock
         shell: pwsh
         run: ./scripts/run-p5-attempt-clock.ps1
 
@@ -59,14 +57,24 @@ jobs:
           tests/p3-security-baseline.test.mjs
           tests/p5-matrix-profile.test.mjs
 
+      - name: Verify clean evidence source
+        if: ${{ !cancelled() }}
+        run: git diff --exit-code HEAD -- .
+
       - name: Write sanitized runner evidence
         if: ${{ !cancelled() }}
         shell: pwsh
         env:
           P5_JOB_STATUS: ${{ job.status }}
+          P5_CHECK_RUN_ID: ${{ job.check_run_id }}
+          P5_STARTED_AT: ${{ steps.p5_clock.outputs.started_at }}
+          P5_CONTEXT_LANE: default
         run: |
           $observedStatus = if ($env:P5_JOB_STATUS -eq 'success') { 'executed-pass' } else { 'executed-fail' }
           $rawExitCode = if ($observedStatus -eq 'executed-pass') { 0 } else { 1 }
+          $fixtureIds = if ($observedStatus -eq 'executed-pass') {
+            @('P5-RED-001','P5-PRIVACY-001','P5-FALSE-GREEN-001')
+          } else { @() }
           ./scripts/write-p5-runner-evidence.ps1 `
             -Profile policy-validation `
             -Lane default `
@@ -75,7 +83,7 @@ jobs:
             -OutputPath (Join-Path $env:RUNNER_TEMP 'p5-evidence/policy-validation.json') `
             -RequirementIds @('P5-1','P5-2','P5-10','P5-11','P5-12','X5','X8','X9') `
             -ScenarioId P5-POLICY-001 `
-            -FixtureIds @('P5-RED-001','P5-PRIVACY-001','P5-FALSE-GREEN-001') `
+            -FixtureIds $fixtureIds `
             -ExpectedOracle 'dependency-free validators and policy tests exit zero before npm ci' `
             -ObservedStatus $observedStatus `
             -RawExitCode $rawExitCode `
@@ -94,6 +102,7 @@ jobs:
           persist-credentials: false
 
       - name: Start profile clock
+        id: p5_clock
         shell: pwsh
         run: ./scripts/run-p5-attempt-clock.ps1
 
@@ -142,28 +151,35 @@ jobs:
       - name: Verify generated tree remained exact
         run: git diff --exit-code -- plugins/codex/.generated
 
+      - name: Verify clean evidence source
+        if: ${{ !cancelled() }}
+        run: git diff --exit-code HEAD -- .
+
       - name: Write sanitized runner evidence
         if: ${{ !cancelled() }}
         shell: pwsh
         env:
           P5_JOB_STATUS: ${{ job.status }}
+          P5_CHECK_RUN_ID: ${{ job.check_run_id }}
+          P5_STARTED_AT: ${{ steps.p5_clock.outputs.started_at }}
+          P5_CONTEXT_LANE: default
         run: |
           $observedStatus = if ($env:P5_JOB_STATUS -eq 'success') { 'executed-pass' } else { 'executed-fail' }
           $arguments = @{
             Profile = 'install-build'
-            Lane = 'build'
+            Lane = 'default'
             ExecutionClass = 'hosted'
             StartedAt = $env:P5_STARTED_AT
             OutputPath = (Join-Path $env:RUNNER_TEMP 'p5-evidence/install-build.json')
             RequirementIds = @('P5-1','P5-2','P5-3','X1','X8')
             ScenarioId = 'P5-BUILD-001'
-            FixtureIds = @('P5-BUILD-EXACT-001')
+            FixtureIds = if ($observedStatus -eq 'executed-pass') { @('P5-BUILD-EXACT-001') } else { @() }
             ExpectedOracle = 'exact clean install preserves the lock and generated schema before TypeScript build passes'
             ObservedStatus = $observedStatus
             RawExitCode = if ($observedStatus -eq 'executed-pass') { 0 } else { 1 }
             ExitCodeSource = 'github-job-status-normalized'
           }
-          if ($observedStatus -eq 'executed-pass') {
+          if (-not [string]::IsNullOrWhiteSpace($env:P5_CODEX_PATH)) {
             $arguments.ToolName = 'codex'
             $arguments.ExpectedToolVersion = '0.146.0'
             $arguments.ExpectedToolSha256 = 'bc343ba420dc2e2e9f59e6fc5e5bf0aae1cd8c771fc319665241fc9c0271fddb'
@@ -184,6 +200,7 @@ jobs:
           persist-credentials: false
 
       - name: Start profile clock
+        id: p5_clock
         shell: pwsh
         run: ./scripts/run-p5-attempt-clock.ps1
 
@@ -210,14 +227,22 @@ jobs:
           tests/render.test.mjs
           tests/state.test.mjs
 
+      - name: Verify clean evidence source
+        if: ${{ !cancelled() }}
+        run: git diff --exit-code HEAD -- .
+
       - name: Write sanitized runner evidence
         if: ${{ !cancelled() }}
         shell: pwsh
         env:
           P5_JOB_STATUS: ${{ job.status }}
+          P5_CHECK_RUN_ID: ${{ job.check_run_id }}
+          P5_STARTED_AT: ${{ steps.p5_clock.outputs.started_at }}
+          P5_CONTEXT_LANE: default
         run: |
           $observedStatus = if ($env:P5_JOB_STATUS -eq 'success') { 'executed-pass' } else { 'executed-fail' }
           $rawExitCode = if ($observedStatus -eq 'executed-pass') { 0 } else { 1 }
+          $fixtureIds = if ($observedStatus -eq 'executed-pass') { @('P5-UNIT-PARTITION-001') } else { @() }
           ./scripts/write-p5-runner-evidence.ps1 `
             -Profile unit `
             -Lane default `
@@ -226,7 +251,7 @@ jobs:
             -OutputPath (Join-Path $env:RUNNER_TEMP 'p5-evidence/unit.json') `
             -RequirementIds @('P5-3','X2','X8','X9') `
             -ScenarioId P5-UNIT-001 `
-            -FixtureIds @('P5-UNIT-PARTITION-001') `
+            -FixtureIds $fixtureIds `
             -ExpectedOracle 'all mapped unit files pass serially with zero omission and zero skip' `
             -ObservedStatus $observedStatus `
             -RawExitCode $rawExitCode `
@@ -257,6 +282,7 @@ jobs:
           persist-credentials: false
 
       - name: Start profile clock
+        id: p5_clock
         shell: pwsh
         run: ./scripts/run-p5-attempt-clock.ps1
 
@@ -296,12 +322,19 @@ jobs:
           --codex "$env:P5_CODEX_PATH"
           --root "$env:P5_TEMP_ROOT/p5-lifecycle-$env:P5_MATRIX_LANE"
 
+      - name: Verify clean evidence source
+        if: ${{ !cancelled() }}
+        run: git diff --exit-code HEAD -- .
+
       - name: Write sanitized runner evidence
         if: ${{ !cancelled() }}
         shell: pwsh
         env:
           P5_JOB_STATUS: ${{ job.status }}
+          P5_CHECK_RUN_ID: ${{ job.check_run_id }}
+          P5_STARTED_AT: ${{ steps.p5_clock.outputs.started_at }}
           P5_MATRIX_LANE: ${{ matrix.lane }}
+          P5_CONTEXT_LANE: ${{ matrix.lane }}
           P5_MATRIX_VERSION: ${{ matrix.version }}
           P5_MATRIX_SHA256: ${{ matrix.sha256 }}
         run: |
@@ -314,6 +347,7 @@ jobs:
             $fixtureIds = @('P5-LIFECYCLE-PREVIOUS-001')
             $expectedOracle = 'previous direct and broker lifecycle passes without claiming the current-only P4 target'
           }
+          if ($observedStatus -ne 'executed-pass') { $fixtureIds = @() }
           $arguments = @{
             Profile = 'core-contract'
             Lane = $env:P5_MATRIX_LANE
@@ -328,7 +362,7 @@ jobs:
             RawExitCode = if ($observedStatus -eq 'executed-pass') { 0 } else { 1 }
             ExitCodeSource = 'github-job-status-normalized'
           }
-          if ($observedStatus -eq 'executed-pass') {
+          if (-not [string]::IsNullOrWhiteSpace($env:P5_CODEX_PATH)) {
             $arguments.ToolName = 'codex'
             $arguments.ExpectedToolVersion = $env:P5_MATRIX_VERSION
             $arguments.ExpectedToolSha256 = $env:P5_MATRIX_SHA256
@@ -349,6 +383,7 @@ jobs:
           persist-credentials: false
 
       - name: Start profile clock
+        id: p5_clock
         shell: pwsh
         run: ./scripts/run-p5-attempt-clock.ps1
 
@@ -374,6 +409,7 @@ jobs:
           Add-Content -LiteralPath $env:GITHUB_ENV -Value "CLAUDE_PLUGIN_DATA=$runRoot"
 
       - name: Run Windows integration partition and resource oracle
+        id: resource_oracle
         run: >-
           node --test --test-concurrency=1
           tests/broker-endpoint.test.mjs
@@ -382,14 +418,30 @@ jobs:
           tests/runtime.test.mjs
           tests/p5-windows-resource.test.mjs
 
+      - name: Verify clean evidence source
+        if: ${{ !cancelled() }}
+        run: git diff --exit-code HEAD -- .
+
       - name: Write sanitized runner and resource evidence
         if: ${{ !cancelled() }}
         shell: pwsh
         env:
           P5_JOB_STATUS: ${{ job.status }}
+          P5_CHECK_RUN_ID: ${{ job.check_run_id }}
+          P5_STARTED_AT: ${{ steps.p5_clock.outputs.started_at }}
+          P5_CONTEXT_LANE: default
+          P5_RESOURCE_OUTCOME: ${{ steps.resource_oracle.outcome }}
         run: |
           $observedStatus = if ($env:P5_JOB_STATUS -eq 'success') { 'executed-pass' } else { 'executed-fail' }
           $rawExitCode = if ($observedStatus -eq 'executed-pass') { 0 } else { 1 }
+          $resourceOracleStatus = switch ($env:P5_RESOURCE_OUTCOME) {
+            'success' { 'executed-pass' }
+            'failure' { 'executed-fail' }
+            default { 'not-run' }
+          }
+          $fixtureIds = if ($observedStatus -eq 'executed-pass') {
+            @('P5-WINDOWS-SERIAL-001','P5-PROCESS-TREE-001','P5-OPEN-HANDLE-001','P5-RUNNER-METADATA-001')
+          } else { @() }
           ./scripts/write-p5-runner-evidence.ps1 `
             -Profile windows-integration `
             -Lane default `
@@ -398,12 +450,12 @@ jobs:
             -OutputPath (Join-Path $env:RUNNER_TEMP 'p5-evidence/windows-integration.json') `
             -RequirementIds @('P5-3','P5-7','P5-8','B5','C2','C4','C5','X8') `
             -ScenarioId P5-WINDOWS-001 `
-            -FixtureIds @('P5-WINDOWS-SERIAL-001','P5-PROCESS-TREE-001','P5-OPEN-HANDLE-001','P5-RUNNER-METADATA-001') `
+            -FixtureIds $fixtureIds `
             -ExpectedOracle 'serial Windows tests pass and exact owned processes and retained handle are absent after cleanup' `
             -ObservedStatus $observedStatus `
             -RawExitCode $rawExitCode `
             -ExitCodeSource github-job-status-normalized `
-            -ResourceOracleStatus $observedStatus
+            -ResourceOracleStatus $resourceOracleStatus
 
   claude-lifecycle:
     name: Claude structural lifecycle / ${{ matrix.lane }}
@@ -433,6 +485,7 @@ jobs:
           persist-credentials: false
 
       - name: Start profile clock
+        id: p5_clock
         shell: pwsh
         run: ./scripts/run-p5-attempt-clock.ps1
 
@@ -481,12 +534,19 @@ jobs:
           & $env:P5_CLAUDE_PATH plugin validate plugins/codex --strict
           if ($LASTEXITCODE -ne 0) { throw 'P5E_CLAUDE_PLUGIN' }
 
+      - name: Verify clean evidence source
+        if: ${{ !cancelled() }}
+        run: git diff --exit-code HEAD -- .
+
       - name: Write sanitized runner evidence
         if: ${{ !cancelled() }}
         shell: pwsh
         env:
           P5_JOB_STATUS: ${{ job.status }}
+          P5_CHECK_RUN_ID: ${{ job.check_run_id }}
+          P5_STARTED_AT: ${{ steps.p5_clock.outputs.started_at }}
           P5_MATRIX_LANE: ${{ matrix.lane }}
+          P5_CONTEXT_LANE: ${{ matrix.lane }}
           P5_MATRIX_VERSION: ${{ matrix.version }}
           P5_MATRIX_SHA256: ${{ matrix.sha256 }}
         run: |
@@ -499,6 +559,7 @@ jobs:
             $fixtureIds = @('P5-CLAUDE-CURRENT-001')
             $expectedOracle = 'current exact Claude passes isolated strict marketplace and plugin validation'
           }
+          if ($observedStatus -ne 'executed-pass') { $fixtureIds = @() }
           $arguments = @{
             Profile = 'claude-lifecycle'
             Lane = $env:P5_MATRIX_LANE
@@ -513,7 +574,7 @@ jobs:
             RawExitCode = if ($observedStatus -eq 'executed-pass') { 0 } else { 1 }
             ExitCodeSource = 'github-job-status-normalized'
           }
-          if ($observedStatus -eq 'executed-pass') {
+          if (-not [string]::IsNullOrWhiteSpace($env:P5_CLAUDE_PATH)) {
             $arguments.ToolName = 'claude'
             $arguments.ExpectedToolVersion = $env:P5_MATRIX_VERSION
             $arguments.ExpectedToolSha256 = $env:P5_MATRIX_SHA256
@@ -534,6 +595,7 @@ jobs:
           persist-credentials: false
 
       - name: Start profile clock
+        id: p5_clock
         shell: pwsh
         run: ./scripts/run-p5-attempt-clock.ps1
 
@@ -552,11 +614,18 @@ jobs:
       - name: Acquire exact local security tools
         shell: pwsh
         run: |
+          $environmentNames = @{
+            actionlint = 'P5_ACTIONLINT_PATH'
+            zizmor = 'P5_ZIZMOR_PATH'
+            'osv-scanner' = 'P5_OSV_SCANNER_PATH'
+            gitleaks = 'P5_GITLEAKS_PATH'
+          }
           foreach ($toolId in @('actionlint', 'zizmor', 'osv-scanner', 'gitleaks')) {
             $toolPath = ./scripts/install-p3-tool.ps1 `
               -ToolId $toolId `
               -DestinationRoot (Join-Path $env:RUNNER_TEMP 'p5-security-tools')
             Add-Content -LiteralPath $env:GITHUB_PATH -Value (Split-Path -Parent $toolPath)
+            Add-Content -LiteralPath $env:GITHUB_ENV -Value "$($environmentNames[$toolId])=$toolPath"
           }
 
       - name: Lint workflow
@@ -571,35 +640,115 @@ jobs:
       - name: Scan repository for secrets
         run: gitleaks.exe dir --redact --no-banner .
 
+      - name: Verify clean evidence source
+        if: ${{ !cancelled() }}
+        run: git diff --exit-code HEAD -- .
+
       - name: Write sanitized runner evidence
         if: ${{ !cancelled() }}
         shell: pwsh
         env:
           P5_JOB_STATUS: ${{ job.status }}
+          P5_CHECK_RUN_ID: ${{ job.check_run_id }}
+          P5_STARTED_AT: ${{ steps.p5_clock.outputs.started_at }}
+          P5_CONTEXT_LANE: default
         run: |
           $observedStatus = if ($env:P5_JOB_STATUS -eq 'success') { 'executed-pass' } else { 'executed-fail' }
-          $rawExitCode = if ($observedStatus -eq 'executed-pass') { 0 } else { 1 }
-          ./scripts/write-p5-runner-evidence.ps1 `
-            -Profile security `
-            -Lane default `
-            -ExecutionClass hosted `
-            -StartedAt $env:P5_STARTED_AT `
-            -OutputPath (Join-Path $env:RUNNER_TEMP 'p5-evidence/security.json') `
-            -RequirementIds @('P5-10','X7','X9','X15') `
-            -ScenarioId P5-SECURITY-001 `
-            -FixtureIds @('P5-ACTIONLINT-001','P5-ZIZMOR-001','P5-OSV-001','P5-GITLEAKS-001') `
-            -ExpectedOracle 'all four exact admitted security tools exit zero with no finding' `
-            -ObservedStatus $observedStatus `
-            -RawExitCode $rawExitCode `
-            -ExitCodeSource github-job-status-normalized
+          $arguments = @{
+            Profile = 'security'
+            Lane = 'default'
+            ExecutionClass = 'hosted'
+            StartedAt = $env:P5_STARTED_AT
+            OutputPath = (Join-Path $env:RUNNER_TEMP 'p5-evidence/security.json')
+            RequirementIds = @('P5-10','X7','X9','X15')
+            ScenarioId = 'P5-SECURITY-001'
+            FixtureIds = if ($observedStatus -eq 'executed-pass') {
+              @('P5-ACTIONLINT-001','P5-ZIZMOR-001','P5-OSV-001','P5-GITLEAKS-001')
+            } else { @() }
+            ExpectedOracle = 'all four exact admitted security tools exit zero with no finding'
+            ObservedStatus = $observedStatus
+            RawExitCode = if ($observedStatus -eq 'executed-pass') { 0 } else { 1 }
+            ExitCodeSource = 'github-job-status-normalized'
+          }
+          $toolPairs = [ordered]@{
+            actionlint = $env:P5_ACTIONLINT_PATH
+            zizmor = $env:P5_ZIZMOR_PATH
+            'osv-scanner' = $env:P5_OSV_SCANNER_PATH
+            gitleaks = $env:P5_GITLEAKS_PATH
+          }
+          $selectedToolIds = @()
+          $selectedToolPaths = @()
+          foreach ($toolId in $toolPairs.Keys) {
+            if (-not [string]::IsNullOrWhiteSpace($toolPairs[$toolId])) {
+              $selectedToolIds += $toolId
+              $selectedToolPaths += $toolPairs[$toolId]
+            }
+          }
+          if ($selectedToolIds.Count -gt 0) {
+            $arguments.SelectedToolIds = $selectedToolIds
+            $arguments.SelectedToolPaths = $selectedToolPaths
+          }
+          ./scripts/write-p5-runner-evidence.ps1 @arguments
 
   dependency-review:
     name: Dependency review
     runs-on: windows-2025
     timeout-minutes: 10
     steps:
+      - name: Check out repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Start profile clock
+        id: p5_clock
+        shell: pwsh
+        run: ./scripts/run-p5-attempt-clock.ps1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version: 24.18.1
+          architecture: x64
+          check-latest: false
+          package-manager-cache: false
+
+      - name: Verify exact Node identity
+        shell: pwsh
+        run: ./scripts/run-p5-node-identity.ps1
+
       - name: Review dependency changes
         uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+
+      - name: Verify clean evidence source
+        if: ${{ !cancelled() }}
+        run: git diff --exit-code HEAD -- .
+
+      - name: Write sanitized runner evidence
+        if: ${{ !cancelled() }}
+        shell: pwsh
+        env:
+          P5_JOB_STATUS: ${{ job.status }}
+          P5_CHECK_RUN_ID: ${{ job.check_run_id }}
+          P5_STARTED_AT: ${{ steps.p5_clock.outputs.started_at }}
+          P5_CONTEXT_LANE: default
+        run: |
+          $observedStatus = if ($env:P5_JOB_STATUS -eq 'success') { 'executed-pass' } else { 'executed-fail' }
+          $rawExitCode = if ($observedStatus -eq 'executed-pass') { 0 } else { 1 }
+          $fixtureIds = if ($observedStatus -eq 'executed-pass') { @('P5-DEPENDENCY-REVIEW-001') } else { @() }
+          ./scripts/write-p5-runner-evidence.ps1 `
+            -Profile dependency-review `
+            -Lane default `
+            -ExecutionClass hosted `
+            -StartedAt $env:P5_STARTED_AT `
+            -OutputPath (Join-Path $env:RUNNER_TEMP 'p5-evidence/dependency-review.json') `
+            -RequirementIds @('P5-10','X7','X9') `
+            -ScenarioId P5-DEPENDENCY-001 `
+            -FixtureIds $fixtureIds `
+            -ExpectedOracle 'the exact pinned GitHub dependency comparison action fails closed on vulnerable or invalid dependency changes' `
+            -ObservedStatus $observedStatus `
+            -RawExitCode $rawExitCode `
+            -ExitCodeSource github-job-status-normalized
 
   next-canary:
     name: Non-blocking Codex canary / ${{ matrix.lane }}
@@ -622,6 +771,7 @@ jobs:
           persist-credentials: false
 
       - name: Start profile clock
+        id: p5_clock
         shell: pwsh
         run: ./scripts/run-p5-attempt-clock.ps1
 
@@ -667,12 +817,19 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'P5E_CANARY_SCHEMA' }
           Add-Content -LiteralPath $env:GITHUB_ENV -Value "P5_CANARY_PATH=$codexPath"
 
+      - name: Verify clean evidence source
+        if: ${{ !cancelled() }}
+        run: git diff --exit-code HEAD -- .
+
       - name: Write sanitized canary evidence
         if: ${{ always() && !cancelled() }}
         shell: pwsh
         env:
           P5_CANARY_OUTCOME: ${{ steps.canary.outcome }}
+          P5_CHECK_RUN_ID: ${{ job.check_run_id }}
+          P5_STARTED_AT: ${{ steps.p5_clock.outputs.started_at }}
           P5_MATRIX_LANE: ${{ matrix.lane }}
+          P5_CONTEXT_LANE: ${{ matrix.lane }}
           P5_MATRIX_VERSION: ${{ matrix.version }}
           P5_MATRIX_SHA256: ${{ matrix.sha256 }}
         run: |
@@ -685,7 +842,7 @@ jobs:
             OutputPath = (Join-Path $env:RUNNER_TEMP 'p5-evidence/next-canary.json')
             RequirementIds = @('P5-6','P5-9','P5-12')
             ScenarioId = 'P5-CANARY-001'
-            FixtureIds = @('P5-CODEX-NEXT-001')
+            FixtureIds = if ($rawExitCode -eq 0) { @('P5-CODEX-NEXT-001') } else { @() }
             ExpectedOracle = 'the exact prerelease digest is observed without satisfying or blocking a supported profile'
             ObservedStatus = 'non-blocking-canary'
             RawExitCode = $rawExitCode
@@ -724,6 +881,28 @@ jobs:
       SECURITY_RESULT: ${{ needs.security.result }}
       DEPENDENCY_RESULT: ${{ needs.dependency-review.result }}
     steps:
+      - name: Check out repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Start profile clock
+        id: p5_clock
+        shell: pwsh
+        run: ./scripts/run-p5-attempt-clock.ps1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version: 24.18.1
+          architecture: x64
+          check-latest: false
+          package-manager-cache: false
+
+      - name: Verify exact Node identity
+        shell: pwsh
+        run: ./scripts/run-p5-node-identity.ps1
+
       - name: Require every blocking profile
         shell: pwsh
         run: |
@@ -740,3 +919,30 @@ jobs:
           if ($results.Where({ $_ -ne 'success' }).Count -ne 0) {
             throw 'P5E_BLOCKING_PROFILE_RESULT'
           }
+
+      - name: Verify clean evidence source
+        if: ${{ !cancelled() }}
+        run: git diff --exit-code HEAD -- .
+
+      - name: Write sanitized terminal gate evidence
+        if: ${{ !cancelled() }}
+        shell: pwsh
+        env:
+          P5_JOB_STATUS: ${{ job.status }}
+          P5_CHECK_RUN_ID: ${{ job.check_run_id }}
+          P5_STARTED_AT: ${{ steps.p5_clock.outputs.started_at }}
+        run: |
+          ./scripts/write-p5-gate-evidence.ps1 `
+            -OutputPath (Join-Path $env:RUNNER_TEMP 'p5-evidence/terminal-ci.json') `
+            -StartedAt $env:P5_STARTED_AT `
+            -JobStatus $env:P5_JOB_STATUS `
+            -BlockingResults ([ordered]@{
+              'policy-validation' = $env:POLICY_RESULT
+              'install-build' = $env:BUILD_RESULT
+              unit = $env:UNIT_RESULT
+              'core-contract' = $env:CONTRACT_RESULT
+              'windows-integration' = $env:WINDOWS_RESULT
+              'claude-lifecycle' = $env:CLAUDE_RESULT
+              security = $env:SECURITY_RESULT
+              'dependency-review' = $env:DEPENDENCY_RESULT
+            })

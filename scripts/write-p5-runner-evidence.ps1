@@ -25,6 +25,7 @@ param(
     [string]$ScenarioId,
 
     [Parameter(Mandatory = $true)]
+    [AllowEmptyCollection()]
     [string[]]$FixtureIds,
 
     [Parameter(Mandatory = $true)]
@@ -42,6 +43,10 @@ param(
     [string]$ExpectedSignerOrganization = '',
     [string]$ToolPath = '',
 
+    [ValidatePattern('^[a-z0-9-]+$')]
+    [string[]]$SelectedToolIds = @(),
+    [string[]]$SelectedToolPaths = @(),
+
     [ValidateSet('executed-pass', 'executed-fail', 'non-blocking-canary')]
     [string]$ObservedStatus = 'executed-pass',
     [int]$RawExitCode = 0,
@@ -53,26 +58,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
-
-function Get-NormalizedFullPath {
-    param([Parameter(Mandatory = $true)][string]$LiteralPath)
-    return [IO.Path]::GetFullPath($LiteralPath)
-}
-
-function Assert-ContainedPath {
-    param(
-        [Parameter(Mandatory = $true)][string]$Parent,
-        [Parameter(Mandatory = $true)][string]$Candidate
-    )
-    $parentPath = (Get-NormalizedFullPath -LiteralPath $Parent).TrimEnd('\', '/')
-    $candidatePath = Get-NormalizedFullPath -LiteralPath $Candidate
-    if (-not $candidatePath.StartsWith(
-        $parentPath + [IO.Path]::DirectorySeparatorChar,
-        [StringComparison]::OrdinalIgnoreCase
-    )) {
-        throw 'P5E_EVIDENCE_PATH: hosted evidence must stay under the run-owned runner temp'
-    }
-}
+Import-Module (Join-Path $PSScriptRoot 'lib\p5-runner-provenance.psm1') -Force
 
 function Invoke-ExactVersion {
     param(
@@ -85,9 +71,8 @@ function Invoke-ExactVersion {
     }
 }
 
-$resolvedOutput = Get-NormalizedFullPath -LiteralPath $OutputPath
-$outputParent = Split-Path -Parent $resolvedOutput
-$repoRoot = Get-NormalizedFullPath -LiteralPath (Join-Path $PSScriptRoot '..')
+$resolvedOutput = [IO.Path]::GetFullPath($OutputPath)
+$repoRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $profileRegistryPath = Join-Path $repoRoot 'ci\matrix-profiles-v1.json'
 $scenarioRegistryPath = Join-Path $repoRoot 'ci\scenario-registry-v1.json'
 $profileRegistry = Get-Content -Raw -LiteralPath $profileRegistryPath | ConvertFrom-Json
@@ -112,11 +97,10 @@ if (
     throw 'P5E_EVIDENCE_REQUIREMENT: requirement IDs must exactly match the scenario registry'
 }
 if (
-    $providedFixtureIds.Count -eq 0 -or
     $providedFixtureIds.Count -ne $FixtureIds.Count -or
     @($providedFixtureIds | Where-Object { $_ -cnotin $expectedFixtureIds }).Count -ne 0
 ) {
-    throw 'P5E_EVIDENCE_FIXTURE: executed fixture IDs must be a unique subset of the scenario registry'
+    throw 'P5E_EVIDENCE_FIXTURE: verified fixture IDs must be a unique subset of the scenario registry'
 }
 $oracleRegistryDigest = (
     Get-FileHash -Algorithm SHA256 -LiteralPath $scenarioRegistryPath
@@ -142,56 +126,84 @@ if (
 ) {
     throw 'P5E_FALSE_GREEN: runner evidence is forbidden for a blocked or unbound profile'
 }
-if ($ExecutionClass -eq 'hosted') {
-    if ([string]::IsNullOrWhiteSpace($env:RUNNER_TEMP)) {
-        throw 'P5E_RUNNER_TEMP: hosted evidence requires RUNNER_TEMP'
-    }
-    Assert-ContainedPath -Parent $env:RUNNER_TEMP -Candidate $resolvedOutput
+if ([bool]$scenarioRecord.blocking -ne [bool]$profileRecord.blocking) {
+    throw 'P5E_FALSE_GREEN: runner evidence may not execute a differently classified scenario'
 }
-if (-not (Test-Path -LiteralPath $outputParent)) {
-    New-Item -ItemType Directory -Path $outputParent | Out-Null
+$expectedLanes = if ($null -eq $profileRecord.matrix) {
+    @('default')
 }
-if (Test-Path -LiteralPath $resolvedOutput) {
-    throw 'P5E_EVIDENCE_EXISTS: evidence output must be newly run-owned'
+else {
+    @($profileRecord.matrix.values)
 }
-
-$nodeVersion = $null
-$npmVersion = $null
-$nodeArchitecture = $null
-$nodeDigest = $null
-$nodeIdentityStatus = 'unavailable'
-try {
-    $nodeCommand = Get-Command node -CommandType Application -ErrorAction Stop |
-        Select-Object -First 1
-    $nodePath = $nodeCommand.Source
-    $nodeVersion = (& $nodePath --version).Trim().TrimStart('v')
-    $npmVersion = (& npm --version).Trim()
-    $nodeArchitecture = (& $nodePath -p 'process.arch').Trim()
-    $nodeDigest = (Get-FileHash -Algorithm SHA256 -LiteralPath $nodePath).Hash.ToLowerInvariant()
-    $nodeIdentityStatus = if (
-        $nodeVersion -ceq $ExpectedNodeVersion -and
-        $npmVersion -ceq $ExpectedNpmVersion -and
-        $nodeArchitecture -ceq 'x64' -and
-        $nodeDigest -ceq $ExpectedNodeSha256
-    ) {
-        'verified-exact'
-    }
-    else {
-        'mismatch'
-    }
+if ($Lane -cnotin $expectedLanes) {
+    throw 'P5E_PROFILE_LANE: lane must exactly match the selected profile registry'
 }
-catch {
-    $nodeIdentityStatus = 'unavailable'
+$expectedLaneFixtureIds = switch ("$Profile/$Lane") {
+    'core-contract/current' { @('P4-TARGETED-GREEN-001', 'P5-LIFECYCLE-CURRENT-001') }
+    'core-contract/previous' { @('P5-LIFECYCLE-PREVIOUS-001') }
+    'claude-lifecycle/minimum' { @('P5-CLAUDE-MINIMUM-001') }
+    'claude-lifecycle/current' { @('P5-CLAUDE-CURRENT-001') }
+    default { @($expectedFixtureIds) }
+}
+$expectedLaneFixtureIds = @($expectedLaneFixtureIds | Sort-Object)
+if (
+    ($ObservedStatus -ceq 'executed-pass' -and $RawExitCode -ne 0) -or
+    ($ObservedStatus -ceq 'executed-fail' -and $RawExitCode -eq 0) -or
+    ([bool]$profileRecord.blocking -and $ObservedStatus -ceq 'non-blocking-canary') -or
+    (-not [bool]$profileRecord.blocking -and $ObservedStatus -cne 'non-blocking-canary')
+) {
+    throw 'P5E_ATTEMPT_OUTCOME: observed status and exit code are inconsistent'
+}
+$successfulObservation =
+    $ObservedStatus -ceq 'executed-pass' -or
+    ($ObservedStatus -ceq 'non-blocking-canary' -and $RawExitCode -eq 0)
+if (
+    ($successfulObservation -and
+        ($providedFixtureIds -join "`n") -cne ($expectedLaneFixtureIds -join "`n")) -or
+    (-not $successfulObservation -and $providedFixtureIds.Count -ne 0)
+) {
+    throw 'P5E_EVIDENCE_FIXTURE: success requires every fixture and failure may not claim verified fixtures'
+}
+if (
+    ($Profile -ceq 'windows-integration' -and
+        $ObservedStatus -ceq 'executed-pass' -and
+        $ResourceOracleStatus -cne 'executed-pass') -or
+    ($Profile -ceq 'windows-integration' -and
+        $ObservedStatus -ceq 'executed-fail' -and
+        $ResourceOracleStatus -notin @('executed-pass', 'executed-fail', 'not-run')) -or
+    ($Profile -cne 'windows-integration' -and $ResourceOracleStatus -cne 'not-applicable')
+) {
+    throw 'P5E_RESOURCE_ORACLE: resource status must be exact for the Windows integration profile only'
 }
 $nodeIdentityRequired =
     $ObservedStatus -ceq 'executed-pass' -or
     ($ObservedStatus -ceq 'non-blocking-canary' -and $RawExitCode -eq 0)
-if ($nodeIdentityRequired -and $nodeIdentityStatus -cne 'verified-exact') {
-    throw 'P5E_NODE_IDENTITY: exact Node/npm/x64 executable identity is required'
+$provenance = Get-P5ExecutionProvenance `
+    -RepositoryRoot $repoRoot `
+    -OutputPath $resolvedOutput `
+    -ExecutionClass $ExecutionClass `
+    -ExpectedNodeVersion $ExpectedNodeVersion `
+    -ExpectedNpmVersion $ExpectedNpmVersion `
+    -ExpectedNodeSha256 $ExpectedNodeSha256 `
+    -RequireNodeIdentity $nodeIdentityRequired `
+    -CheckRunId $env:P5_CHECK_RUN_ID
+if (
+    $ExecutionClass -ceq 'hosted' -and
+    (
+        $provenance.run.yamlJobKey -cne $Profile -or
+        $env:P5_CONTEXT_LANE -cne $Lane
+    )
+) {
+    throw 'P5E_PROFILE_LANE: hosted job key, profile, and matrix lane must agree'
 }
 
-$tool = $null
-if (-not [string]::IsNullOrWhiteSpace($ToolName)) {
+$selectedTools = @()
+$singleToolRequested = -not [string]::IsNullOrWhiteSpace($ToolName)
+$toolSetRequested = $SelectedToolIds.Count -gt 0 -or $SelectedToolPaths.Count -gt 0
+if ($singleToolRequested -and $toolSetRequested) {
+    throw 'P5E_TOOL_INPUT: single-tool and selected-tool-set inputs are mutually exclusive'
+}
+if ($singleToolRequested) {
     if (
         [string]::IsNullOrWhiteSpace($ToolPath) -or
         [string]::IsNullOrWhiteSpace($ExpectedToolVersion) -or
@@ -199,7 +211,7 @@ if (-not [string]::IsNullOrWhiteSpace($ToolName)) {
     ) {
         throw 'P5E_TOOL_INPUT: a complete exact tool identity is required'
     }
-    $resolvedTool = Get-NormalizedFullPath -LiteralPath $ToolPath
+    $resolvedTool = [IO.Path]::GetFullPath($ToolPath)
     if (-not (Test-Path -LiteralPath $resolvedTool -PathType Leaf)) {
         throw 'P5E_TOOL_MISSING: exact tool executable is missing'
     }
@@ -229,118 +241,113 @@ if (-not [string]::IsNullOrWhiteSpace($ToolName)) {
     ) {
         throw 'P5E_TOOL_SIGNER: signer organization differs'
     }
-    $tool = [ordered]@{
+    $selectedTools += [ordered]@{
         id = $ToolName
         version = $ExpectedToolVersion
         executableSha256 = $toolDigest
+        verification = 'version-digest-authenticode'
         authenticodeStatus = 'valid'
         signerOrganization = $ExpectedSignerOrganization
     }
 }
-
-$os = Get-CimInstance Win32_OperatingSystem
-$outputRoot = [IO.Path]::GetPathRoot($resolvedOutput).TrimEnd('\')
-$logicalDisk = Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='$outputRoot'"
-if ($null -eq $logicalDisk -or [string]::IsNullOrWhiteSpace($logicalDisk.FileSystem)) {
-    throw 'P5E_FILESYSTEM: output filesystem could not be classified'
+if ($toolSetRequested) {
+    if (
+        $SelectedToolIds.Count -eq 0 -or
+        $SelectedToolIds.Count -ne $SelectedToolPaths.Count -or
+        @($SelectedToolIds | Sort-Object -Unique).Count -ne $SelectedToolIds.Count
+    ) {
+        throw 'P5E_TOOL_INPUT: selected tool IDs and paths must be a one-to-one unique set'
+    }
+    $toolchain = Get-Content -Raw -LiteralPath (Join-Path $repoRoot 'toolchain.json') |
+        ConvertFrom-Json
+    for ($index = 0; $index -lt $SelectedToolIds.Count; $index += 1) {
+        $toolId = $SelectedToolIds[$index]
+        $record = @($toolchain.tools | Where-Object { $_.id -ceq $toolId })
+        if ($record.Count -ne 1) {
+            throw "P5E_TOOL_INPUT: exact toolchain record is missing for $toolId"
+        }
+        $record = $record[0]
+        $resolvedTool = [IO.Path]::GetFullPath($SelectedToolPaths[$index])
+        if (-not (Test-Path -LiteralPath $resolvedTool -PathType Leaf)) {
+            throw "P5E_TOOL_MISSING: exact $toolId executable is missing"
+        }
+        $toolDigest = (
+            Get-FileHash -Algorithm SHA256 -LiteralPath $resolvedTool
+        ).Hash.ToLowerInvariant()
+        if ($toolDigest -cne [string]$record.artifact.executableSha256) {
+            throw "P5E_TOOL_DIGEST: exact $toolId executable digest differs"
+        }
+        Invoke-ExactVersion -Executable $resolvedTool -Expected ([string]$record.version)
+        $runtimeSignatureStatus = 'not-required'
+        if ([bool]$record.signature.authenticodeRequired) {
+            $signature = Get-AuthenticodeSignature -LiteralPath $resolvedTool
+            if (
+                $signature.Status -ne [System.Management.Automation.SignatureStatus]::Valid -or
+                $null -eq $signature.SignerCertificate -or
+                -not $signature.SignerCertificate.Subject.Equals(
+                    [string]$record.signature.authenticodeSubject,
+                    [StringComparison]::Ordinal
+                ) -or
+                -not $signature.SignerCertificate.Thumbprint.Equals(
+                    [string]$record.signature.authenticodeThumbprint,
+                    [StringComparison]::OrdinalIgnoreCase
+                )
+            ) {
+                throw "P5E_TOOL_SIGNATURE: exact $toolId Authenticode identity differs"
+            }
+            $runtimeSignatureStatus = 'valid-exact'
+        }
+        $selectedTools += [ordered]@{
+            id = $toolId
+            version = [string]$record.version
+            executableSha256 = $toolDigest
+            verification = 'toolchain-version-and-executable-digest'
+            runtimeSignatureStatus = $runtimeSignatureStatus
+            admissionSignatureKind = [string]$record.signature.kind
+            admissionSignatureVerified = [bool]$record.signature.verified
+        }
+    }
 }
-
-$finishedAt = [datetimeoffset]::UtcNow
-$startedAtValue = [datetimeoffset]::MinValue
-$startedAtSource = 'profile-clock'
-try {
-    $startedAtValue = [datetimeoffset]::Parse(
-        $StartedAt,
-        [Globalization.CultureInfo]::InvariantCulture,
-        [Globalization.DateTimeStyles]::RoundtripKind
-    )
+$expectedToolIds = switch ($Profile) {
+    'install-build' { @('codex') }
+    'core-contract' { @('codex') }
+    'claude-lifecycle' { @('claude') }
+    'security' { @('actionlint', 'gitleaks', 'osv-scanner', 'zizmor') }
+    'next-canary' { @('codex') }
+    default { @() }
 }
-catch {
-    $startedAtValue = $finishedAt
-    $startedAtSource = 'finalizer-fallback'
-}
-$wallTimeMs = [math]::Max(0, [long]($finishedAt - $startedAtValue).TotalMilliseconds)
-$checkoutSha = if (-not [string]::IsNullOrWhiteSpace($env:GITHUB_SHA)) {
-    $env:GITHUB_SHA
-}
-else {
-    (& git -C $repoRoot rev-parse HEAD).Trim()
-}
-$sourceSha = if ($ExecutionClass -eq 'hosted') {
-    $env:P5_SOURCE_SHA
-}
-else {
-    (& git -C $repoRoot rev-parse HEAD).Trim()
-}
-$workflowSha = if (-not [string]::IsNullOrWhiteSpace($env:GITHUB_WORKFLOW_SHA)) {
-    $env:GITHUB_WORKFLOW_SHA
-}
-else {
-    $checkoutSha
-}
+$actualToolIds = @($selectedTools | ForEach-Object { [string]$_.id } | Sort-Object)
+$expectedToolIds = @($expectedToolIds | Sort-Object)
 if (
-    $sourceSha -notmatch '^[0-9a-f]{40}$' -or
-    $checkoutSha -notmatch '^[0-9a-f]{40}$' -or
-    $workflowSha -notmatch '^[0-9a-f]{40}$'
+    ($successfulObservation -and
+        ($actualToolIds -join "`n") -cne ($expectedToolIds -join "`n")) -or
+    @($actualToolIds | Where-Object { $_ -cnotin $expectedToolIds }).Count -ne 0
 ) {
-    throw 'P5E_SOURCE_SHA: exact source, checkout, and workflow commit identities are required'
+    throw 'P5E_TOOL_PROFILE: selected tools must exactly match a successful profile or be a valid failed-attempt subset'
 }
 
-$runAttempt = if ($env:GITHUB_RUN_ATTEMPT -match '^[1-9][0-9]*$') {
-    [int]$env:GITHUB_RUN_ATTEMPT
-}
-else {
-    1
-}
-$runnerEnvironment = if ($ExecutionClass -eq 'hosted') {
-    $env:RUNNER_ENVIRONMENT
-}
-else {
-    'local'
-}
-$runnerOS = if ($ExecutionClass -eq 'hosted') { $env:RUNNER_OS } else { 'Windows' }
-$runnerArch = if ($ExecutionClass -eq 'hosted') { $env:RUNNER_ARCH } else { 'X64' }
-$imageOS = if ($ExecutionClass -eq 'hosted' -and -not [string]::IsNullOrWhiteSpace($env:ImageOS)) {
-    $env:ImageOS
-}
-else {
-    $null
-}
-$imageVersion = if ($ExecutionClass -eq 'hosted' -and -not [string]::IsNullOrWhiteSpace($env:ImageVersion)) {
-    $env:ImageVersion
-}
-else {
-    $null
-}
-$storageClass = if ($ExecutionClass -eq 'hosted') {
-    'github-hosted-ephemeral-runner-temp'
-}
-else {
-    'run-owned-temp-volume'
-}
-if (
-    $ExecutionClass -eq 'hosted' -and (
-        $runnerEnvironment -cne 'github-hosted' -or
-        $runnerOS -cne 'Windows' -or
-        $runnerArch -cne 'X64' -or
-        [string]::IsNullOrWhiteSpace($imageOS) -or
-        [string]::IsNullOrWhiteSpace($imageVersion) -or
-        $logicalDisk.FileSystem -cne 'NTFS' -or
-        [string]::IsNullOrWhiteSpace($os.BuildNumber)
-    )
-) {
-    throw 'P5E_HOSTED_RUNNER: exact GitHub-hosted Windows x64 image and NTFS readback are required'
-}
+$attempt = Get-P5AttemptEvidence `
+    -StartedAt $StartedAt `
+    -ObservedStatus $ObservedStatus `
+    -RawExitCode $RawExitCode `
+    -RawExitCodeSource $ExitCodeSource `
+    -ResourceOracleStatus $ResourceOracleStatus `
+    -RunAttempt ([long]$provenance.run.attempt) `
+    -RequireStartedAt $successfulObservation
+$nodeIdentity = $provenance.node
+$null = $provenance.Remove('node')
+$dependencyReviewArtifact = $Profile -ceq 'dependency-review'
 
 $evidence = [ordered]@{
-    schemaVersion = 'p5-runner-evidence-v1'
+    schemaVersion = 'p5-runner-evidence-v2'
+    evidenceKind = 'profile-lane'
     profile = $Profile
     lane = $Lane
     blocking = [bool]$profileRecord.blocking
     requirementIds = @($scenarioRecord.requirementIds)
     scenarioId = $ScenarioId
     scenarioFixtureIds = @($scenarioRecord.fixtureIds)
-    executedFixtureIds = @($FixtureIds)
+    verifiedFixtureIds = @($FixtureIds)
     oracle = [ordered]@{
         registrySha256 = $oracleRegistryDigest
         aggregateExpected = $scenarioRecord.oracle
@@ -349,51 +356,28 @@ $evidence = [ordered]@{
     }
     runtimeEnforced = $runtimeImplemented
     deferredPhase = $deferredPhase
-    sourceSha = $sourceSha
-    checkoutSha = $checkoutSha
-    workflowSha = $workflowSha
-    executionClass = $ExecutionClass
-    runner = [ordered]@{
-        requestedLabel = 'windows-2025'
-        environment = $runnerEnvironment
-        os = $runnerOS
-        architecture = $runnerArch
-        imageOS = $imageOS
-        imageVersion = $imageVersion
-        osCaption = $os.Caption
-        osVersion = $os.Version
-        osBuild = $os.BuildNumber
-        osArchitecture = $os.OSArchitecture
-        powershellVersion = $PSVersionTable.PSVersion.ToString()
-        filesystem = $logicalDisk.FileSystem
-        storageClass = $storageClass
-    }
+    provenance = $provenance
     tools = [ordered]@{
-        nodeIdentityStatus = $nodeIdentityStatus
-        node = $nodeVersion
-        npm = $npmVersion
-        nodeArchitecture = $nodeArchitecture
-        nodeExecutableSha256 = $nodeDigest
-        selected = $tool
+        nodeIdentityStatus = $nodeIdentity.nodeIdentityStatus
+        node = $nodeIdentity.node
+        npm = $nodeIdentity.npm
+        nodeArchitecture = $nodeIdentity.nodeArchitecture
+        nodeExecutableSha256 = $nodeIdentity.nodeExecutableSha256
+        selected = @($selectedTools)
     }
-    attempt = [ordered]@{
-        trial = 1
-        runAttempt = $runAttempt
-        automaticRetryCount = 0
-        timeout = $false
-        rawExitCode = $RawExitCode
-        rawExitCodeSource = $ExitCodeSource
-        startedAt = $startedAtValue.ToUniversalTime().ToString('o')
-        startedAtSource = $startedAtSource
-        finishedAt = $finishedAt.ToString('o')
-        wallTimeMs = $wallTimeMs
-        observedStatus = $ObservedStatus
-        resourceOracleStatus = $ResourceOracleStatus
-    }
+    attempt = $attempt
     artifact = [ordered]@{
-        uploaded = $false
+        repositoryAuthoredUpload = $false
+        actionOwnedConditionalUploadPossible = $dependencyReviewArtifact
+        observedUpload = if ($dependencyReviewArtifact) { $null } else { $false }
         digest = $null
-        retentionDays = $null
+        retentionDays = if ($dependencyReviewArtifact) { 1 } else { $null }
+        readbackStatus = if ($dependencyReviewArtifact) { 'pending-rest-readback' } else { 'not-applicable' }
+        releaseTrustInput = $false
+    }
+    cache = [ordered]@{
+        repositoryAuthoredCacheEnabled = $false
+        readbackStatus = if ($ExecutionClass -eq 'hosted') { 'pending-rest-readback' } else { 'not-applicable' }
         releaseTrustInput = $false
     }
     privacy = [ordered]@{
@@ -405,12 +389,4 @@ $evidence = [ordered]@{
         redactionStatus = 'executed-pass'
     }
 }
-
-$json = $evidence | ConvertTo-Json -Depth 8 -Compress
-$privatePath = '(?i)(?:[A-Z]:[\\/](?:Users|Documents and Settings)[\\/]|\\\\(?:[?.]\\|wsl\$\\)|/(?:home|Users)/)'
-$secret = '(?:AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9_]{20,}|-----BEGIN [A-Z ]+PRIVATE KEY-----|Bearer\s+[A-Za-z0-9._~-]{20,})'
-if ($json -match $privatePath -or $json -match $secret) {
-    throw 'P5E_PRIVACY: serialized runner evidence contains a private path or credential shape'
-}
-[IO.File]::WriteAllText($resolvedOutput, $json + [Environment]::NewLine, [Text.UTF8Encoding]::new($false))
-Write-Output $json
+Write-P5SanitizedEvidence -Evidence $evidence -OutputPath $resolvedOutput

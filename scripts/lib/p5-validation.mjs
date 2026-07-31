@@ -3,13 +3,19 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { validateWorkflowText as validateP3WorkflowText } from "./p3-validation.mjs";
+import { validateJsonSchema } from "./p4-schema-validator.mjs";
 
 const SHA256 = /^[0-9a-f]{64}$/;
 const COMMIT = /^[0-9a-f]{40}$/;
 const PRIVATE_PATH =
-  /(?:(?<![A-Za-z])[A-Za-z]:[\\/](?:Users|Documents and Settings)[\\/]|\\\\(?:[?.]\\|wsl\$\\)|\/(?:home|Users)\/)/i;
-const SECRET =
-  /(?:AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9_]{20,}|-----BEGIN [A-Z ]+PRIVATE KEY-----|Bearer\s+[A-Za-z0-9._~-]{20,})/;
+  /(?:(?<![A-Za-z])[A-Za-z]:[\\/](?:Users|Documents and Settings)[\\/]|\\\\(?:[?.]\\|wsl\$\\)|(?:^|[\s"'=])\/(?:home|Users)\/)/i;
+const GITHUB_FINE_GRAINED_PAT_PREFIX = "github" + "_pat_";
+const SECRET = new RegExp(
+  `(?:AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9_]{20,}|${GITHUB_FINE_GRAINED_PAT_PREFIX}` +
+    "[A-Za-z0-9_]{20,}|-----BEGIN [A-Z ]+PRIVATE KEY-----|Bearer\\s+[A-Za-z0-9._~-]{20,})"
+);
+const EXPECTED_P5_WORKFLOW_SHA256 =
+  "05e93a59d5c8e327b5469b391b4d85377f4f41e65f223518dffb7df578b12596";
 const EXPECTED_PROFILE_IDS = [
   "policy-validation",
   "install-build",
@@ -43,6 +49,7 @@ const P5_EXACT_PATHS = new Set([
   ".github/workflows/pull-request-ci.yml",
   "scripts/invoke-p4-validator-at-handoff.ps1",
   "scripts/validate-p5.mjs",
+  "scripts/write-p5-gate-evidence.ps1",
   "scripts/write-p5-runner-evidence.ps1"
 ]);
 const P5_PATH_PREFIXES = [
@@ -531,16 +538,73 @@ export function extractWorkflowJobs(workflow) {
   );
 }
 
+function extractNamedSteps(jobBlock, name) {
+  const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return jobBlock.match(
+    new RegExp(
+      `^ {6}- name: ${escapedName}[ \\t]*\\r?\\n[\\s\\S]*?(?=^ {6}- |(?![\\s\\S]))`,
+      "gm"
+    )
+  ) ?? [];
+}
+
+function hasExactPowerShellInvocation(step, scriptName) {
+  if (/@['"]/.test(step)) return false;
+  const escapedName = scriptName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const calls = step.match(
+    new RegExp(
+      `^ {10}\\./scripts/${escapedName}(?:[ \\t]+@arguments|[ \\t]+\x60)[ \\t]*$`,
+      "gm"
+    )
+  ) ?? [];
+  if (calls.length !== 1) return false;
+  const invocationIndex = step.indexOf(calls[0]);
+  const prefix = step.slice(0, invocationIndex);
+  return !/^ {10}(?:return|exit|break|continue)(?:\s|$)/m.test(prefix);
+}
+
+function extractMatrixIncludeRows(jobBlock) {
+  const lines = jobBlock.split(/\r?\n/);
+  const includeIndex = lines.findIndex((line) => line === "        include:");
+  if (includeIndex < 0) return [];
+  const rows = [];
+  let row = null;
+  for (let index = includeIndex + 1; index < lines.length; index += 1) {
+    const line = lines[index];
+    if (line.trim() === "") continue;
+    const first = /^ {10}- ([a-z0-9_]+):[ \t]*(.+)$/.exec(line);
+    if (first) {
+      row = { [first[1]]: first[2].trim() };
+      rows.push(row);
+      continue;
+    }
+    const field = /^ {12}([a-z0-9_]+):[ \t]*(.+)$/.exec(line);
+    if (field && row) {
+      row[field[1]] = field[2].trim();
+      continue;
+    }
+    if (/^ {8}\S/.test(line) || /^ {6}- name:/.test(line)) break;
+  }
+  return rows;
+}
+
+function exactMatrixRows(actual, expected) {
+  const canonical = (rows) => rows
+    .map((row) => JSON.stringify(Object.fromEntries(Object.entries(row).sort())))
+    .sort();
+  return JSON.stringify(canonical(actual)) === JSON.stringify(canonical(expected));
+}
+
 export function validateP5Workflow(workflow, admittedActions, profileRegistry) {
   const errors = [...validateP3WorkflowText(workflow, admittedActions)];
-  const jobs = extractWorkflowJobs(workflow);
+  const normalizedWorkflow = workflow.replace(/\r\n/g, "\n");
   if (
-    !/^env:\s*\n\s{2}P5_SOURCE_SHA:\s+\$\{\{\s*github\.event\.pull_request\.head\.sha\s*\}\}\s*$/m.test(
-      workflow
-    )
+    createHash("sha256").update(normalizedWorkflow).digest("hex") !==
+    EXPECTED_P5_WORKFLOW_SHA256
   ) {
-    errors.push("P5E_SOURCE_HEAD_SHA: exact pull-request head SHA evidence binding is required");
+    errors.push("P5E_WORKFLOW_DIGEST: PR workflow differs from the reviewed P5 executable graph");
   }
+  const jobs = extractWorkflowJobs(workflow);
   if (!includesExactSet([...jobs.keys()], EXPECTED_JOBS)) {
     errors.push("P5E_JOB_SET: exact P5 workflow jobs are required");
   }
@@ -579,39 +643,82 @@ export function validateP5Workflow(workflow, admittedActions, profileRegistry) {
     "windows-integration",
     "claude-lifecycle",
     "security",
+    "dependency-review",
+    "gate",
     "next-canary"
   ]) {
     const block = jobs.get(id) ?? "";
+    const checkoutSteps = extractNamedSteps(block, "Check out repository");
+    const clockSteps = extractNamedSteps(block, "Start profile clock");
+    const setupSteps = extractNamedSteps(block, "Set up Node.js");
+    const identitySteps = extractNamedSteps(block, "Verify exact Node identity");
+    const exactCheckout = [
+      "      - name: Check out repository",
+      "        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2",
+      "        with:",
+      ...(["policy-validation", "install-build"].includes(id)
+        ? ["          fetch-depth: 0"]
+        : []),
+      "          persist-credentials: false"
+    ].join("\n");
+    const exactClock = [
+      "      - name: Start profile clock",
+      "        id: p5_clock",
+      "        shell: pwsh",
+      "        run: ./scripts/run-p5-attempt-clock.ps1"
+    ].join("\n");
+    const exactSetup = [
+      "      - name: Set up Node.js",
+      "        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0",
+      "        with:",
+      "          node-version: 24.18.1",
+      "          architecture: x64",
+      "          check-latest: false",
+      "          package-manager-cache: false"
+    ].join("\n");
+    const exactIdentity = [
+      "      - name: Verify exact Node identity",
+      "        shell: pwsh",
+      "        run: ./scripts/run-p5-node-identity.ps1"
+    ].join("\n");
     if (
-      !/actions\/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd/.test(block) ||
-      !/persist-credentials:\s+false/.test(block) ||
-      !/actions\/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f/.test(
-        block
-      ) ||
-      !/node-version:\s+24\.18\.1/.test(block) ||
-      !/architecture:\s+x64/.test(block) ||
-      !/package-manager-cache:\s+false/.test(block)
+      checkoutSteps.length !== 1 ||
+      checkoutSteps[0].trimEnd() !== exactCheckout ||
+      setupSteps.length !== 1 ||
+      setupSteps[0].trimEnd() !== exactSetup
     ) {
       errors.push(`P5E_EXACT_SETUP:${id}`);
     }
-    const clockIndex = block.indexOf("./scripts/run-p5-attempt-clock.ps1");
-    const setupNodeIndex = block.indexOf("actions/setup-node@");
-    const identityIndex = block.indexOf("./scripts/run-p5-node-identity.ps1");
+    const clockIndex = block.indexOf(clockSteps[0] ?? "\u0000");
+    const setupNodeIndex = block.indexOf(setupSteps[0] ?? "\u0000");
+    const identityIndex = block.indexOf(identitySteps[0] ?? "\u0000");
     const firstProfileCommand = [
       "node scripts/",
       "npm ci",
       "install-p3-tool.ps1",
       "install-p4-codex.ps1",
-      "node --test"
+      "node --test",
+      "actions/dependency-review-action@",
+      "Invoke-WebRequest",
+      "P5E_BLOCKING_PROFILE_RESULT"
     ]
       .map((command) => block.indexOf(command))
       .filter((index) => index >= 0)
       .sort((left, right) => left - right)[0];
-    if (clockIndex < 0 || setupNodeIndex < 0 || clockIndex > setupNodeIndex) {
+    if (
+      clockIndex < 0 ||
+      setupNodeIndex < 0 ||
+      clockIndex > setupNodeIndex ||
+      clockSteps.length !== 1 ||
+      clockSteps[0].trimEnd() !== exactClock
+    ) {
       errors.push(`P5E_ATTEMPT_CLOCK:${id}`);
     }
     if (
       identityIndex < 0 ||
+      identityIndex < setupNodeIndex ||
+      identitySteps.length !== 1 ||
+      identitySteps[0].trimEnd() !== exactIdentity ||
       (firstProfileCommand !== undefined && identityIndex > firstProfileCommand)
     ) {
       errors.push(`P5E_NODE_IDENTITY_ORDER:${id}`);
@@ -625,9 +732,25 @@ export function validateP5Workflow(workflow, admittedActions, profileRegistry) {
     "windows-integration",
     "claude-lifecycle",
     "security",
+    "dependency-review",
     "next-canary"
   ]) {
-    if (!/write-p5-runner-evidence\.ps1/.test(jobs.get(id) ?? "")) {
+    const stepName = id === "next-canary"
+      ? "Write sanitized canary evidence"
+      : id === "windows-integration"
+        ? "Write sanitized runner and resource evidence"
+        : "Write sanitized runner evidence";
+    const steps = extractNamedSteps(jobs.get(id) ?? "", stepName);
+    const step = steps[0] ?? "";
+    const profileBinding = new RegExp(
+      `(?:-Profile[ \\t]+${id}\\b|Profile[ \\t]*=[ \\t]*'${id}')`
+    );
+    if (
+      steps.length !== 1 ||
+      !hasExactPowerShellInvocation(step, "write-p5-runner-evidence.ps1") ||
+      !profileBinding.test(step) ||
+      !/P5_CONTEXT_LANE:\s+(?:default|\$\{\{\s*matrix\.lane\s*\}\})/.test(step)
+    ) {
       errors.push(`P5E_RUNNER_WRITER:${id}`);
     }
   }
@@ -638,16 +761,51 @@ export function validateP5Workflow(workflow, admittedActions, profileRegistry) {
     "core-contract",
     "windows-integration",
     "claude-lifecycle",
-    "security"
+    "security",
+    "dependency-review"
   ]) {
-    const block = jobs.get(id) ?? "";
+    const stepName = id === "windows-integration"
+      ? "Write sanitized runner and resource evidence"
+      : "Write sanitized runner evidence";
+    const step = extractNamedSteps(jobs.get(id) ?? "", stepName)[0] ?? "";
     if (
-      !/if:\s+\$\{\{\s*!cancelled\(\)\s*\}\}/.test(block) ||
-      !/P5_JOB_STATUS:\s+\$\{\{\s*job\.status\s*\}\}/.test(block) ||
-      !/executed-fail/.test(block) ||
-      !/github-job-status-normalized/.test(block)
+      !/if:\s+\$\{\{\s*!cancelled\(\)\s*\}\}/.test(step) ||
+      !/P5_JOB_STATUS:\s+\$\{\{\s*job\.status\s*\}\}/.test(step) ||
+      !/executed-fail/.test(step) ||
+      !/github-job-status-normalized/.test(step)
     ) {
       errors.push(`P5E_FAILURE_EVIDENCE:${id}`);
+    }
+  }
+  for (const [id, block] of jobs) {
+    const evidenceStep = extractNamedSteps(
+      block,
+      id === "gate"
+        ? "Write sanitized terminal gate evidence"
+        : id === "next-canary"
+          ? "Write sanitized canary evidence"
+          : id === "windows-integration"
+            ? "Write sanitized runner and resource evidence"
+            : "Write sanitized runner evidence"
+    )[0] ?? "";
+    if (
+      !/P5_CHECK_RUN_ID:\s+\$\{\{\s*job\.check_run_id\s*\}\}/.test(evidenceStep) ||
+      !/P5_STARTED_AT:\s+\$\{\{\s*steps\.p5_clock\.outputs\.started_at\s*\}\}/.test(evidenceStep)
+    ) {
+      errors.push(`P5E_CHECK_RUN_ID:${id}`);
+    }
+    const integritySteps = extractNamedSteps(block, "Verify clean evidence source");
+    const exactIntegrityStep = [
+      "      - name: Verify clean evidence source",
+      "        if: ${{ !cancelled() }}",
+      "        run: git diff --exit-code HEAD -- ."
+    ].join("\n");
+    if (
+      integritySteps.length !== 1 ||
+      integritySteps[0].trimEnd() !== exactIntegrityStep ||
+      block.indexOf(integritySteps[0]) > block.indexOf(evidenceStep)
+    ) {
+      errors.push(`P5E_SOURCE_INTEGRITY:${id}`);
     }
   }
   const policy = jobs.get("policy-validation") ?? "";
@@ -691,21 +849,44 @@ export function validateP5Workflow(workflow, admittedActions, profileRegistry) {
     }
   }
   const core = jobs.get("core-contract") ?? "";
+  const coreRows = extractMatrixIncludeRows(core);
+  const codexTools = profileRegistry?.tools?.codex ?? [];
+  const currentCodex = codexTools.find(({ lane }) => lane === "current") ?? {};
+  const previousCodex = codexTools.find(({ lane }) => lane === "previous") ?? {};
   const exactP4ContractSteps = core.match(
     /^ {6}- name: Run P4 targeted contract once[ \t]*\r?\n {8}if:[ \t]+\$\{\{[ \t]*matrix\.run_contract[ \t]*\}\}[ \t]*\r?\n {8}run:[ \t]+node --test --test-concurrency=1 tests\/p4-contract-baseline\.test\.mjs[ \t]*\r?\n(?:[ \t]*\r?\n)*(?= {6}- name:)/gm
   ) ?? [];
   if (
     !/fail-fast:\s+false/.test(core) ||
-    !/max-parallel:\s+2/.test(core) ||
-    !/- lane:\s+current/.test(core) ||
-    !/- lane:\s+previous/.test(core) ||
-    !/- lane:\s+current[\s\S]*?run_contract:\s+true[\s\S]*?- lane:\s+previous[\s\S]*?run_contract:\s+false/.test(core) ||
+    !/max-parallel:\s+2/.test(core)
+  ) {
+    errors.push("P5E_CORE_MATRIX_POLICY: exact current/previous matrix policy is incomplete");
+  }
+  if (
+    !exactMatrixRows(coreRows, [
+      {
+        lane: "current",
+        version: String(currentCodex.version ?? ""),
+        sha256: String(currentCodex.executableSha256 ?? ""),
+        run_contract: "true"
+      },
+      {
+        lane: "previous",
+        version: String(previousCodex.version ?? ""),
+        sha256: String(previousCodex.executableSha256 ?? ""),
+        run_contract: "false"
+      }
+    ])
+  ) {
+    errors.push("P5E_CORE_MATRIX_ALLOCATION: exact current/previous allocation set differs");
+  }
+  if (
     exactP4ContractSteps.length !== 1 ||
     !/install-p4-codex\.ps1/.test(core) ||
     !/run-p5-core-contract\.mjs/.test(core) ||
     !/tests\/p4-contract-baseline\.test\.mjs/.test(core)
   ) {
-    errors.push("P5E_CORE_MATRIX: exact current/previous contract matrix is incomplete");
+    errors.push("P5E_CORE_MATRIX_CONTRACT: exact current/previous contract execution is incomplete");
   }
   const windows = jobs.get("windows-integration") ?? "";
   for (const name of [
@@ -720,17 +901,38 @@ export function validateP5Workflow(workflow, admittedActions, profileRegistry) {
     }
   }
   if (
-    !/ResourceOracleStatus\s+\$observedStatus/.test(windows) ||
+    !/^ {8}id:\s+resource_oracle\s*$/m.test(windows) ||
+    !/P5_RESOURCE_OUTCOME:\s+\$\{\{\s*steps\.resource_oracle\.outcome\s*\}\}/.test(windows) ||
+    !/ResourceOracleStatus\s+\$resourceOracleStatus/.test(windows) ||
+    !/'success'\s+\{\s*'executed-pass'\s*\}/.test(windows) ||
+    !/'failure'\s+\{\s*'executed-fail'\s*\}/.test(windows) ||
+    !/default\s+\{\s*'not-run'\s*\}/.test(windows) ||
     !/P5-RUNNER-METADATA-001/.test(windows)
   ) {
     errors.push("P5E_RESOURCE_ORACLE_MISSING: Windows postcondition is not evidence-bound");
   }
   const claude = jobs.get("claude-lifecycle") ?? "";
+  const claudeRows = extractMatrixIncludeRows(claude);
+  const claudeTools = profileRegistry?.tools?.claude ?? [];
+  const minimumClaude = claudeTools.find(({ lane }) => lane === "minimum") ?? {};
+  const currentClaude = claudeTools.find(({ lane }) => lane === "current") ?? {};
   if (
     !/fail-fast:\s+false/.test(claude) ||
     !/max-parallel:\s+2/.test(claude) ||
-    !/- lane:\s+minimum/.test(claude) ||
-    !/- lane:\s+current/.test(claude) ||
+    !exactMatrixRows(claudeRows, [
+      {
+        lane: "minimum",
+        tool_id: "claude-minimum",
+        version: String(minimumClaude.version ?? ""),
+        sha256: String(minimumClaude.executableSha256 ?? "")
+      },
+      {
+        lane: "current",
+        tool_id: "claude-current",
+        version: String(currentClaude.version ?? ""),
+        sha256: String(currentClaude.executableSha256 ?? "")
+      }
+    ]) ||
     !/CLAUDE_CONFIG_DIR/.test(claude) ||
     !/DISABLE_UPDATES:\s+["']?1/.test(claude) ||
     !/plugin validate \. --strict/.test(claude) ||
@@ -747,15 +949,34 @@ export function validateP5Workflow(workflow, admittedActions, profileRegistry) {
   ]) {
     if (!security.includes(command)) errors.push(`P5E_SECURITY_COMMAND:${command}`);
   }
+  for (const toolId of ["actionlint", "zizmor", "osv-scanner", "gitleaks"]) {
+    const pathVariable = `P5_${toolId.replaceAll("-", "_").toUpperCase()}_PATH`;
+    if (
+      !new RegExp(`(?:^|\\s)['"]?${toolId}['"]?[ \\t]*=[ \\t]*\\$env:${pathVariable}\\b`, "m").test(
+        security
+      )
+    ) {
+      errors.push(`P5E_SECURITY_PROVENANCE:${toolId}`);
+    }
+  }
   const canary = jobs.get("next-canary") ?? "";
+  const canaryRows = extractMatrixIncludeRows(canary);
+  const nextCodex = codexTools.find(({ lane }) => lane === "next") ?? {};
   if (
-    !/continue-on-error:\s+true/.test(canary) ||
-    !/fail-fast:\s+false/.test(canary) ||
-    !/max-parallel:\s+1/.test(canary) ||
+    !/^ {4}continue-on-error: true$/m.test(canary) ||
+    !/^ {6}fail-fast: false$/m.test(canary) ||
+    !/^ {6}max-parallel: 1$/m.test(canary) ||
     !/0\.147\.0-alpha\.2/.test(canary) ||
     !/40e8f5b6cf031d74912f01a6c67c6896397743fe00ac059903f59a916dd23c68/.test(
       canary
-    )
+    ) ||
+    !exactMatrixRows(canaryRows, [
+      {
+        lane: "next",
+        version: String(nextCodex.version ?? ""),
+        sha256: String(nextCodex.executableSha256 ?? "")
+      }
+    ])
   ) {
     errors.push("P5E_CANARY_POLICY: exact isolated non-blocking canary is incomplete");
   }
@@ -770,6 +991,30 @@ export function validateP5Workflow(workflow, admittedActions, profileRegistry) {
     errors.push("P5E_NPM_CACHE: PR dependency cache is not admitted");
   }
   const gate = jobs.get("gate") ?? "";
+  const gateEvidenceSteps = extractNamedSteps(
+    gate,
+    "Write sanitized terminal gate evidence"
+  );
+  const gateEvidenceStep = gateEvidenceSteps[0] ?? "";
+  const gateGuardSteps = extractNamedSteps(gate, "Require every blocking profile");
+  const exactGateGuard = [
+    "      - name: Require every blocking profile",
+    "        shell: pwsh",
+    "        run: |",
+    "          $results = @(",
+    "            $env:POLICY_RESULT,",
+    "            $env:BUILD_RESULT,",
+    "            $env:UNIT_RESULT,",
+    "            $env:CONTRACT_RESULT,",
+    "            $env:WINDOWS_RESULT,",
+    "            $env:CLAUDE_RESULT,",
+    "            $env:SECURITY_RESULT,",
+    "            $env:DEPENDENCY_RESULT",
+    "          )",
+    "          if ($results.Where({ $_ -ne 'success' }).Count -ne 0) {",
+    "            throw 'P5E_BLOCKING_PROFILE_RESULT'",
+    "          }"
+  ].join("\n");
   const gateNeeds = /^\s{4}needs:\s*\n((?:\s{6}-\s+[a-z0-9-]+\s*\n)+)/m.exec(
     gate
   );
@@ -794,25 +1039,46 @@ export function validateP5Workflow(workflow, admittedActions, profileRegistry) {
       "m"
     );
     const use = new RegExp(`\\$env:${variable}\\b`, "g");
-    return binding.test(gate) && (gate.match(use) ?? []).length === 1;
+    return binding.test(gate) && (gate.match(use) ?? []).length === 2;
   });
   if (
-    !/name:\s+CI/.test(gate) ||
-    !/if:\s+\$\{\{\s*always\(\)\s*\}\}/.test(gate) ||
+    !/^ {4}name: CI$/m.test(gate) ||
+    !/^ {4}if: \$\{\{ always\(\) \}\}$/m.test(gate) ||
     !includesExactSet(parsedGateNeeds, BLOCKING_JOBS) ||
     !gateBindingsAreExact ||
-    !/\.Where\(\{ \$_ -ne 'success' \}\)\.Count -ne 0/.test(gate) ||
+    gateGuardSteps.length !== 1 ||
+    gateGuardSteps[0].trimEnd() !== exactGateGuard ||
+    gateEvidenceSteps.length !== 1 ||
+    !hasExactPowerShellInvocation(gateEvidenceStep, "write-p5-gate-evidence.ps1") ||
+    !/if:\s+\$\{\{\s*!cancelled\(\)\s*\}\}/.test(gateEvidenceStep) ||
     gate.includes("next-canary")
   ) {
     errors.push("P5E_GATE_GRAPH: legacy CI must aggregate every blocking job only");
   }
   const dependency = jobs.get("dependency-review") ?? "";
+  const dependencyActionSteps = extractNamedSteps(
+    dependency,
+    "Review dependency changes"
+  );
+  const dependencyEvidenceSteps = extractNamedSteps(
+    dependency,
+    "Write sanitized runner evidence"
+  );
+  const dependencyEvidenceStep = dependencyEvidenceSteps[0] ?? "";
+  const exactDependencyAction = [
+    "      - name: Review dependency changes",
+    "        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0"
+  ].join("\n");
   if (
-    !/actions\/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294/.test(
-      dependency
-    )
+    dependencyActionSteps.length !== 1 ||
+    dependencyActionSteps[0].trimEnd() !== exactDependencyAction ||
+    dependencyEvidenceSteps.length !== 1 ||
+    !hasExactPowerShellInvocation(dependencyEvidenceStep, "write-p5-runner-evidence.ps1") ||
+    !/-Profile\s+dependency-review/.test(dependencyEvidenceStep) ||
+    !/-ScenarioId\s+P5-DEPENDENCY-001/.test(dependencyEvidenceStep) ||
+    !/P5-DEPENDENCY-REVIEW-001/.test(dependencyEvidenceStep)
   ) {
-    errors.push("P5E_DEPENDENCY_REVIEW: exact admitted action is missing");
+    errors.push("P5E_DEPENDENCY_REVIEW: exact admitted action or evidence binding is missing");
   }
   if (
     /\b(?:node-version|codex)[^#\r\n]*latest\b/i.test(workflow) ||
@@ -829,6 +1095,818 @@ export function validateP5Workflow(workflow, admittedActions, profileRegistry) {
   for (const id of profileJobs) {
     if (!jobs.has(id)) errors.push(`P5E_PROFILE_JOB:${id}`);
   }
+  return errors;
+}
+
+function expectedLaneFixtures(profile, lane, scenarioFixtures) {
+  const exact = {
+    "core-contract/current": ["P4-TARGETED-GREEN-001", "P5-LIFECYCLE-CURRENT-001"],
+    "core-contract/previous": ["P5-LIFECYCLE-PREVIOUS-001"],
+    "claude-lifecycle/minimum": ["P5-CLAUDE-MINIMUM-001"],
+    "claude-lifecycle/current": ["P5-CLAUDE-CURRENT-001"]
+  };
+  return exact[`${profile}/${lane}`] ?? scenarioFixtures;
+}
+
+function expectedProfileTools(profile) {
+  return {
+    "install-build": ["codex"],
+    "core-contract": ["codex"],
+    "claude-lifecycle": ["claude"],
+    security: ["actionlint", "gitleaks", "osv-scanner", "zizmor"],
+    "next-canary": ["codex"]
+  }[profile] ?? [];
+}
+
+function validRunnerProvenance(provenance) {
+  const expectedWorkflowRef =
+    `${provenance?.repository}/.github/workflows/pull-request-ci.yml@` +
+    `refs/pull/${provenance?.pullRequest?.number}/merge`;
+  return (
+    ownObject(provenance) &&
+    provenance.executionClass === "hosted" &&
+    typeof provenance.repository === "string" &&
+    provenance.repository === provenance.pullRequest?.baseRepository &&
+    Number.isSafeInteger(provenance.pullRequest?.number) &&
+    provenance.pullRequest.number > 0 &&
+    COMMIT.test(provenance.pullRequest?.baseSha ?? "") &&
+    typeof provenance.pullRequest?.baseRef === "string" &&
+    provenance.pullRequest.baseRef.length > 0 &&
+    typeof provenance.pullRequest?.headRepository === "string" &&
+    provenance.pullRequest.headRepository.length > 0 &&
+    typeof provenance.pullRequest?.headRef === "string" &&
+    provenance.pullRequest.headRef.length > 0 &&
+    COMMIT.test(provenance.sourceHeadSha ?? "") &&
+    provenance.sourceHeadSha === provenance.pullRequest?.headSha &&
+    COMMIT.test(provenance.eventMergeSha ?? "") &&
+    provenance.actualCheckoutSha === provenance.eventMergeSha &&
+    COMMIT.test(provenance.workflow?.sha ?? "") &&
+    provenance.workflow?.name === "Pull Request CI" &&
+    provenance.workflow?.ref === expectedWorkflowRef &&
+    Number.isSafeInteger(provenance.run?.id) &&
+    provenance.run.id > 0 &&
+    Number.isSafeInteger(provenance.run?.attempt) &&
+    provenance.run.attempt > 0 &&
+    Number.isSafeInteger(provenance.run?.checkRunId) &&
+    provenance.run.checkRunId > 0 &&
+    provenance.runner?.requestedLabel === "windows-2025" &&
+    provenance.runner?.environment === "github-hosted" &&
+    provenance.runner?.os === "Windows" &&
+    provenance.runner?.architecture === "X64" &&
+    provenance.runner?.filesystem === "NTFS" &&
+    provenance.runner?.productType === 3 &&
+    /Windows Server 2025/.test(provenance.runner?.osCaption ?? "") &&
+    typeof provenance.runner?.imageOS === "string" &&
+    provenance.runner.imageOS.length > 0 &&
+    typeof provenance.runner?.imageVersion === "string" &&
+    provenance.runner.imageVersion.length > 0 &&
+    provenance.runner?.storageClass?.value === "github-hosted-ephemeral-runner-temp"
+  );
+}
+
+function exactNodeTools(tools) {
+  return (
+    tools?.nodeIdentityStatus === "verified-exact" &&
+    tools?.node === "24.18.1" &&
+    tools?.npm === "11.16.0" &&
+    tools?.nodeArchitecture === "x64" &&
+    tools?.nodeExecutableSha256 ===
+      "ac51903c4c111815d52280b1fdcc8da067cbb37e2fe1a765097b85c3292c8582"
+  );
+}
+
+function safeEvidenceDisposition(record, dependencyReview) {
+  return (
+    record?.artifact?.repositoryAuthoredUpload === false &&
+    record?.artifact?.releaseTrustInput === false &&
+    record?.artifact?.actionOwnedConditionalUploadPossible === dependencyReview &&
+    record?.artifact?.observedUpload === (dependencyReview ? null : false) &&
+    record?.artifact?.digest === null &&
+    record?.artifact?.retentionDays === (dependencyReview ? 1 : null) &&
+    record?.artifact?.readbackStatus ===
+      (dependencyReview ? "pending-rest-readback" : "not-applicable") &&
+    record?.cache?.repositoryAuthoredCacheEnabled === false &&
+    record?.cache?.readbackStatus === "pending-rest-readback" &&
+    record?.cache?.releaseTrustInput === false &&
+    record?.privacy?.privatePathsPersisted === false &&
+    record?.privacy?.secretsPersisted === false &&
+    record?.privacy?.rawEnvironmentPersisted === false &&
+    record?.privacy?.rawPromptOrPayloadPersisted === false &&
+    record?.privacy?.rawStdoutOrStderrPersisted === false &&
+    record?.privacy?.redactionStatus === "executed-pass"
+  );
+}
+
+function validPartialAttempt(attempt, runAttempt, profile) {
+  const startedAt = Date.parse(attempt?.startedAt);
+  const finishedAt = Date.parse(attempt?.finishedAt);
+  const duration = finishedAt - startedAt;
+  const successful =
+    attempt?.observedStatus === "executed-pass" ||
+    (attempt?.observedStatus === "non-blocking-canary" && attempt?.rawExitCode === 0);
+  const expectedResourceStatus = profile === "windows-integration"
+    ? attempt?.observedStatus === "executed-pass"
+      ? "executed-pass"
+      : ["executed-pass", "executed-fail", "not-run"].includes(
+            attempt?.resourceOracleStatus
+          )
+        ? attempt.resourceOracleStatus
+        : null
+    : "not-applicable";
+  return (
+    ownObject(attempt) &&
+    attempt.trial === runAttempt &&
+    attempt.runAttempt === runAttempt &&
+    attempt.jobAttempt === null &&
+    attempt.restJobId === null &&
+    attempt.workflowRerunCount === null &&
+    attempt.automaticRetryCount === null &&
+    attempt.timeout === null &&
+    attempt.authority === "runner-self-observed-partial" &&
+    attempt.restConsolidationStatus === "pending-post-run-attempt-jobs" &&
+    ["executed-pass", "executed-fail", "non-blocking-canary"].includes(
+      attempt.observedStatus
+    ) &&
+    Number.isSafeInteger(attempt.rawExitCode) &&
+    attempt.rawExitCodeSource === "github-job-status-normalized" &&
+    ((attempt.observedStatus === "executed-pass" && attempt.rawExitCode === 0) ||
+      (attempt.observedStatus === "executed-fail" && attempt.rawExitCode === 1) ||
+      (attempt.observedStatus === "non-blocking-canary" &&
+        [0, 1].includes(attempt.rawExitCode))) &&
+    typeof attempt.startedAt === "string" &&
+    typeof attempt.finishedAt === "string" &&
+    Number.isFinite(startedAt) &&
+    Number.isFinite(finishedAt) &&
+    Number.isSafeInteger(attempt.wallTimeMs) &&
+    attempt.wallTimeMs >= 0 &&
+    startedAt <= finishedAt &&
+    Math.abs(attempt.wallTimeMs - duration) <= 1 &&
+    (!successful || attempt.startedAtSource === "profile-clock") &&
+    ["profile-clock", "finalizer-fallback"].includes(attempt.startedAtSource) &&
+    expectedResourceStatus !== null &&
+    attempt.resourceOracleStatus === expectedResourceStatus
+  );
+}
+
+export function validateP5RunnerEvidence(
+  record,
+  profileRegistry,
+  toolchain,
+  scenarioRegistry,
+  scenarioRegistrySha256
+) {
+  const errors = [];
+  const profile = profileById(profileRegistry, record?.profile);
+  const scenarioFixtures = record?.scenarioFixtureIds ?? [];
+  const lanes = profile?.matrix?.values ?? ["default"];
+  const successful =
+    record?.attempt?.observedStatus === "executed-pass" ||
+    (record?.attempt?.observedStatus === "non-blocking-canary" &&
+      record?.attempt?.rawExitCode === 0);
+  const scenario = scenarioRegistry?.scenarios?.find(
+    (entry) => entry.id === record?.scenarioId
+  );
+  if (
+    record?.schemaVersion !== "p5-runner-evidence-v2" ||
+    record?.evidenceKind !== "profile-lane" ||
+    !profile ||
+    !scenario ||
+    scenario.profileId !== record.profile ||
+    scenario.blocking !== record.blocking ||
+    !includesExactSet(record?.requirementIds, scenario.requirementIds) ||
+    !includesExactSet(record?.scenarioFixtureIds, scenario.fixtureIds) ||
+    record?.oracle?.aggregateExpected !== scenario.oracle ||
+    typeof record?.oracle?.expected !== "string" ||
+    record.oracle.expected.length === 0 ||
+    record?.oracle?.observedStatus !== record?.attempt?.observedStatus ||
+    record?.oracle?.registrySha256 !== scenarioRegistrySha256 ||
+    !lanes.includes(record.lane) ||
+    record.blocking !== Boolean(profile?.blocking) ||
+    record.provenance?.run?.yamlJobKey !== record.profile ||
+    !validRunnerProvenance(record.provenance) ||
+    !validPartialAttempt(record.attempt, record.provenance?.run?.attempt, record.profile)
+  ) {
+    errors.push("P5E_RUNNER_EVIDENCE_IDENTITY: hosted profile evidence identity is invalid");
+  }
+  if (successful && !exactNodeTools(record?.tools)) {
+    errors.push("P5E_RUNNER_EVIDENCE_NODE: successful evidence lacks exact Node identity");
+  }
+  if (
+    (record.blocking && record?.attempt?.observedStatus === "non-blocking-canary") ||
+    (!record.blocking && record?.attempt?.observedStatus !== "non-blocking-canary")
+  ) {
+    errors.push("P5E_RUNNER_EVIDENCE_STATUS: blocking and observed status disagree");
+  }
+  const expectedFixtures = expectedLaneFixtures(
+    record?.profile,
+    record?.lane,
+    scenarioFixtures
+  );
+  if (
+    !Array.isArray(record?.verifiedFixtureIds) ||
+    (successful && !includesExactSet(record.verifiedFixtureIds, expectedFixtures)) ||
+    (!successful && record.verifiedFixtureIds.length !== 0)
+  ) {
+    errors.push("P5E_RUNNER_EVIDENCE_FIXTURE: verified fixtures contradict outcome");
+  }
+  const selectedIds = Array.isArray(record?.tools?.selected)
+    ? record.tools.selected.map((entry) => entry?.id)
+    : null;
+  const expectedTools = expectedProfileTools(record?.profile);
+  if (
+    !Array.isArray(selectedIds) ||
+    (successful && !includesExactSet(selectedIds, expectedTools)) ||
+    selectedIds?.some((id) => !expectedTools.includes(id))
+  ) {
+    errors.push("P5E_RUNNER_EVIDENCE_TOOL: selected tools contradict profile outcome");
+  }
+  for (const selected of record?.tools?.selected ?? []) {
+    let admitted = null;
+    if (selected?.id === "codex") {
+      const lane = record?.profile === "install-build" ? "current" : record?.lane;
+      admitted = profileRegistry?.tools?.codex?.find((entry) => entry.lane === lane);
+    } else if (selected?.id === "claude") {
+      admitted = profileRegistry?.tools?.claude?.find(
+        (entry) => entry.lane === record?.lane
+      );
+    } else {
+      admitted = toolchain?.tools?.find((entry) => entry.id === selected?.id);
+    }
+    const admittedDigest = admitted?.executableSha256 ?? admitted?.artifact?.executableSha256;
+    if (
+      !admitted ||
+      selected?.version !== admitted.version ||
+      selected?.executableSha256 !== admittedDigest
+    ) {
+      errors.push(`P5E_RUNNER_EVIDENCE_TOOL_IDENTITY:${selected?.id ?? "missing"}`);
+    }
+    const executableProof = ["codex", "claude"].includes(selected?.id)
+      ? {
+          keys: [
+            "id",
+            "version",
+            "executableSha256",
+            "verification",
+            "authenticodeStatus",
+            "signerOrganization"
+          ],
+          verification: "version-digest-authenticode",
+          signerOrganization: selected.id === "codex" ? "OpenAI OpCo, LLC" : "Anthropic, PBC"
+        }
+      : null;
+    const admissionProof = executableProof
+      ? null
+      : {
+          keys: [
+            "id",
+            "version",
+            "executableSha256",
+            "verification",
+            "runtimeSignatureStatus",
+            "admissionSignatureKind",
+            "admissionSignatureVerified"
+          ],
+          verification: "toolchain-version-and-executable-digest",
+          runtimeSignatureStatus: admitted?.signature?.authenticodeRequired
+            ? "valid-exact"
+            : "not-required",
+          admissionSignatureKind: admitted?.signature?.kind,
+          admissionSignatureVerified: admitted?.signature?.verified
+        };
+    const proof = executableProof ?? admissionProof;
+    if (
+      !proof ||
+      !includesExactSet(Object.keys(selected ?? {}), proof.keys) ||
+      selected?.verification !== proof.verification ||
+      (executableProof &&
+        (selected?.authenticodeStatus !== "valid" ||
+          selected?.signerOrganization !== proof.signerOrganization)) ||
+      (admissionProof &&
+        (selected?.runtimeSignatureStatus !== proof.runtimeSignatureStatus ||
+          selected?.admissionSignatureKind !== proof.admissionSignatureKind ||
+          selected?.admissionSignatureVerified !== proof.admissionSignatureVerified))
+    ) {
+      errors.push(`P5E_RUNNER_EVIDENCE_TOOL_PROOF:${selected?.id ?? "missing"}`);
+    }
+  }
+  if (
+    !safeEvidenceDisposition(record, record?.profile === "dependency-review") ||
+    record?.runtimeEnforced !== true ||
+    record?.deferredPhase !== null
+  ) {
+    errors.push("P5E_RUNNER_EVIDENCE_DISPOSITION: trust or runtime disposition is invalid");
+  }
+  errors.push(...validateP5Privacy(record, "runnerEvidence"));
+  return errors;
+}
+
+export function validateP5GateEvidence(record) {
+  const errors = [];
+  const expectedJobs = [
+    "policy-validation",
+    "install-build",
+    "unit",
+    "core-contract",
+    "windows-integration",
+    "claude-lifecycle",
+    "security",
+    "dependency-review"
+  ];
+  const results = record?.blockingResults;
+  const allSucceeded =
+    ownObject(results) &&
+    includesExactSet(Object.keys(results), expectedJobs) &&
+    Object.values(results).every((value) => value === "success");
+  if (
+    record?.schemaVersion !== "p5-gate-evidence-v1" ||
+    record?.evidenceKind !== "terminal-gate" ||
+    record?.jobKey !== "gate" ||
+    record?.checkName !== "CI" ||
+    record?.blocking !== true ||
+    record?.allBlockingSucceeded !== allSucceeded ||
+    record?.provenance?.run?.yamlJobKey !== "gate" ||
+    !validRunnerProvenance(record?.provenance) ||
+    !validPartialAttempt(record?.attempt, record?.provenance?.run?.attempt, "gate")
+  ) {
+    errors.push("P5E_GATE_EVIDENCE_IDENTITY: terminal gate evidence is invalid");
+  }
+  if (
+    (allSucceeded && !exactNodeTools(record?.tools)) ||
+    !Array.isArray(record?.tools?.selected) ||
+    record?.tools?.selected.length !== 0 ||
+    !safeEvidenceDisposition(record, false)
+  ) {
+    errors.push("P5E_GATE_EVIDENCE_DISPOSITION: terminal trust disposition is invalid");
+  }
+  if (
+    (allSucceeded && record?.attempt?.observedStatus !== "executed-pass") ||
+    (!allSucceeded && record?.attempt?.observedStatus !== "executed-fail")
+  ) {
+    errors.push("P5E_GATE_EVIDENCE_STATUS: terminal result contradicts blocking jobs");
+  }
+  errors.push(...validateP5Privacy(record, "gateEvidence"));
+  return errors;
+}
+
+export function validateP5RestJobBinding(record, restJob, expected) {
+  const errors = [];
+  const run = record?.provenance?.run;
+  const evidenceStepName = record?.evidenceKind === "terminal-gate"
+    ? "Write sanitized terminal gate evidence"
+    : record?.profile === "next-canary"
+      ? "Write sanitized canary evidence"
+      : record?.profile === "windows-integration"
+        ? "Write sanitized runner and resource evidence"
+        : "Write sanitized runner evidence";
+  const evidenceSteps = Array.isArray(restJob?.steps)
+    ? restJob.steps.filter((step) => step?.name === evidenceStepName)
+    : [];
+  const integritySteps = Array.isArray(restJob?.steps)
+    ? restJob.steps.filter((step) => step?.name === "Verify clean evidence source")
+    : [];
+  const expectedJobName = record?.evidenceKind === "terminal-gate"
+    ? "CI"
+    : {
+        "policy-validation": "Policy validation",
+        "install-build": "Install and build",
+        unit: "Unit tests",
+        "core-contract": `Core contract / ${record?.lane}`,
+        "windows-integration": "Windows integration",
+        "claude-lifecycle": `Claude structural lifecycle / ${record?.lane}`,
+        security: "Security",
+        "dependency-review": "Dependency review",
+        "next-canary": `Non-blocking Codex canary / ${record?.lane}`
+      }[record?.profile];
+  const observedStatus = record?.attempt?.observedStatus;
+  const conclusionAgrees =
+    (observedStatus === "non-blocking-canary" &&
+      ["success", "failure"].includes(restJob?.conclusion)) ||
+    (observedStatus === "executed-pass" && restJob?.conclusion === "success") ||
+    (observedStatus === "executed-fail" && restJob?.conclusion === "failure");
+  const jobStartedAt = Date.parse(restJob?.started_at);
+  const jobCompletedAt = Date.parse(restJob?.completed_at);
+  const jobCompletedCeiling = jobCompletedAt + 999;
+  const fragmentStartedAt = Date.parse(record?.attempt?.startedAt);
+  const fragmentFinishedAt = Date.parse(record?.attempt?.finishedAt);
+  if (
+    run?.id !== expected?.runId ||
+    run?.attempt !== expected?.runAttempt ||
+    restJob?.run_id !== run?.id ||
+    restJob?.run_attempt !== run?.attempt ||
+    restJob?.status !== "completed" ||
+    !Number.isSafeInteger(restJob?.id) ||
+    restJob.id !== run?.checkRunId ||
+    restJob?.name !== expectedJobName ||
+    restJob?.check_run_url !==
+      `https://api.github.com/repos/${expected?.repository}/check-runs/${run?.checkRunId}` ||
+    restJob?.run_url !==
+      `https://api.github.com/repos/${expected?.repository}/actions/runs/${run?.id}` ||
+    restJob?.html_url !==
+      `https://github.com/${expected?.repository}/actions/runs/${run?.id}/job/${restJob?.id}` ||
+    restJob?.workflow_name !== "Pull Request CI" ||
+    restJob?.head_sha !== expected?.sourceHeadSha ||
+    !Array.isArray(restJob?.labels) ||
+    !restJob.labels.includes("windows-2025") ||
+    record?.provenance?.repository !== expected?.repository ||
+    record?.provenance?.pullRequest?.number !== expected?.pullRequest?.number ||
+    record?.provenance?.pullRequest?.baseRepository !== expected?.pullRequest?.baseRepository ||
+    record?.provenance?.pullRequest?.baseRef !== expected?.pullRequest?.baseRef ||
+    record?.provenance?.pullRequest?.baseSha !== expected?.pullRequest?.baseSha ||
+    record?.provenance?.pullRequest?.headRepository !== expected?.pullRequest?.headRepository ||
+    record?.provenance?.pullRequest?.headRef !== expected?.pullRequest?.headRef ||
+    record?.provenance?.pullRequest?.headSha !== expected?.pullRequest?.headSha ||
+    record?.provenance?.workflow?.ref !== expected?.workflowRef ||
+    record?.provenance?.sourceHeadSha !== expected?.sourceHeadSha ||
+    record?.provenance?.eventMergeSha !== expected?.eventMergeSha ||
+    record?.provenance?.workflow?.sha !== expected?.workflowSha ||
+    evidenceSteps.length !== 1 ||
+    evidenceSteps[0]?.status !== "completed" ||
+    evidenceSteps[0]?.conclusion !== "success" ||
+    integritySteps.length !== 1 ||
+    integritySteps[0]?.status !== "completed" ||
+    integritySteps[0]?.conclusion !== "success" ||
+    integritySteps[0]?.number >= evidenceSteps[0]?.number ||
+    !conclusionAgrees ||
+    !Number.isFinite(jobStartedAt) ||
+    !Number.isFinite(jobCompletedAt) ||
+    fragmentStartedAt < jobStartedAt ||
+    fragmentFinishedAt > jobCompletedCeiling ||
+    jobStartedAt > jobCompletedAt
+  ) {
+    errors.push("P5E_REST_JOB_BINDING: attempt-scoped REST job does not bind the evidence record");
+  }
+  return errors;
+}
+
+const EXPECTED_HOSTED_JOB_NAMES = [
+  "Policy validation",
+  "Install and build",
+  "Unit tests",
+  "Core contract / current",
+  "Core contract / previous",
+  "Windows integration",
+  "Claude structural lifecycle / minimum",
+  "Claude structural lifecycle / current",
+  "Security",
+  "Dependency review",
+  "Non-blocking Codex canary / next",
+  "CI"
+];
+
+const EXPECTED_VALIDATION_SOURCE_PATHS = [
+  "scripts/run-p5-hosted-evidence-collector.mjs",
+  "scripts/lib/p5-validation.mjs",
+  "scripts/lib/p4-schema-validator.mjs",
+  "scripts/lib/p3-validation.mjs",
+  "ci/matrix-profiles-v1.json",
+  "ci/scenario-registry-v1.json",
+  "toolchain.json",
+  "evidence/schemas/p5-runner-evidence-v2.schema.json",
+  "evidence/schemas/p5-gate-evidence-v1.schema.json",
+  "evidence/schemas/p5-hosted-harvest-v1.schema.json"
+];
+
+export function validateP5HostedHarvest(harvest, validationContext = {}) {
+  const errors = [];
+  const jobs = Array.isArray(harvest?.jobs) ? harvest.jobs : [];
+  const collectionErrors = Array.isArray(harvest?.collectionErrors)
+    ? harvest.collectionErrors
+    : [];
+  const names = jobs.map((record) => record?.rest?.name);
+  const validationFiles = harvest?.validationSource?.files;
+  const hasValidationContext =
+    ownObject(validationContext?.profiles) &&
+    ownObject(validationContext?.toolchain) &&
+    ownObject(validationContext?.scenarios) &&
+    ownObject(validationContext?.schemas?.runner) &&
+    ownObject(validationContext?.schemas?.gate) &&
+    ownObject(validationContext?.validationSource) &&
+    ownObject(validationContext?.expected) &&
+    SHA256.test(validationContext?.scenarioRegistrySha256 ?? "");
+  if (!hasValidationContext) {
+    errors.push("P5E_HARVEST_VALIDATOR_CONTEXT: pinned validation inputs are required");
+  } else if (
+    validationContext.validationSource.sourceHeadSha !== harvest?.sourceHeadSha ||
+    validationContext.validationSource.authority !==
+      "source-commit-git-objects-and-matched-executable" ||
+    !includesExactSet(
+      validationFiles?.map((entry) => `${entry?.path}:${entry?.sha256}`),
+      validationContext.validationSource.files?.map(
+        (entry) => `${entry?.path}:${entry?.sha256}`
+      )
+    )
+  ) {
+    errors.push("P5E_HARVEST_VALIDATOR_SOURCE: persisted validator digests differ");
+  }
+  if (
+    hasValidationContext &&
+    (harvest?.repository !== validationContext.expected.repository ||
+      harvest?.run?.id !== validationContext.expected.runId ||
+      harvest?.run?.attempt !== validationContext.expected.runAttempt ||
+      harvest?.sourceHeadSha !== validationContext.expected.sourceHeadSha ||
+      harvest?.eventMergeSha !== validationContext.expected.eventMergeSha ||
+      harvest?.workflowSha !== validationContext.expected.workflowSha ||
+      JSON.stringify(harvest?.pullRequest) !==
+        JSON.stringify(validationContext.expected.pullRequest))
+  ) {
+    errors.push("P5E_HARVEST_EXPECTED_IDENTITY: harvest differs from requested run identity");
+  }
+  if (
+    harvest?.schemaVersion !== "p5-hosted-harvest-v1" ||
+    typeof harvest?.repository !== "string" ||
+    !Number.isSafeInteger(harvest?.run?.id) ||
+    harvest.run.id < 1 ||
+    !Number.isSafeInteger(harvest?.run?.attempt) ||
+    harvest.run.attempt < 1 ||
+    !COMMIT.test(harvest?.sourceHeadSha ?? "") ||
+    !COMMIT.test(harvest?.eventMergeSha ?? "") ||
+    !COMMIT.test(harvest?.workflowSha ?? "") ||
+    harvest?.pullRequest?.number < 1 ||
+    harvest?.pullRequest?.baseRepository !== harvest?.repository ||
+    !COMMIT.test(harvest?.pullRequest?.baseSha ?? "") ||
+    harvest?.pullRequest?.headSha !== harvest?.sourceHeadSha ||
+    harvest?.validationSource?.sourceHeadSha !== harvest?.sourceHeadSha ||
+    harvest?.validationSource?.authority !==
+      "source-commit-git-objects-and-matched-executable" ||
+    !Array.isArray(validationFiles) ||
+    !includesExactSet(
+      validationFiles.map((entry) => entry?.path),
+      EXPECTED_VALIDATION_SOURCE_PATHS
+    ) ||
+    validationFiles.some((entry) => !SHA256.test(entry?.sha256 ?? ""))
+  ) {
+    errors.push("P5E_HARVEST_IDENTITY: harvest or validator-source identity is invalid");
+  }
+  if (
+    names.some((name) => !EXPECTED_HOSTED_JOB_NAMES.includes(name)) ||
+    new Set(names).size !== names.length
+  ) {
+    errors.push("P5E_HARVEST_JOB_SET: jobs must be a unique subset of the exact allocation set");
+  }
+  const fullyValidated =
+    harvest?.collectionStatus === "validated" && collectionErrors.length === 0;
+  if (
+    (harvest?.collectionStatus === "validated" && collectionErrors.length !== 0) ||
+    (harvest?.collectionStatus === "incomplete-or-invalid" && collectionErrors.length === 0) ||
+    !["validated", "incomplete-or-invalid"].includes(harvest?.collectionStatus)
+  ) {
+    errors.push("P5E_HARVEST_STATUS: collection status and errors disagree");
+  }
+  if (fullyValidated && !includesExactSet(names, EXPECTED_HOSTED_JOB_NAMES)) {
+    errors.push("P5E_HARVEST_JOB_SET: validated harvest requires all exact allocations");
+  }
+  const artifactReadback = harvest?.trustReadback?.artifact;
+  const cacheReadback = harvest?.trustReadback?.cache;
+  const artifacts = Array.isArray(artifactReadback?.artifacts)
+    ? artifactReadback.artifacts
+    : [];
+  const cacheEntries = Array.isArray(cacheReadback?.entries)
+    ? cacheReadback.entries
+    : [];
+  const expectedAttemptAttribution = harvest?.run?.attempt === 1
+    ? "exact-first-attempt-time-window"
+    : artifacts.length === 0
+      ? "exact-empty-current-attempt-window"
+      : "unavailable-run-scoped-after-rerun";
+  const harvestJobStarts = jobs
+    .map((record) => Date.parse(record?.rest?.startedAt))
+    .filter(Number.isFinite);
+  const harvestJobEnds = jobs
+    .map((record) => Date.parse(record?.rest?.completedAt))
+    .filter(Number.isFinite);
+  const harvestAttemptStartedAt =
+    harvestJobStarts.length > 0 ? Math.min(...harvestJobStarts) : NaN;
+  const harvestAttemptCompletedAt =
+    harvestJobEnds.length > 0 ? Math.max(...harvestJobEnds) + 999 : NaN;
+  if (
+    artifactReadback?.authority !== "run-artifacts-rest-plus-reviewed-workflow" ||
+    artifactReadback?.endpoint !==
+      `/repos/${harvest?.repository}/actions/runs/${harvest?.run?.id}/artifacts` ||
+    artifactReadback?.repositoryAuthoredUpload !== false ||
+    artifactReadback?.actionOwnedConditionalUploadPossible !== true ||
+    artifactReadback?.observedUpload !== (artifacts.length > 0) ||
+    artifactReadback?.attemptAttribution !== expectedAttemptAttribution ||
+    !Number.isSafeInteger(artifactReadback?.otherAttemptArtifactCount) ||
+    artifactReadback.otherAttemptArtifactCount < 0 ||
+    (harvest?.run?.attempt === 1 && artifactReadback.otherAttemptArtifactCount !== 0) ||
+    artifactReadback?.releaseTrustInput !== false ||
+    artifacts.some((artifact) => {
+      const createdAt = Date.parse(artifact?.createdAt);
+      const updatedAt = Date.parse(artifact?.updatedAt);
+      const expiresAt = Date.parse(artifact?.expiresAt);
+      return (
+        !Number.isSafeInteger(artifact?.id) ||
+        !Number.isSafeInteger(artifact?.sizeBytes) ||
+        artifact.sizeBytes < 0 ||
+        !/^sha256:[0-9a-f]{64}$/.test(artifact?.digest ?? "") ||
+        artifact?.retentionDays !== 1 ||
+        !Number.isFinite(createdAt) ||
+        !Number.isFinite(updatedAt) ||
+        !Number.isFinite(expiresAt) ||
+        createdAt > updatedAt ||
+        updatedAt > expiresAt ||
+        createdAt < harvestAttemptStartedAt ||
+        createdAt > harvestAttemptCompletedAt ||
+        Math.abs(expiresAt - createdAt - 86_400_000) > 1_000 ||
+        artifact?.url !==
+          `https://api.github.com/repos/${harvest?.repository}/actions/artifacts/${artifact?.id}`
+      );
+    }) ||
+    (fullyValidated && artifactReadback?.readbackStatus !== "resolved") ||
+    (fullyValidated && expectedAttemptAttribution === "unavailable-run-scoped-after-rerun")
+  ) {
+    errors.push("P5E_HARVEST_ARTIFACT_READBACK: artifact disposition is unresolved");
+  }
+  const computedCacheInventorySha256 = createHash("sha256")
+    .update(JSON.stringify(cacheEntries))
+    .digest("hex");
+  if (
+    cacheReadback?.authority !== "pr-ref-cache-rest-plus-reviewed-workflow" ||
+    cacheReadback?.ref !== `refs/pull/${harvest?.pullRequest?.number}/merge` ||
+    cacheReadback?.repositoryAuthoredCacheEnabled !== false ||
+    cacheReadback?.packageManagerCacheEnabled !== false ||
+    cacheReadback?.matchingRefCacheCount !== cacheEntries.length ||
+    cacheReadback?.inventorySha256 !== computedCacheInventorySha256 ||
+    cacheReadback?.releaseTrustInput !== false ||
+    cacheEntries.some(
+      (entry) =>
+        !Number.isSafeInteger(entry?.id) ||
+        !SHA256.test(entry?.keySha256 ?? "") ||
+        !Number.isSafeInteger(entry?.sizeBytes) ||
+        entry.sizeBytes < 0 ||
+        !Number.isFinite(Date.parse(entry?.createdAt)) ||
+        !Number.isFinite(Date.parse(entry?.lastAccessedAt)) ||
+        Date.parse(entry.createdAt) > Date.parse(entry.lastAccessedAt)
+    ) ||
+    (fullyValidated && cacheReadback?.readbackStatus !== "resolved")
+  ) {
+    errors.push("P5E_HARVEST_CACHE_READBACK: cache disposition is unresolved");
+  }
+  for (const record of jobs) {
+    const rest = record?.rest;
+    const attempt = record?.consolidatedAttempt;
+    const fragment = record?.fragment;
+    const timeout = rest?.status === "completed" && rest?.conclusion !== null
+      ? rest.conclusion === "timed_out"
+      : null;
+    const restStartedAt = Date.parse(rest?.startedAt);
+    const restCompletedAt = Date.parse(rest?.completedAt);
+    const expectedRestWallTime =
+      Number.isFinite(restStartedAt) && Number.isFinite(restCompletedAt)
+        ? Math.max(0, restCompletedAt - restStartedAt)
+        : null;
+    if (
+      !Number.isSafeInteger(rest?.id) ||
+      rest?.runId !== harvest?.run?.id ||
+      rest?.runAttempt !== harvest?.run?.attempt ||
+      rest?.headSha !== harvest?.sourceHeadSha ||
+      rest?.workflowName !== "Pull Request CI" ||
+      rest?.runUrl !==
+        `https://api.github.com/repos/${harvest?.repository}/actions/runs/${harvest?.run?.id}` ||
+      rest?.checkRunUrl !==
+        `https://api.github.com/repos/${harvest?.repository}/check-runs/${rest?.id}` ||
+      rest?.url !==
+        `https://api.github.com/repos/${harvest?.repository}/actions/jobs/${rest?.id}` ||
+      rest?.htmlUrl !==
+        `https://github.com/${harvest?.repository}/actions/runs/${harvest?.run?.id}/job/${rest?.id}` ||
+      !Array.isArray(rest?.labels) ||
+      !rest.labels.includes("windows-2025") ||
+      attempt?.authority !== "attempt-scoped-rest-plus-validated-runner-fragment" ||
+      attempt?.runAttempt !== rest?.runAttempt ||
+      attempt?.restJobId !== rest?.id ||
+      attempt?.workflowRerunCount !== rest?.runAttempt - 1 ||
+      attempt?.jobAttempt !== null ||
+      attempt?.jobAttemptStatus !== "not-exposed-by-attempt-jobs-api" ||
+      attempt?.automaticRetryCount !== null ||
+      attempt?.automaticRetryStatus !== "not-exposed-by-attempt-jobs-api" ||
+      attempt?.timeout !== timeout ||
+      attempt?.restConclusion !== rest?.conclusion ||
+      attempt?.restStartedAt !== rest?.startedAt ||
+      attempt?.restCompletedAt !== rest?.completedAt ||
+      attempt?.restWallTimeMs !== expectedRestWallTime ||
+      (rest?.status === "completed" &&
+        (!Number.isFinite(restStartedAt) ||
+          !Number.isFinite(restCompletedAt) ||
+          restStartedAt > restCompletedAt))
+    ) {
+      errors.push(`P5E_HARVEST_REST:${rest?.name ?? "missing"}`);
+    }
+    const validatedRecord = record?.fragmentStatus === "validated-rest-bound";
+    const expectedEvidenceStepName = rest?.name === "CI"
+      ? "Write sanitized terminal gate evidence"
+      : rest?.name === "Non-blocking Codex canary / next"
+        ? "Write sanitized canary evidence"
+        : rest?.name === "Windows integration"
+          ? "Write sanitized runner and resource evidence"
+          : "Write sanitized runner evidence";
+    const expectedFragmentJobName = fragment?.evidenceKind === "terminal-gate"
+      ? "CI"
+      : {
+          "policy-validation": "Policy validation",
+          "install-build": "Install and build",
+          unit: "Unit tests",
+          "core-contract": `Core contract / ${fragment?.lane}`,
+          "windows-integration": "Windows integration",
+          "claude-lifecycle": `Claude structural lifecycle / ${fragment?.lane}`,
+          security: "Security",
+          "dependency-review": "Dependency review",
+          "next-canary": `Non-blocking Codex canary / ${fragment?.lane}`
+        }[fragment?.profile];
+    const fragmentStartedAt = Date.parse(fragment?.attempt?.startedAt);
+    const fragmentFinishedAt = Date.parse(fragment?.attempt?.finishedAt);
+    const integrityStartedAt = Date.parse(rest?.integrityStep?.startedAt);
+    const integrityCompletedAt = Date.parse(rest?.integrityStep?.completedAt);
+    const evidenceStartedAt = Date.parse(rest?.evidenceStep?.startedAt);
+    const evidenceCompletedAt = Date.parse(rest?.evidenceStep?.completedAt);
+    const conclusionAgrees =
+      (fragment?.attempt?.observedStatus === "non-blocking-canary" &&
+        ["success", "failure"].includes(rest?.conclusion)) ||
+      (fragment?.attempt?.observedStatus === "executed-pass" &&
+        rest?.conclusion === "success") ||
+      (fragment?.attempt?.observedStatus === "executed-fail" &&
+        rest?.conclusion === "failure");
+    if (validatedRecord && hasValidationContext) {
+      const fragmentSchema = fragment?.evidenceKind === "terminal-gate"
+        ? validationContext.schemas.gate
+        : validationContext.schemas.runner;
+      const fragmentErrors = [
+        ...validateJsonSchema(fragment, fragmentSchema, `harvest:${rest?.name}`),
+        ...(fragment?.evidenceKind === "terminal-gate"
+          ? validateP5GateEvidence(fragment)
+          : validateP5RunnerEvidence(
+              fragment,
+              validationContext.profiles,
+              validationContext.toolchain,
+              validationContext.scenarios,
+              validationContext.scenarioRegistrySha256
+            ))
+      ];
+      if (fragmentErrors.length > 0) {
+        errors.push(`P5E_HARVEST_FRAGMENT_VALIDATION:${rest?.name ?? "missing"}`);
+      }
+    }
+    if (
+      validatedRecord !== (fragment !== null) ||
+      (validatedRecord &&
+        (record?.markerCount !== 1 ||
+          !SHA256.test(record?.markerSha256 ?? "") ||
+          record?.fragmentSha256 !==
+            createHash("sha256").update(JSON.stringify(fragment)).digest("hex") ||
+          record?.markerSha256 !== record?.fragmentSha256 ||
+          record?.validationErrors?.length !== 0 ||
+          rest?.status !== "completed" ||
+          rest?.integrityStep?.name !== "Verify clean evidence source" ||
+          rest?.integrityStep?.status !== "completed" ||
+          rest?.integrityStep?.conclusion !== "success" ||
+          rest?.evidenceStep?.name !== expectedEvidenceStepName ||
+          rest?.evidenceStep?.status !== "completed" ||
+          rest?.evidenceStep?.conclusion !== "success" ||
+          rest?.integrityStep?.number >= rest?.evidenceStep?.number ||
+          ![
+            integrityStartedAt,
+            integrityCompletedAt,
+            evidenceStartedAt,
+            evidenceCompletedAt
+          ].every(Number.isFinite) ||
+          integrityStartedAt < restStartedAt ||
+          integrityStartedAt > integrityCompletedAt ||
+          integrityCompletedAt > evidenceStartedAt ||
+          evidenceStartedAt > evidenceCompletedAt ||
+          evidenceCompletedAt > restCompletedAt + 999 ||
+          expectedFragmentJobName !== rest?.name ||
+          !conclusionAgrees ||
+          fragmentStartedAt < restStartedAt ||
+          fragmentFinishedAt > restCompletedAt + 999 ||
+          fragment?.provenance?.repository !== harvest?.repository ||
+          JSON.stringify(fragment?.provenance?.pullRequest) !==
+            JSON.stringify(harvest?.pullRequest) ||
+          fragment?.provenance?.workflow?.ref !==
+            `${harvest?.repository}/.github/workflows/pull-request-ci.yml@` +
+              `refs/pull/${harvest?.pullRequest?.number}/merge` ||
+          fragment?.provenance?.run?.id !== rest?.runId ||
+          fragment?.provenance?.run?.attempt !== rest?.runAttempt ||
+          fragment?.provenance?.run?.checkRunId !== rest?.id ||
+          fragment?.provenance?.sourceHeadSha !== harvest?.sourceHeadSha ||
+          fragment?.provenance?.eventMergeSha !== harvest?.eventMergeSha ||
+          fragment?.provenance?.workflow?.sha !== harvest?.workflowSha ||
+          attempt?.rawExitCode !== fragment?.attempt?.rawExitCode ||
+          attempt?.rawExitCodeSource !== fragment?.attempt?.rawExitCodeSource ||
+          attempt?.runnerObservedStatus !== fragment?.attempt?.observedStatus ||
+          attempt?.fragmentAuthority !== "validated-rest-bound")) ||
+      (!validatedRecord &&
+        (record?.fragmentSha256 !== null ||
+          attempt?.rawExitCode !== null ||
+          attempt?.rawExitCodeSource !== null ||
+          attempt?.runnerObservedStatus !== null ||
+          attempt?.fragmentAuthority !== "unavailable"))
+    ) {
+      errors.push(`P5E_HARVEST_FRAGMENT:${rest?.name ?? "missing"}`);
+    }
+    if (fullyValidated && !validatedRecord) {
+      errors.push(`P5E_HARVEST_COMPLETE:${rest?.name ?? "missing"}`);
+    }
+  }
+  errors.push(...validateP5Privacy(harvest, "hostedHarvest"));
   return errors;
 }
 

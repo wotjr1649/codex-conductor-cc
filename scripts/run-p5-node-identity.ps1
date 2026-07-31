@@ -14,8 +14,12 @@ $expectedDigest = [string]$registry.tools.node.executableSha256
 $node = Get-Command node -CommandType Application -ErrorAction Stop |
     Select-Object -First 1
 $nodePath = $node.Source
+$npmPath = Join-Path (Split-Path -Parent $nodePath) 'npm.cmd'
+if (-not (Test-Path -LiteralPath $npmPath -PathType Leaf)) {
+    throw 'P5E_NODE_IDENTITY: npm.cmd must be adjacent to the exact node.exe'
+}
 $observedVersion = (& $nodePath --version).Trim().TrimStart('v')
-$observedNpm = (& npm --version).Trim()
+$observedNpm = (& $npmPath --version).Trim()
 $observedArchitecture = (& $nodePath -p 'process.arch').Trim()
 $observedDigest = (Get-FileHash -Algorithm SHA256 -LiteralPath $nodePath).Hash.ToLowerInvariant()
 
@@ -28,15 +32,9 @@ if (
     throw 'P5E_NODE_IDENTITY: exact Node/npm/x64 executable identity is required before profile execution'
 }
 
-$startedAt = [DateTimeOffset]::UtcNow.ToString('o')
-if (-not [string]::IsNullOrWhiteSpace($env:GITHUB_ENV)) {
-    Add-Content -LiteralPath $env:GITHUB_ENV -Value "P5_STARTED_AT=$startedAt"
-}
-
 [ordered]@{
     node = $observedVersion
     npm = $observedNpm
     architecture = $observedArchitecture
     executableSha256 = $observedDigest
-    startedAt = $startedAt
 } | ConvertTo-Json -Compress
