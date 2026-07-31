@@ -1,0 +1,32 @@
+{
+  "schemaVersion": "p4-handshake-cases-v1",
+  "required": {
+    "direct": [
+      "app-server:initialize",
+      "app-server:initialized"
+    ],
+    "broker": [
+      "broker:broker/hello",
+      "app-server:initialize",
+      "app-server:initialized"
+    ],
+    "brokerHelloMaySatisfyInitialize": false
+  },
+  "observedProduct": {
+    "direct": {
+      "sequence": [
+        "app-server:initialize",
+        "app-server:initialized"
+      ],
+      "behaviorStatus": "already-green"
+    },
+    "broker": {
+      "sequence": [
+        "broker:initialize-synthetic",
+        "broker:initialized-swallowed"
+      ],
+      "behaviorStatus": "red",
+      "source": "plugins/codex/scripts/app-server-broker.mjs"
+    }
+  }
+}

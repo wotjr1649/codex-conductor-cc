@@ -1,0 +1,75 @@
+{
+  "schemaVersion": "p4-server-request-cases-v1",
+  "versions": ["0.146.0", "0.145.0"],
+  "stableMethods": [
+    {
+      "method": "account/chatgptAuthTokens/refresh",
+      "unattendedOutcome": "error",
+      "automaticGrant": false
+    },
+    {
+      "method": "applyPatchApproval",
+      "unattendedOutcome": "decline",
+      "automaticGrant": false
+    },
+    {
+      "method": "attestation/generate",
+      "unattendedOutcome": "error",
+      "automaticGrant": false
+    },
+    {
+      "method": "execCommandApproval",
+      "unattendedOutcome": "decline",
+      "automaticGrant": false
+    },
+    {
+      "method": "item/commandExecution/requestApproval",
+      "unattendedOutcome": "decline",
+      "automaticGrant": false
+    },
+    {
+      "method": "item/fileChange/requestApproval",
+      "unattendedOutcome": "decline",
+      "automaticGrant": false
+    },
+    {
+      "method": "item/permissions/requestApproval",
+      "unattendedOutcome": "decline",
+      "automaticGrant": false
+    },
+    {
+      "method": "item/tool/call",
+      "unattendedOutcome": "error",
+      "automaticGrant": false
+    },
+    {
+      "method": "item/tool/requestUserInput",
+      "unattendedOutcome": "cancel",
+      "automaticGrant": false
+    },
+    {
+      "method": "mcpServer/elicitation/request",
+      "unattendedOutcome": "cancel",
+      "automaticGrant": false
+    }
+  ],
+  "unknownMethod": {
+    "method": "future/unknown",
+    "unattendedOutcome": "error--32601",
+    "automaticGrant": false
+  },
+  "requiredTerminalPolicy": [
+    "respond-once",
+    "latch-block",
+    "interrupt",
+    "wait-for-terminal-or-teardown"
+  ],
+  "observedProduct": {
+    "outcome": "generic-error--32601",
+    "grants": 0,
+    "latch": false,
+    "interrupt": false,
+    "behaviorStatus": "red",
+    "source": "plugins/codex/scripts/lib/app-server.mjs"
+  }
+}

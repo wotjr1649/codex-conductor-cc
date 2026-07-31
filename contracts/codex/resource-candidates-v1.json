@@ -1,0 +1,73 @@
+{
+  "schemaVersion": "p4-resource-candidates-v1",
+  "status": "measurement-candidates-only",
+  "runtimeEnforced": false,
+  "protocol": {
+    "lineBytes": {
+      "candidate": 65536,
+      "fixtures": ["max-minus-one", "max", "max-plus-one"],
+      "observedProduct": "no hard line limit",
+      "behaviorStatus": "red"
+    },
+    "jsonDepth": {
+      "candidate": 64,
+      "fixtures": ["depth-minus-one", "depth", "depth-plus-one"],
+      "observedProduct": "no explicit depth limit",
+      "behaviorStatus": "red"
+    },
+    "inboundQueueMessages": {
+      "candidate": 64,
+      "observedProduct": "no bounded product queue",
+      "behaviorStatus": "red"
+    },
+    "outboundQueueMessages": {
+      "candidate": 64,
+      "observedProduct": "write return values and drain are not enforced",
+      "behaviorStatus": "red"
+    },
+    "stderrBytes": {
+      "candidate": 65536,
+      "observedProduct": "stderr is accumulated without a product bound",
+      "behaviorStatus": "red"
+    },
+    "automaticRetryCount": {
+      "releaseCorrectnessCandidate": 0,
+      "runtimeEnforced": false
+    }
+  },
+  "snapshot": {
+    "maxWorkspaceBytesCandidate": 1073741824,
+    "maxFileBytesCandidate": 67108864,
+    "freeSpaceMultiplierCandidate": 2,
+    "retentionCountCandidate": 2,
+    "quotaCandidate": "owner-policy-required",
+    "measuredCorpus": {
+      "trackedBytes": 16,
+      "untrackedBytes": 16,
+      "oversizeBoundaryBytes": 67108865,
+      "tamperVariants": 2
+    },
+    "runtimeImplemented": false,
+    "behaviorStatus": "red"
+  },
+  "trafficBaseline": {
+    "source": "deterministic P4 local model lifecycle fixture",
+    "metrics": [
+      "jsonl-line-bytes",
+      "notification-count",
+      "server-request-count",
+      "stderr-bytes",
+      "turn-terminal-latency-class"
+    ],
+    "rawPromptOrPayloadCommitted": false,
+    "valuesPendingActualIntegration": false,
+    "observedRuns": 4,
+    "messageCountRange": [25, 27],
+    "totalBytesRange": [9366, 12302],
+    "maxMessageBytesRange": [1128, 3116],
+    "modelRequestBodyBytesRange": [43035, 43175],
+    "serverRequestCount": 0,
+    "stderrBytes": 0,
+    "runtimeEnforced": false
+  }
+}

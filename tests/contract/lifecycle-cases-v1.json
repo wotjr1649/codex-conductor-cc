@@ -1,0 +1,77 @@
+{
+  "schemaVersion": "p4-lifecycle-cases-v1",
+  "versions": ["0.146.0", "0.145.0"],
+  "normalizedDto": {
+    "thread": ["id"],
+    "turn": ["id", "status"],
+    "terminalStatuses": ["completed", "failed", "interrupted"]
+  },
+  "cases": [
+    {
+      "id": "PROTO-LIFECYCLE-RESPONSE-FIRST-001",
+      "events": [
+        { "type": "thread-response", "threadId": "thread-1" },
+        { "type": "turn-response", "turnId": "turn-1" },
+        { "type": "turn-completed", "turnId": "turn-1", "status": "completed" }
+      ],
+      "terminal": true
+    },
+    {
+      "id": "PROTO-LIFECYCLE-EVENT-FIRST-001",
+      "events": [
+        { "type": "turn-completed", "turnId": "turn-1", "status": "completed" },
+        { "type": "turn-response", "turnId": "turn-1" }
+      ],
+      "terminal": true
+    },
+    {
+      "id": "PROTO-LIFECYCLE-ROOT-CHILD-001",
+      "events": [
+        { "type": "turn-response", "turnId": "turn-1" },
+        { "type": "child-started", "childId": "child-1", "parentTurnId": "turn-1" },
+        { "type": "turn-completed", "turnId": "turn-1", "status": "completed" },
+        { "type": "child-completed", "childId": "child-1", "parentTurnId": "turn-1" }
+      ],
+      "terminal": true,
+      "notTerminalAfterEvent": 3
+    },
+    {
+      "id": "PROTO-LIFECYCLE-CHILD-ROOT-001",
+      "events": [
+        { "type": "child-started", "childId": "child-1", "parentTurnId": "turn-1" },
+        { "type": "child-completed", "childId": "child-1", "parentTurnId": "turn-1" },
+        { "type": "turn-completed", "turnId": "turn-1", "status": "completed" },
+        { "type": "turn-response", "turnId": "turn-1" }
+      ],
+      "terminal": true
+    },
+    {
+      "id": "PROTO-LIFECYCLE-CANCEL-001",
+      "events": [
+        { "type": "turn-response", "turnId": "turn-1" },
+        { "type": "interrupt-ack" },
+        { "type": "turn-completed", "turnId": "turn-1", "status": "interrupted" }
+      ],
+      "terminal": true,
+      "notTerminalAfterEvent": 2
+    },
+    {
+      "id": "PROTO-LIFECYCLE-MISSING-ROOT-001",
+      "events": [
+        { "type": "turn-response", "turnId": "turn-1" },
+        { "type": "transport-eof" }
+      ],
+      "terminal": false
+    },
+    {
+      "id": "PROTO-LIFECYCLE-DUPLICATE-001",
+      "events": [
+        { "type": "turn-response", "turnId": "turn-1" },
+        { "type": "turn-completed", "turnId": "turn-1", "status": "completed" },
+        { "type": "turn-completed", "turnId": "turn-1", "status": "completed" }
+      ],
+      "terminal": true,
+      "duplicates": 1
+    }
+  ]
+}

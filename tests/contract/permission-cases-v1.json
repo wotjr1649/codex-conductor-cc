@@ -1,0 +1,75 @@
+{
+  "schemaVersion": "p4-permission-cases-v1",
+  "versions": ["0.146.0", "0.145.0"],
+  "methods": [
+    {
+      "method": "thread/start",
+      "exactSchemaKeys": ["approvalPolicy", "approvalsReviewer", "sandbox"],
+      "requiredFinalizerForm": "absent",
+      "observedProductKeys": ["approvalPolicy", "sandbox"],
+      "behaviorStatus": "red"
+    },
+    {
+      "method": "thread/resume",
+      "exactSchemaKeys": ["approvalPolicy", "approvalsReviewer", "sandbox"],
+      "requiredFinalizerForm": "absent",
+      "observedProductKeys": ["approvalPolicy", "sandbox"],
+      "behaviorStatus": "red"
+    },
+    {
+      "method": "thread/fork",
+      "exactSchemaKeys": ["approvalPolicy", "approvalsReviewer", "sandbox"],
+      "requiredFinalizerForm": "absent",
+      "observedProductKeys": [],
+      "behaviorStatus": "red",
+      "observation": "unsupported by product runtime"
+    },
+    {
+      "method": "turn/start",
+      "exactSchemaKeys": ["approvalPolicy", "approvalsReviewer", "sandboxPolicy"],
+      "requiredFinalizerForm": "absent",
+      "observedProductKeys": [],
+      "behaviorStatus": "already-green",
+      "observation": "ordinary task turn omits these keys; there is no dedicated finalizer"
+    },
+    {
+      "method": "review/start",
+      "exactSchemaKeys": [],
+      "requiredFinalizerForm": "not-applicable",
+      "observedProductKeys": [],
+      "behaviorStatus": "not-applicable"
+    }
+  ],
+  "forms": [
+    {
+      "form": "absent",
+      "ownProperty": false,
+      "serialized": false,
+      "meaning": "inherit"
+    },
+    {
+      "form": "undefined",
+      "ownProperty": true,
+      "serialized": false,
+      "meaning": "builder defect; not equivalent to absent"
+    },
+    {
+      "form": "null",
+      "ownProperty": true,
+      "serialized": true,
+      "meaning": "explicit null; not inheritance"
+    },
+    {
+      "form": "documented-default",
+      "ownProperty": true,
+      "serialized": true,
+      "meaning": "explicit override"
+    },
+    {
+      "form": "explicit-nondefault",
+      "ownProperty": true,
+      "serialized": true,
+      "meaning": "explicit override"
+    }
+  ]
+}

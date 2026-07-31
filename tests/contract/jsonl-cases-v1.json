@@ -1,0 +1,114 @@
+{
+  "schemaVersion": "p4-jsonl-cases-v1",
+  "positive": [
+    {
+      "id": "PROTO-JSONL-LF-001",
+      "chunksHex": [
+        "7b226964223a312c22726573756c74223a7b7d7d0a7b226964223a2231222c22726573756c74223a7b7d7d0a"
+      ],
+      "expected": [
+        { "kind": "response", "idType": "integer", "idLexeme": "1" },
+        { "kind": "response", "idType": "string", "idLexeme": "1" }
+      ]
+    },
+    {
+      "id": "PROTO-JSONL-CRLF-001",
+      "chunksHex": [
+        "7b226d6574686f64223a227475726e2f73746172746564222c22706172616d73223a7b7d7d0d0a0d0a"
+      ],
+      "expected": [
+        { "kind": "notification", "method": "turn/started" }
+      ]
+    },
+    {
+      "id": "PROTO-JSONL-CHUNK-001",
+      "chunksHex": [
+        "7b226964223a393232333337323033363835343737353830372c22",
+        "726573756c74223a7b2274657874223a22ed959c22",
+        "7d7d0a"
+      ],
+      "expected": [
+        {
+          "kind": "response",
+          "idType": "integer",
+          "idLexeme": "9223372036854775807"
+        }
+      ]
+    },
+    {
+      "id": "PROTO-JSONL-INT64-MIN-001",
+      "chunksHex": [
+        "7b226964223a2d393232333337323033363835343737353830382c226572726f72223a7b22636f6465223a2d33323630312c226d657373616765223a2278227d7d0a"
+      ],
+      "expected": [
+        {
+          "kind": "response",
+          "idType": "integer",
+          "idLexeme": "-9223372036854775808"
+        }
+      ]
+    }
+  ],
+  "negative": [
+    {
+      "id": "PROTO-JSONL-DUPKEY-001",
+      "chunksHex": ["7b226964223a312c226964223a322c22726573756c74223a7b7d7d0a"],
+      "error": "P4E_DUPLICATE_KEY"
+    },
+    {
+      "id": "PROTO-JSONL-FLOAT-ID-001",
+      "chunksHex": ["7b226964223a312e352c22726573756c74223a7b7d7d0a"],
+      "error": "P4E_REQUEST_ID_TYPE"
+    },
+    {
+      "id": "PROTO-JSONL-NULL-ID-001",
+      "chunksHex": ["7b226964223a6e756c6c2c22726573756c74223a7b7d7d0a"],
+      "error": "P4E_REQUEST_ID_TYPE"
+    },
+    {
+      "id": "PROTO-JSONL-RANGE-001",
+      "chunksHex": ["7b226964223a393232333337323033363835343737353830382c22726573756c74223a7b7d7d0a"],
+      "error": "P4E_REQUEST_ID_RANGE"
+    },
+    {
+      "id": "PROTO-JSONL-EXCLUSIVE-001",
+      "chunksHex": ["7b226964223a312c22726573756c74223a7b7d2c226572726f72223a7b7d7d0a"],
+      "error": "P4E_RPC_EXCLUSIVITY"
+    },
+    {
+      "id": "PROTO-JSONL-UTF8-001",
+      "chunksHex": ["7b226d6574686f64223a22c328227d0a"],
+      "error": "P4E_INVALID_UTF8"
+    },
+    {
+      "id": "PROTO-JSONL-BOM-001",
+      "chunksHex": ["efbbbf7b226d6574686f64223a2278227d0a"],
+      "error": "P4E_BOM"
+    },
+    {
+      "id": "PROTO-JSONL-NUL-001",
+      "chunksHex": ["7b226d6574686f64223a227800227d0a"],
+      "error": "P4E_NUL"
+    },
+    {
+      "id": "PROTO-JSONL-EOF-001",
+      "chunksHex": ["7b226d6574686f64223a2278227d"],
+      "finish": true,
+      "error": "P4E_INCOMPLETE_EOF"
+    }
+  ],
+  "correlation": [
+    {
+      "id": "PROTO-CORRELATION-TYPE-001",
+      "pending": ["1", 1],
+      "responses": [1, "1"],
+      "expectedOrder": ["n:1", "s:1:1"]
+    },
+    {
+      "id": "PROTO-CORRELATION-ORDER-001",
+      "pending": [3, 4],
+      "responses": [4, 3],
+      "expectedOrder": ["n:4", "n:3"]
+    }
+  ]
+}

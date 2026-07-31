@@ -1,0 +1,171 @@
+{
+  "schemaVersion": "p4-finalizer-characterization-v1",
+  "sourceCommit": "34559b5a55fbc3b171e3f472080729795632b74f",
+  "lanes": ["0.146.0-stable", "0.145.0-stable"],
+  "experimentalAggregationAllowed": false,
+  "runtimeImplemented": false,
+  "deferredPhase": "v0.2",
+  "requirements": [
+    {
+      "requirement": "F1",
+      "fixtures": ["FINALIZER-POLICY-001"],
+      "behaviorStatus": "red",
+      "observation": "thread start/resume serialize approvalPolicy and sandbox keys; no dedicated finalizer exists",
+      "source": "plugins/codex/scripts/lib/codex.mjs",
+      "negativeControl": "permission-absent-null-default-corpus",
+      "runtimeEnforced": false
+    },
+    {
+      "requirement": "F2",
+      "fixtures": ["FINALIZER-POLICY-002"],
+      "behaviorStatus": "red",
+      "observation": "effective sandbox/approval/reviewer/profile readback is not preserved as an authoritative log",
+      "source": "plugins/codex/scripts/lib/app-server.mjs",
+      "negativeControl": "synthetic-broker-initialize-response",
+      "runtimeEnforced": false
+    },
+    {
+      "requirement": "F3",
+      "fixtures": ["FINALIZER-SHELL-001"],
+      "behaviorStatus": "red",
+      "observation": "no same-runtime no-write shell probe or spawn-failure admission rule exists",
+      "source": "plugins/codex/scripts/stop-review-gate-hook.mjs",
+      "negativeControl": "same-boundary-probe-missing",
+      "runtimeEnforced": false
+    },
+    {
+      "requirement": "F4",
+      "fixtures": ["FINALIZER-POLICY-003"],
+      "behaviorStatus": "red",
+      "observation": "resume performs no loaded-thread effective-policy comparison before turn/start",
+      "source": "plugins/codex/scripts/lib/codex.mjs",
+      "negativeControl": "stale-resume-policy-mismatch",
+      "runtimeEnforced": false
+    },
+    {
+      "requirement": "F5",
+      "fixtures": ["FINALIZER-ACK-001"],
+      "behaviorStatus": "red",
+      "observation": "review-gate opt-in has no source/policy fingerprint or drift re-acknowledgement",
+      "source": "plugins/codex/scripts/codex-companion.mjs",
+      "negativeControl": "unknown-policy-drift",
+      "runtimeEnforced": false
+    },
+    {
+      "requirement": "F6",
+      "fixtures": ["FINALIZER-JOB-001"],
+      "behaviorStatus": "red",
+      "observation": "Stop delegates to the ordinary resumable task job class without a source-bound lease",
+      "source": "plugins/codex/scripts/stop-review-gate-hook.mjs",
+      "negativeControl": "task-resume-pollution",
+      "runtimeEnforced": false
+    },
+    {
+      "requirement": "F7",
+      "fixtures": ["FINALIZER-GUARD-001", "FINALIZER-GUARD-002", "FINALIZER-GUARD-003", "FINALIZER-RULES-001"],
+      "behaviorStatus": "red",
+      "observation": "no guard bundle, per-attempt attestation, rules sentinel, or coverage-gap telemetry exists",
+      "source": "plugins/codex/hooks/hooks.json",
+      "negativeControl": "guard-coverage-gap-corpus",
+      "runtimeEnforced": false
+    },
+    {
+      "requirement": "F8",
+      "fixtures": ["FINALIZER-SNAPSHOT-001", "FINALIZER-SNAPSHOT-002"],
+      "behaviorStatus": "red",
+      "observation": "no workspace recovery snapshot, verifier, or restore semantics exists",
+      "source": "plugins/codex/scripts/lib/job-control.mjs",
+      "negativeControl": "snapshot-tamper-and-exclusion-corpus",
+      "runtimeEnforced": false
+    },
+    {
+      "requirement": "F9",
+      "fixtures": ["FINALIZER-MUTATION-001"],
+      "behaviorStatus": "red",
+      "observation": "Stop has no mutation-aware two-pass state machine or intervening-turn requirement",
+      "source": "plugins/codex/scripts/stop-review-gate-hook.mjs",
+      "negativeControl": "mutation-first-pass",
+      "runtimeEnforced": false
+    },
+    {
+      "requirement": "F10",
+      "fixtures": ["FINALIZER-PROTO-001"],
+      "behaviorStatus": "red",
+      "observation": "generic -32601 prevents automatic grant but does not latch, interrupt, or confirm terminal failure",
+      "source": "plugins/codex/scripts/lib/app-server.mjs",
+      "negativeControl": "known-and-unknown-server-request-corpus",
+      "runtimeEnforced": false
+    },
+    {
+      "requirement": "F11",
+      "fixtures": ["FINALIZER-TRANSPORT-001"],
+      "behaviorStatus": "red",
+      "observation": "broker errors may retry automatically on direct transport",
+      "source": "plugins/codex/scripts/lib/codex.mjs",
+      "negativeControl": "broker-to-direct-fallback",
+      "runtimeEnforced": false
+    },
+    {
+      "requirement": "F12",
+      "fixtures": ["FINALIZER-RECURSION-001", "FINALIZER-DEADLINE-001", "FINALIZER-UX-001", "FINALIZER-BYPASS-001"],
+      "behaviorStatus": "red",
+      "observation": "no terminal-once receipt or bypass/disable/retry separation; internal and outer timeouts are both 900 seconds",
+      "source": "plugins/codex/scripts/stop-review-gate-hook.mjs",
+      "negativeControl": "stop-hook-active-and-outer-timeout",
+      "runtimeEnforced": false
+    }
+  ],
+  "guardCorpus": {
+    "executionPolicy": "data-only-never-execute-in-p4",
+    "directDeleteForms": [
+      "Remove-Item recursive",
+      "cmd rmdir recursive",
+      "git clean destructive",
+      "filesystem API recursive delete"
+    ],
+    "coverageGaps": [
+      "renamed executable",
+      "encoded command",
+      "indirect child process",
+      "alternate filesystem API",
+      "same-user out-of-band process"
+    ],
+    "failureForms": [
+      "spawn failure",
+      "timeout",
+      "nonzero-or-non-two exit",
+      "invalid JSON",
+      "missing event",
+      "stream loss"
+    ]
+  },
+  "snapshotCorpus": {
+    "executionPolicy": "data-only-no-restore-in-p4",
+    "requiredCandidates": [
+      "tracked file",
+      "untracked file",
+      "symlink or reparse metadata",
+      "Git index and worktree metadata"
+    ],
+    "exclusionsAndFaults": [
+      "ignored path",
+      "outside-root path",
+      "special file",
+      "oversize file",
+      "read failure",
+      "linked worktree",
+      "submodule",
+      "sparse checkout",
+      "LFS pointer",
+      "alternate data stream",
+      "ACL/EFS/compression",
+      "hardlink",
+      "manifest tamper",
+      "content tamper"
+    ],
+    "outOfScope": [
+      "same-user dual tamper prevention",
+      "production restore implementation"
+    ]
+  }
+}

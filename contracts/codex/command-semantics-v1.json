@@ -1,0 +1,114 @@
+{
+  "schemaVersion": "p4-command-semantics-v1",
+  "sourceCommit": "34559b5a55fbc3b171e3f472080729795632b74f",
+  "entrypoint": "node plugins/codex/scripts/codex-companion.mjs <subcommand>",
+  "environmentPolicy": {
+    "allowlistedClasses": [
+      "system-runtime",
+      "workspace-cwd",
+      "exact-codex-path",
+      "isolated-codex-home",
+      "explicit-broker-endpoint"
+    ],
+    "rawEnvironmentCommitted": false,
+    "ambientCodexAllowed": false
+  },
+  "commands": [
+    {
+      "command": "/codex:setup",
+      "subcommand": "setup",
+      "arguments": ["--enable-review-gate", "--disable-review-gate", "--json"],
+      "outbound": ["initialize", "initialized", "account/read", "config/read"],
+      "transport": "reuse-existing-broker-or-direct",
+      "stdoutClass": "human-or-json-status",
+      "stderrClass": "diagnostic",
+      "exitClasses": ["0-success", "nonzero-failure"]
+    },
+    {
+      "command": "/codex:review",
+      "subcommand": "review",
+      "arguments": ["--wait", "--background", "--base", "--scope"],
+      "outbound": ["initialize", "initialized", "thread/start", "review/start"],
+      "transport": "broker-preferred-with-direct-fallback",
+      "stdoutClass": "review-result-or-job-status",
+      "stderrClass": "diagnostic",
+      "exitClasses": ["0-success", "nonzero-failure"]
+    },
+    {
+      "command": "/codex:adversarial-review",
+      "subcommand": "adversarial-review",
+      "arguments": ["--wait", "--background", "--base", "--scope", "focus"],
+      "outbound": ["initialize", "initialized", "thread/start", "thread/name/set", "turn/start"],
+      "transport": "broker-preferred-with-direct-fallback",
+      "stdoutClass": "structured-review-or-job-status",
+      "stderrClass": "diagnostic",
+      "exitClasses": ["0-success", "nonzero-failure"]
+    },
+    {
+      "command": "/codex:rescue",
+      "subcommand": "task",
+      "arguments": ["--background", "--write", "--resume-last", "--resume", "--fresh", "--model", "--effort", "prompt"],
+      "outboundFresh": ["initialize", "initialized", "thread/start", "thread/name/set", "turn/start"],
+      "outboundResume": ["initialize", "initialized", "thread/resume", "turn/start"],
+      "transport": "broker-preferred-with-direct-fallback",
+      "stdoutClass": "final-message-or-job-status",
+      "stderrClass": "diagnostic",
+      "exitClasses": ["0-success", "nonzero-failure"]
+    },
+    {
+      "command": "/codex:transfer",
+      "subcommand": "transfer",
+      "arguments": ["--source", "--json"],
+      "outbound": ["initialize", "initialized", "externalAgentConfig/import"],
+      "transport": "forced-direct",
+      "stdoutClass": "transfer-status",
+      "stderrClass": "diagnostic",
+      "exitClasses": ["0-success", "nonzero-failure"]
+    },
+    {
+      "command": "/codex:status",
+      "subcommand": "status",
+      "arguments": [],
+      "outbound": [],
+      "transport": "none",
+      "stdoutClass": "local-job-status",
+      "stderrClass": "diagnostic",
+      "exitClasses": ["0-success", "nonzero-failure"]
+    },
+    {
+      "command": "/codex:result",
+      "subcommand": "result",
+      "arguments": ["job-id"],
+      "outbound": [],
+      "transport": "none",
+      "stdoutClass": "local-job-result",
+      "stderrClass": "diagnostic",
+      "exitClasses": ["0-success", "nonzero-failure"]
+    },
+    {
+      "command": "/codex:cancel",
+      "subcommand": "cancel",
+      "arguments": ["job-id", "--json"],
+      "outbound": ["initialize", "initialized", "turn/interrupt"],
+      "transport": "reuse-existing-broker-or-direct",
+      "stdoutClass": "cancel-acknowledgement",
+      "stderrClass": "diagnostic",
+      "exitClasses": ["0-success", "nonzero-failure"],
+      "characterization": "interrupt ACK is currently treated as terminal before a turn/completed readback",
+      "behaviorStatus": "red"
+    }
+  ],
+  "stopHook": {
+    "entrypoint": "node plugins/codex/scripts/stop-review-gate-hook.mjs",
+    "delegatesTo": "task --json",
+    "jobClass": "task",
+    "transport": "broker-preferred-with-direct-fallback",
+    "behaviorStatus": "red",
+    "runtimeFixDeferredPhase": "v0.2"
+  },
+  "normalization": {
+    "allowedDynamicFields": ["job-id", "thread-id", "turn-id", "process-id", "timestamp", "nonce"],
+    "rawPromptCommitted": false,
+    "rawTranscriptCommitted": false
+  }
+}

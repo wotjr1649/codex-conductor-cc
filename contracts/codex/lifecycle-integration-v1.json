@@ -1,0 +1,146 @@
+{
+  "schemaVersion": "p4-lifecycle-integration-v1",
+  "sourceCommit": "34559b5a55fbc3b171e3f472080729795632b74f",
+  "environment": {
+    "os": "windows",
+    "architecture": "x64",
+    "node": "24.18.1",
+    "npm": "11.16.0",
+    "isolatedCodexHome": true,
+    "loopbackModel": true,
+    "automaticRetryCount": 0,
+    "rawPromptOrPayloadCommitted": false,
+    "privatePathCommitted": false
+  },
+  "requiredLifecycle": [
+    "initialize",
+    "initialized",
+    "thread/start",
+    "turn/start",
+    "turn/started",
+    "turn/completed",
+    "turn/interrupt"
+  ],
+  "runs": [
+    {
+      "lane": "current",
+      "version": "0.146.0",
+      "transport": "direct",
+      "executableSha256": "bc343ba420dc2e2e9f59e6fc5e5bf0aae1cd8c771fc319665241fc9c0271fddb",
+      "executionStatus": "executed-pass",
+      "retryCount": 0,
+      "initialize": {
+        "brokerSynthetic": false,
+        "resultKeys": ["codexHome", "platformFamily", "platformOs", "userAgent"]
+      },
+      "brokerHello": {
+        "attempted": false,
+        "supported": null
+      },
+      "normalTerminalStatus": "completed",
+      "cancelTerminalStatus": "interrupted",
+      "interruptAcknowledged": true,
+      "traffic": {
+        "messageCount": 26,
+        "totalBytes": 9425,
+        "maxMessageBytes": 1142,
+        "serverRequestCount": 0,
+        "stderrBytes": 0,
+        "modelRequestCount": 2,
+        "modelRequestBodyBytes": [43172, 43175]
+      }
+    },
+    {
+      "lane": "current",
+      "version": "0.146.0",
+      "transport": "broker",
+      "executableSha256": "bc343ba420dc2e2e9f59e6fc5e5bf0aae1cd8c771fc319665241fc9c0271fddb",
+      "executionStatus": "executed-pass",
+      "retryCount": 0,
+      "initialize": {
+        "brokerSynthetic": true,
+        "resultKeys": ["userAgent"]
+      },
+      "brokerHello": {
+        "attempted": true,
+        "supported": false,
+        "errorCode": "-32600"
+      },
+      "normalTerminalStatus": "completed",
+      "cancelTerminalStatus": "interrupted",
+      "interruptAcknowledged": true,
+      "traffic": {
+        "messageCount": 27,
+        "totalBytes": 12302,
+        "maxMessageBytes": 3116,
+        "serverRequestCount": 0,
+        "stderrBytes": 0,
+        "modelRequestCount": 2,
+        "modelRequestBodyBytes": [43172, 43175]
+      }
+    },
+    {
+      "lane": "previous",
+      "version": "0.145.0",
+      "transport": "direct",
+      "executableSha256": "83751f15cb6a0a7b97df67752c001e3fe1c20e18ffbfec3ff63567296205eb6c",
+      "executionStatus": "executed-pass",
+      "retryCount": 0,
+      "initialize": {
+        "brokerSynthetic": false,
+        "resultKeys": ["codexHome", "platformFamily", "platformOs", "userAgent"]
+      },
+      "brokerHello": {
+        "attempted": false,
+        "supported": null
+      },
+      "normalTerminalStatus": "completed",
+      "cancelTerminalStatus": "interrupted",
+      "interruptAcknowledged": true,
+      "traffic": {
+        "messageCount": 26,
+        "totalBytes": 9366,
+        "maxMessageBytes": 1128,
+        "serverRequestCount": 0,
+        "stderrBytes": 0,
+        "modelRequestCount": 2,
+        "modelRequestBodyBytes": [43035, 43038]
+      }
+    },
+    {
+      "lane": "previous",
+      "version": "0.145.0",
+      "transport": "broker",
+      "executableSha256": "83751f15cb6a0a7b97df67752c001e3fe1c20e18ffbfec3ff63567296205eb6c",
+      "executionStatus": "executed-pass",
+      "retryCount": 0,
+      "initialize": {
+        "brokerSynthetic": true,
+        "resultKeys": ["userAgent"]
+      },
+      "brokerHello": {
+        "attempted": true,
+        "supported": false,
+        "errorCode": "-32600"
+      },
+      "normalTerminalStatus": "completed",
+      "cancelTerminalStatus": "interrupted",
+      "interruptAcknowledged": true,
+      "traffic": {
+        "messageCount": 25,
+        "totalBytes": 11317,
+        "maxMessageBytes": 3072,
+        "serverRequestCount": 0,
+        "stderrBytes": 0,
+        "modelRequestCount": 2,
+        "modelRequestBodyBytes": [43035, 43038]
+      }
+    }
+  ],
+  "admission": {
+    "stableCoreLifecycleBlocking": true,
+    "brokerHandshakeConformant": false,
+    "brokerHandshakeBehaviorStatus": "red",
+    "runtimeFixDeferredPhase": "v0.2"
+  }
+}
