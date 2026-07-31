@@ -50,6 +50,7 @@ const requiredFiles = [
   "ci/scenario-registry-v1.json",
   "evidence/inventory/p5-prechange-20260731.json",
   "evidence/schemas/p5-evidence-v1.schema.json",
+  "evidence/schemas/p5-evidence-v2.schema.json",
   "evidence/schemas/p5-runner-evidence-v2.schema.json",
   "evidence/schemas/p5-gate-evidence-v1.schema.json",
   "evidence/schemas/p5-hosted-harvest-v1.schema.json",
@@ -80,7 +81,10 @@ const scenarios = readJson("ci/scenario-registry-v1.json");
 const evidence = readJson(
   "evidence/manifests/p5/p5-matrix-profile-bootstrap-20260731.json"
 );
-const schema = readJson("evidence/schemas/p5-evidence-v1.schema.json");
+const evidenceSchemaPath = evidence?.schemaVersion === "p5-evidence-v2"
+  ? "evidence/schemas/p5-evidence-v2.schema.json"
+  : "evidence/schemas/p5-evidence-v1.schema.json";
+const schema = readJson(evidenceSchemaPath);
 const runnerEvidenceSchema = readJson("evidence/schemas/p5-runner-evidence-v2.schema.json");
 const gateEvidenceSchema = readJson("evidence/schemas/p5-gate-evidence-v1.schema.json");
 const hostedHarvestSchema = readJson("evidence/schemas/p5-hosted-harvest-v1.schema.json");

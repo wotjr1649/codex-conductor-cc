@@ -15,7 +15,7 @@ const SECRET = new RegExp(
     "[A-Za-z0-9_]{20,}|-----BEGIN [A-Z ]+PRIVATE KEY-----|Bearer\\s+[A-Za-z0-9._~-]{20,})"
 );
 const EXPECTED_P5_WORKFLOW_SHA256 =
-  "05e93a59d5c8e327b5469b391b4d85377f4f41e65f223518dffb7df578b12596";
+  "07422db5aff2d9709444e9b6493f95021bdaf415a5febbeda71138fff368a02e";
 const EXPECTED_PROFILE_IDS = [
   "policy-validation",
   "install-build",
@@ -772,7 +772,9 @@ export function validateP5Workflow(workflow, admittedActions, profileRegistry) {
       !/if:\s+\$\{\{\s*!cancelled\(\)\s*\}\}/.test(step) ||
       !/P5_JOB_STATUS:\s+\$\{\{\s*job\.status\s*\}\}/.test(step) ||
       !/executed-fail/.test(step) ||
-      !/github-job-status-normalized/.test(step)
+      !/github-job-status-normalized/.test(step) ||
+      !/(?:\$fixtureIds|FixtureIds)\s*=\s*@\(\)/.test(step) ||
+      /(?:\$fixtureIds|FixtureIds)\s*=\s*if\b/.test(step)
     ) {
       errors.push(`P5E_FAILURE_EVIDENCE:${id}`);
     }
@@ -1912,8 +1914,10 @@ export function validateP5HostedHarvest(harvest, validationContext = {}) {
 
 export function validateP5Evidence(manifest, profileRegistry) {
   const errors = [];
+  const localOnly = manifest?.schemaVersion === "p5-evidence-v1";
+  const hostedFailure = manifest?.schemaVersion === "p5-evidence-v2";
   if (
-    manifest?.schemaVersion !== "p5-evidence-v1" ||
+    (!localOnly && !hostedFailure) ||
     manifest.phase !== "P5" ||
     manifest.source?.handoffCommit !==
       "84515289913dfe8a7452754ad442d37873bdfd53" ||
@@ -1940,22 +1944,30 @@ export function validateP5Evidence(manifest, profileRegistry) {
     "security"
   ]) {
     const result = actual.get(id);
-    if (result?.localStatus !== "local-pass" || result?.hostedStatus !== "not-run") {
+    const expectedHostedStatus = hostedFailure
+      ? id === "policy-validation"
+        ? "executed-fail"
+        : "skipped"
+      : "not-run";
+    if (
+      result?.localStatus !== "local-pass" ||
+      result?.hostedStatus !== expectedHostedStatus
+    ) {
       errors.push(`P5E_LOCAL_HOSTED_TRUTH:${id}`);
     }
   }
   const dependency = actual.get("dependency-review");
   if (
     dependency?.localStatus !== "not-applicable" ||
-    dependency?.hostedStatus !== "not-run"
+    dependency?.hostedStatus !== (hostedFailure ? "hosted-pass" : "not-run")
   ) {
-    errors.push("P5E_DEPENDENCY_TRUTH: remote dependency review was not executed");
+    errors.push("P5E_DEPENDENCY_TRUTH: hosted dependency result differs from the bound attempt");
   }
   const canary = actual.get("next-canary");
   if (
     canary?.blocking !== false ||
     canary?.localStatus !== "not-run" ||
-    canary?.hostedStatus !== "not-run" ||
+    canary?.hostedStatus !== (hostedFailure ? "skipped" : "not-run") ||
     canary?.disposition !== "non-blocking-canary"
   ) {
     errors.push("P5E_CANARY_TRUTH: defined canary is not an executed supported lane");
@@ -1977,13 +1989,70 @@ export function validateP5Evidence(manifest, profileRegistry) {
   ) {
     errors.push("P5E_AUTHENTICATED_CLAUDE: inference is not authorized");
   }
-  if (
-    manifest.remoteExecution !== "not-run" ||
-    manifest.hostedRunner?.imageVersion !== null ||
-    manifest.hostedRunner?.osBuild !== null ||
-    manifest.hostedRunner?.filesystem !== null
-  ) {
-    errors.push("P5E_HOSTED_EVIDENCE_MISSING: YAML definition is not a hosted run");
+  if (localOnly) {
+    if (
+      manifest.remoteExecution !== "not-run" ||
+      manifest.hostedRunner?.imageVersion !== null ||
+      manifest.hostedRunner?.osBuild !== null ||
+      manifest.hostedRunner?.filesystem !== null
+    ) {
+      errors.push("P5E_HOSTED_EVIDENCE_MISSING: YAML definition is not a hosted run");
+    }
+  }
+  if (hostedFailure) {
+    const observation = manifest.hostedObservation;
+    const fragments = new Map(
+      (observation?.validatedFragments ?? []).map((fragment) => [fragment.jobKey, fragment])
+    );
+    const dependencyFragment = fragments.get("dependency-review");
+    const gateFragment = fragments.get("gate");
+    if (
+      manifest.overallStatus !== "blocked" ||
+      manifest.hostedGateStatus !== "executed-fail" ||
+      manifest.remoteExecution !== "executed-fail" ||
+      manifest.hostedRunner?.requestedLabel !== "windows-2025" ||
+      manifest.hostedRunner?.imageVersion !== "20260714.173.1" ||
+      manifest.hostedRunner?.osBuild !== "26100" ||
+      manifest.hostedRunner?.architecture !== "X64" ||
+      manifest.hostedRunner?.filesystem !== "NTFS" ||
+      manifest.hostedRunner?.executionStatus !== "executed-fail" ||
+      manifest.hostedRunner?.evidenceRole !== "terminal-gate-runner" ||
+      observation?.repository !== "wotjr1649/codex-conductor-cc" ||
+      observation?.pullRequestNumber !== 2 ||
+      observation?.runId !== 30643349422 ||
+      observation?.runAttempt !== 1 ||
+      observation?.rerunCount !== 0 ||
+      observation?.event !== "pull_request" ||
+      observation?.sourceHeadSha !== "4eeeb17b0ca3f2c248e7523dc65bddd69ca26f07" ||
+      observation?.eventMergeSha !== "de9c7dfc766716f53aa2dcc3c417d33fcb557bf2" ||
+      observation?.workflowSha !== "de9c7dfc766716f53aa2dcc3c417d33fcb557bf2" ||
+      observation?.baseSha !== "84515289913dfe8a7452754ad442d37873bdfd53" ||
+      observation?.conclusion !== "failure" ||
+      observation?.expectedLogicalJobCount !== 12 ||
+      observation?.observedRestJobCount !== 10 ||
+      observation?.placeholderJobCount !== 3 ||
+      observation?.collectionStatus !== "incomplete-or-invalid" ||
+      observation?.collectionErrors?.length !== 6 ||
+      fragments.size !== 2 ||
+      dependencyFragment?.checkRunId !== 91198526087 ||
+      dependencyFragment?.conclusion !== "success" ||
+      dependencyFragment?.markerSha256 !==
+        "5d7f57ad58da0370160fdaad4ac2c2431803baf7235bf6c481a808cd984379d6" ||
+      dependencyFragment?.imageVersion !== "20260728.188.1" ||
+      gateFragment?.checkRunId !== 91198731832 ||
+      gateFragment?.conclusion !== "failure" ||
+      gateFragment?.markerSha256 !==
+        "8813a43e28df050ac7b3b6a089e1998f30b783c32cd54bb049b7cd513fdb5450" ||
+      gateFragment?.imageVersion !== "20260714.173.1" ||
+      observation?.artifacts?.readbackStatus !== "resolved" ||
+      observation?.artifacts?.observedCount !== 0 ||
+      observation?.artifacts?.releaseTrustInput !== false ||
+      observation?.cache?.readbackStatus !== "resolved" ||
+      observation?.cache?.observedCount !== 0 ||
+      observation?.cache?.releaseTrustInput !== false
+    ) {
+      errors.push("P5E_HOSTED_FAILURE_BINDING: exact failed attempt 1 evidence is required");
+    }
   }
   if (
     manifest.p4SourceBinding?.recordedCommit !==
@@ -2064,8 +2133,13 @@ export function validateP5Evidence(manifest, profileRegistry) {
   );
   for (const result of manifest.profileResults ?? []) {
     for (const status of [result.localStatus, result.hostedStatus]) {
+      const hostedFailureStatus =
+        hostedFailure &&
+        status === result.hostedStatus &&
+        ["executed-fail", "skipped"].includes(status);
       if (
         status !== "not-applicable" &&
+        !hostedFailureStatus &&
         !allowedStatuses.get(result.profileId)?.has(status)
       ) {
         errors.push(`P5E_STATUS_ENUM:${result.profileId}:${status}`);

@@ -72,9 +72,10 @@ jobs:
         run: |
           $observedStatus = if ($env:P5_JOB_STATUS -eq 'success') { 'executed-pass' } else { 'executed-fail' }
           $rawExitCode = if ($observedStatus -eq 'executed-pass') { 0 } else { 1 }
-          $fixtureIds = if ($observedStatus -eq 'executed-pass') {
-            @('P5-RED-001','P5-PRIVACY-001','P5-FALSE-GREEN-001')
-          } else { @() }
+          $fixtureIds = @()
+          if ($observedStatus -eq 'executed-pass') {
+            $fixtureIds = @('P5-RED-001','P5-PRIVACY-001','P5-FALSE-GREEN-001')
+          }
           ./scripts/write-p5-runner-evidence.ps1 `
             -Profile policy-validation `
             -Lane default `
@@ -165,6 +166,10 @@ jobs:
           P5_CONTEXT_LANE: default
         run: |
           $observedStatus = if ($env:P5_JOB_STATUS -eq 'success') { 'executed-pass' } else { 'executed-fail' }
+          $fixtureIds = @()
+          if ($observedStatus -eq 'executed-pass') {
+            $fixtureIds = @('P5-BUILD-EXACT-001')
+          }
           $arguments = @{
             Profile = 'install-build'
             Lane = 'default'
@@ -173,7 +178,7 @@ jobs:
             OutputPath = (Join-Path $env:RUNNER_TEMP 'p5-evidence/install-build.json')
             RequirementIds = @('P5-1','P5-2','P5-3','X1','X8')
             ScenarioId = 'P5-BUILD-001'
-            FixtureIds = if ($observedStatus -eq 'executed-pass') { @('P5-BUILD-EXACT-001') } else { @() }
+            FixtureIds = $fixtureIds
             ExpectedOracle = 'exact clean install preserves the lock and generated schema before TypeScript build passes'
             ObservedStatus = $observedStatus
             RawExitCode = if ($observedStatus -eq 'executed-pass') { 0 } else { 1 }
@@ -242,7 +247,8 @@ jobs:
         run: |
           $observedStatus = if ($env:P5_JOB_STATUS -eq 'success') { 'executed-pass' } else { 'executed-fail' }
           $rawExitCode = if ($observedStatus -eq 'executed-pass') { 0 } else { 1 }
-          $fixtureIds = if ($observedStatus -eq 'executed-pass') { @('P5-UNIT-PARTITION-001') } else { @() }
+          $fixtureIds = @()
+          if ($observedStatus -eq 'executed-pass') { $fixtureIds = @('P5-UNIT-PARTITION-001') }
           ./scripts/write-p5-runner-evidence.ps1 `
             -Profile unit `
             -Lane default `
@@ -439,9 +445,10 @@ jobs:
             'failure' { 'executed-fail' }
             default { 'not-run' }
           }
-          $fixtureIds = if ($observedStatus -eq 'executed-pass') {
-            @('P5-WINDOWS-SERIAL-001','P5-PROCESS-TREE-001','P5-OPEN-HANDLE-001','P5-RUNNER-METADATA-001')
-          } else { @() }
+          $fixtureIds = @()
+          if ($observedStatus -eq 'executed-pass') {
+            $fixtureIds = @('P5-WINDOWS-SERIAL-001','P5-PROCESS-TREE-001','P5-OPEN-HANDLE-001','P5-RUNNER-METADATA-001')
+          }
           ./scripts/write-p5-runner-evidence.ps1 `
             -Profile windows-integration `
             -Lane default `
@@ -654,6 +661,10 @@ jobs:
           P5_CONTEXT_LANE: default
         run: |
           $observedStatus = if ($env:P5_JOB_STATUS -eq 'success') { 'executed-pass' } else { 'executed-fail' }
+          $fixtureIds = @()
+          if ($observedStatus -eq 'executed-pass') {
+            $fixtureIds = @('P5-ACTIONLINT-001','P5-ZIZMOR-001','P5-OSV-001','P5-GITLEAKS-001')
+          }
           $arguments = @{
             Profile = 'security'
             Lane = 'default'
@@ -662,9 +673,7 @@ jobs:
             OutputPath = (Join-Path $env:RUNNER_TEMP 'p5-evidence/security.json')
             RequirementIds = @('P5-10','X7','X9','X15')
             ScenarioId = 'P5-SECURITY-001'
-            FixtureIds = if ($observedStatus -eq 'executed-pass') {
-              @('P5-ACTIONLINT-001','P5-ZIZMOR-001','P5-OSV-001','P5-GITLEAKS-001')
-            } else { @() }
+            FixtureIds = $fixtureIds
             ExpectedOracle = 'all four exact admitted security tools exit zero with no finding'
             ObservedStatus = $observedStatus
             RawExitCode = if ($observedStatus -eq 'executed-pass') { 0 } else { 1 }
@@ -735,7 +744,8 @@ jobs:
         run: |
           $observedStatus = if ($env:P5_JOB_STATUS -eq 'success') { 'executed-pass' } else { 'executed-fail' }
           $rawExitCode = if ($observedStatus -eq 'executed-pass') { 0 } else { 1 }
-          $fixtureIds = if ($observedStatus -eq 'executed-pass') { @('P5-DEPENDENCY-REVIEW-001') } else { @() }
+          $fixtureIds = @()
+          if ($observedStatus -eq 'executed-pass') { $fixtureIds = @('P5-DEPENDENCY-REVIEW-001') }
           ./scripts/write-p5-runner-evidence.ps1 `
             -Profile dependency-review `
             -Lane default `
@@ -834,6 +844,8 @@ jobs:
           P5_MATRIX_SHA256: ${{ matrix.sha256 }}
         run: |
           $rawExitCode = if ($env:P5_CANARY_OUTCOME -eq 'success') { 0 } else { 1 }
+          $fixtureIds = @()
+          if ($rawExitCode -eq 0) { $fixtureIds = @('P5-CODEX-NEXT-001') }
           $arguments = @{
             Profile = 'next-canary'
             Lane = $env:P5_MATRIX_LANE
@@ -842,7 +854,7 @@ jobs:
             OutputPath = (Join-Path $env:RUNNER_TEMP 'p5-evidence/next-canary.json')
             RequirementIds = @('P5-6','P5-9','P5-12')
             ScenarioId = 'P5-CANARY-001'
-            FixtureIds = if ($rawExitCode -eq 0) { @('P5-CODEX-NEXT-001') } else { @() }
+            FixtureIds = $fixtureIds
             ExpectedOracle = 'the exact prerelease digest is observed without satisfying or blocking a supported profile'
             ObservedStatus = 'non-blocking-canary'
             RawExitCode = $rawExitCode

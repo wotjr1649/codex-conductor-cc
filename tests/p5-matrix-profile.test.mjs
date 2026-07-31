@@ -41,7 +41,7 @@ const hostedHarvestSchema = readJson("evidence/schemas/p5-hosted-harvest-v1.sche
 const workflow = readFileSync(
   path.join(root, ".github", "workflows", "pull-request-ci.yml"),
   "utf8"
-);
+).replace(/\r\n/g, "\n");
 const runnerWriter = readFileSync(
   path.join(root, "scripts", "write-p5-runner-evidence.ps1"),
   "utf8"
@@ -130,6 +130,7 @@ test("P5-RED-001 versioned profile, scenario, schema, and evidence sources exist
     "ci/matrix-profiles-v1.json",
     "ci/scenario-registry-v1.json",
     "evidence/schemas/p5-evidence-v1.schema.json",
+    "evidence/schemas/p5-evidence-v2.schema.json",
     "evidence/schemas/p5-runner-evidence-v2.schema.json",
     "evidence/schemas/p5-gate-evidence-v1.schema.json",
     "evidence/schemas/p5-hosted-harvest-v1.schema.json",
@@ -155,6 +156,10 @@ test("P5-PARTITION-001 every inherited test maps once with exact byte identity",
 test("P5-WORKFLOW-001 job-scoped security and matrix policy validates", () => {
   assert.deepEqual(
     validateP5Workflow(workflow, toolchain.actions, profiles),
+    []
+  );
+  assert.deepEqual(
+    validateP5Workflow(workflow.replaceAll("\n", "\r\n"), toolchain.actions, profiles),
     []
   );
 });
@@ -751,7 +756,12 @@ test("P5-POWERSHELL-001 exact npm, clock, and local writer contracts execute", (
   const failedCanaryOutputPath = path.join(probeRoot, "failed-canary.json");
   const modulePath = path.join(root, "scripts", "lib", "p5-runner-provenance.psm1");
   const writerPath = path.join(root, "scripts", "write-p5-runner-evidence.ps1");
-  const env = { ...process.env };
+  const env = Object.fromEntries(
+    Object.entries(process.env).filter(([name]) => name.toUpperCase() !== "PATH")
+  );
+  env.PATH = [path.dirname(process.execPath), process.env.PATH]
+    .filter(Boolean)
+    .join(path.delimiter);
   try {
     const moduleProbe = spawnSync(
       "powershell.exe",
@@ -810,7 +820,10 @@ test("P5-POWERSHELL-001 exact npm, clock, and local writer contracts execute", (
         "-ExecutionPolicy",
         "Bypass",
         "-Command",
-        `& ${psQuote(writerPath)} -Profile next-canary -Lane next -ExecutionClass local -StartedAt '' -OutputPath ${psQuote(failedCanaryOutputPath)} -RequirementIds @('P5-6','P5-9','P5-12') -ScenarioId P5-CANARY-001 -FixtureIds @() -ExpectedOracle 'the exact prerelease digest is observed without satisfying or blocking a supported profile' -ObservedStatus non-blocking-canary -RawExitCode 1 -ExitCodeSource github-job-status-normalized`
+        [
+          "$fixtureIds = @()",
+          `& ${psQuote(writerPath)} -Profile next-canary -Lane next -ExecutionClass local -StartedAt '' -OutputPath ${psQuote(failedCanaryOutputPath)} -RequirementIds @('P5-6','P5-9','P5-12') -ScenarioId P5-CANARY-001 -FixtureIds $fixtureIds -ExpectedOracle 'the exact prerelease digest is observed without satisfying or blocking a supported profile' -ObservedStatus non-blocking-canary -RawExitCode 1 -ExitCodeSource github-job-status-normalized`
+        ].join("; ")
       ],
       { cwd: root, encoding: "utf8", env, shell: false, windowsHide: true }
     );
@@ -946,6 +959,7 @@ test("P5-WORKFLOW-NEGATIVE-001 gate, cache, timeout, and early Node identity fai
     "      - name: Write sanitized runner evidence\n        if: ${{ !cancelled() }}",
     "      - name: Write sanitized runner evidence\n        if: ${{ success() }}"
   );
+  assert.notEqual(successOnlyEvidence, workflow);
   assert.ok(
     validateP5Workflow(successOnlyEvidence, toolchain.actions, profiles).some(
       (entry) => entry.includes("P5E_FAILURE_EVIDENCE")
