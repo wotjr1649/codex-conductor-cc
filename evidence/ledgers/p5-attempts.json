@@ -1,7 +1,7 @@
 {
   "schemaVersion": "p5-attempt-ledger-v1",
   "phase": "P5",
-  "sourceCommit": "57e5b8881009fe799602aa4dab2c22db79d2473a",
+  "sourceCommit": "e6314909cbb99cd823bc2a5e0f6c6b10973e6842",
   "automaticRetryPolicy": {
     "count": 0,
     "cancelledIsPassing": false,
@@ -1003,6 +1003,66 @@
       "expected": "all 184 tests pass in one final isolated exact-Node invocation without changing protected product source",
       "observed": "183 of 184 passed in 240880 milliseconds; the same inherited Windows cancel fixture alone failed when taskkill returned exit 1 for an already-ended child, and related process readback was zero afterward",
       "disposition": "retained-confirmed-protected-runtime-blocker-no-further-green-mining"
+    },
+    {
+      "ordinal": 84,
+      "id": "p5-hosted-run-30643349422-attempt-1-red-001",
+      "commandClass": "github-hosted-pull-request-gate",
+      "executionStatus": "executed-fail",
+      "rawExitCode": 1,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "the natural pull-request attempt allocates all twelve logical jobs and every blocking Windows hosted profile plus terminal CI passes",
+      "observed": "attempt 1 failed policy validation and terminal CI; dependency review passed, four non-matrix jobs were skipped, and three matrices remained unexpanded skipped placeholders",
+      "disposition": "retained-hosted-failure-no-rerun"
+    },
+    {
+      "ordinal": 85,
+      "id": "p5-hosted-collector-30643349422-attempt-1-red-001",
+      "commandClass": "read-only-hosted-evidence-collection",
+      "executionStatus": "executed-fail",
+      "rawExitCode": 1,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "the attempt-specific collector validates twelve exact job allocations and one sanitized fragment per successful evidence step",
+      "observed": "collector failed P5E_COLLECT_SEMANTIC with ten REST jobs versus twelve logical jobs, five absent successful evidence steps, two validated fragments, zero artifacts, and zero PR-ref caches",
+      "disposition": "retained-incomplete-or-invalid-release-trust-false"
+    },
+    {
+      "ordinal": 86,
+      "id": "p5-hosted-repair-policy-source-e631-final-001",
+      "commandClass": "targeted-hosted-policy-test",
+      "executionStatus": "executed-pass",
+      "rawExitCode": 0,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "P3 and P5 hosted policy tests pass after the provenance-only repair",
+      "observed": "27 of 27 tests passed with exact Node 24.18.1 after PATH canonicalization, CRLF fixture normalization, empty-fixture binding repair, and v2 hosted-failure evidence support",
+      "disposition": "accepted-local-repair-source"
+    },
+    {
+      "ordinal": 87,
+      "id": "p5-hosted-repair-powershell-source-e631-final-001",
+      "commandClass": "powershell-parser-validation",
+      "executionStatus": "executed-pass",
+      "rawExitCode": 0,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "all five P5 PowerShell provenance sources parse after failure-finalizer repair",
+      "observed": "five of five PowerShell parser checks passed",
+      "disposition": "accepted-local-repair-source"
+    },
+    {
+      "ordinal": 88,
+      "id": "p5-hosted-evidence-v2-source-e631-final-001",
+      "commandClass": "p5-evidence-validation",
+      "executionStatus": "executed-pass",
+      "rawExitCode": 0,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "the versioned manifest, attempt ledger, baseline, failed hosted observation, privacy controls, and protected readbacks validate at source e6314909cbb99cd823bc2a5e0f6c6b10973e6842",
+      "observed": "P5 validation passed and all 16 targeted provenance tests passed with the exact failed attempt 1, two REST-bound fragments, and incomplete collector status retained",
+      "disposition": "accepted-final-local-evidence"
     }
   ],
   "reviewFindings": [
@@ -1201,6 +1261,34 @@
       "disposition": "accepted-fixed",
       "summary": "canary, named-step extraction, and aggregate gate boundaries still admitted false-green or decoy configurations",
       "correction": "bind the exact gate guard and needs results, isolate the non-blocking canary, and restrict extraction to exact named workflow steps under the complete workflow digest"
+    },
+    {
+      "id": "P5-REVIEW-029",
+      "severity": "P1",
+      "disposition": "accepted-fixed-local",
+      "summary": "the nested Windows PowerShell policy probe re-resolved Node through a case-ambiguous inherited PATH instead of binding the exact process executable",
+      "correction": "remove every case-insensitive PATH alias from the child environment and prepend the directory of process.execPath before spawning the legacy compatibility probe"
+    },
+    {
+      "id": "P5-REVIEW-030",
+      "severity": "P1",
+      "disposition": "accepted-fixed-local",
+      "summary": "LF-only multiline negative mutations became no-ops on a CRLF Windows checkout and could report false-green workflow validation",
+      "correction": "normalize the workflow test fixture to LF once, assert the critical mutation changed bytes, and retain explicit CRLF baseline parity coverage"
+    },
+    {
+      "id": "P5-REVIEW-031",
+      "severity": "P1",
+      "disposition": "accepted-fixed-local",
+      "summary": "seven failure finalizers collapsed an empty PowerShell array expression to null and could not bind mandatory FixtureIds",
+      "correction": "initialize a concrete empty array before each conditional success assignment and reject inline conditional fixture bindings under the exact workflow digest"
+    },
+    {
+      "id": "P5-REVIEW-032",
+      "severity": "P1",
+      "disposition": "accepted-fixed-local",
+      "summary": "the v1 manifest could only claim remote execution was not run after a real failed hosted attempt",
+      "correction": "add a versioned v2 evidence schema that binds failed gate status, skipped profiles, exact run and runner fragments, collector incompleteness, and artifact-cache readback without rewriting v1"
     }
   ],
   "privacy": {

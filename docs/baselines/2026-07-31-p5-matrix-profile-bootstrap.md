@@ -1,17 +1,17 @@
 # P5 Windows x64 matrix/profile bootstrap
 
 Date: 2026-07-31
-Source commit: `57e5b8881009fe799602aa4dab2c22db79d2473a`
+Source commit: `e6314909cbb99cd823bc2a5e0f6c6b10973e6842`
 Handoff commit: `84515289913dfe8a7452754ad442d37873bdfd53`
 Platform: Windows x64, exact Node.js 24.18.1 and npm 11.16.0
 
 ## Outcome
 
 P5 defines a job-scoped pull-request workflow and validates its supported
-profiles locally. The local bootstrap is `executed-pass`. GitHub-hosted
-execution was not authorized and is therefore `NOT-RUN`, so overall P5 status
-is `partial`. This baseline is not a hosted CI pass and is not release
-evidence.
+profiles locally. The local bootstrap is `executed-pass`. The authorized
+natural GitHub-hosted pull-request attempt ran once and failed, so the hosted
+gate is `executed-fail` and overall P5 status is `blocked`. This baseline is
+not a hosted CI pass and is not release evidence.
 
 The immutable P4 evidence separately retains a `blocked-with-evidence` source
 binding defect because it records a source commit that does not resolve. The
@@ -106,8 +106,8 @@ Scanner, gitleaks, clean install, and build. Four independent frozen-tree
 reviews found no actionable P0-P2 issue in the workflow, PowerShell writers,
 hosted collector, or protected-scope boundary. The inherited cancel race is a
 local pre-push regression blocker unless a clean full run is observed or a
-separately authorized product-scope repair is made; it is not represented as a
-hosted failure because remote execution remains `NOT-RUN`.
+separately authorized product-scope repair is made. That local protected race
+is distinct from the policy and evidence failures observed in hosted attempt 1.
 
 The ordered attempt ledger retains all material failures. In particular:
 
@@ -169,6 +169,49 @@ The ordered attempt ledger retains all material failures. In particular:
 
 No failed or cancelled attempt was rewritten as a pass.
 
+## Hosted attempt 1
+
+Draft pull request 2 bound P5 head
+`4eeeb17b0ca3f2c248e7523dc65bddd69ca26f07` to P4 base
+`84515289913dfe8a7452754ad442d37873bdfd53`. Its natural `pull_request` run
+`30643349422`, attempt 1, checked out merge/workflow commit
+`de9c7dfc766716f53aa2dcc3c417d33fcb557bf2` and concluded `failure`. No rerun
+or dispatch occurred.
+
+The attempt-specific API returned ten physical records instead of the twelve
+logical allocations. Policy validation failed, dependency review passed, and
+the terminal `CI` gate failed. Install/build, unit, security, and Windows were
+skipped. The Core, Claude, and canary matrices were not expanded and appeared
+as three zero-step `${{ matrix.lane }}` placeholders. The collector therefore
+failed closed with `P5E_COLLECT_SEMANTIC`; its projected result is
+`incomplete-or-invalid`, with one job-set mismatch and five absent successful
+evidence steps. No collector output file was created.
+
+Policy failed for two independent provenance-test defects. The nested legacy
+PowerShell probe re-resolved Node through a case-ambiguous inherited PATH even
+though the job-level exact Node check passed. A multiline negative workflow
+mutation used an LF-only needle and became a no-op on the CRLF hosted checkout.
+The subsequent failure writer also failed because an empty conditional array
+collapsed to null before binding mandatory `FixtureIds`. The same empty-array
+pattern existed in seven finalizers. Local source
+`e6314909cbb99cd823bc2a5e0f6c6b10973e6842` repairs only these provenance
+surfaces, adds CRLF parity and empty-array regression coverage, and introduces
+the v2 evidence schema used here. Its P3 plus P5 policy set passed 27/27 and
+all five PowerShell sources parsed. This source is local-only and has not been
+pushed or run on GitHub.
+
+Two sanitized fragments were independently rebound to REST records. Dependency
+review job `91198526087` passed on image `20260728.188.1`, PowerShell `7.6.4`;
+terminal gate job `91198731832` failed on image `20260714.173.1`, PowerShell
+`7.6.3`. Both observed Windows Server 2025 build `26100`, X64, NTFS, Node
+24.18.1, npm 11.16.0, and exact Node executable SHA-256
+`ac51903c4c111815d52280b1fdcc8da067cbb37e2fe1a765097b85c3292c8582`.
+Their marker SHA-256 values are respectively
+`5d7f57ad58da0370160fdaad4ac2c2431803baf7235bf6c481a808cd984379d6`
+and `8813a43e28df050ac7b3b6a089e1998f30b783c32cd54bb049b7cd513fdb5450`.
+Run artifacts and PR-ref caches both read back as zero and are not release
+trust inputs.
+
 ## Privacy and trust boundary
 
 No secret, credential value, raw environment, raw prompt, raw command output,
@@ -188,14 +231,13 @@ settings.
 
 ## Explicit gaps
 
-The following remain false or not run:
+The following remain false, skipped, or not run:
 
-- GitHub-hosted `windows-2025` image/build/architecture/filesystem evidence;
-- hosted dependency review and the aggregate required `CI` status;
-- hosted confirmation that the fork pull-request dependency-review job can
-  read its comparison in the workflow token context;
+- hosted install/build, unit, Core current/previous, Windows integration,
+  Claude minimum/current, and security success;
+- aggregate required `CI` success;
 - authenticated Claude lifecycle or paid inference;
-- the non-blocking next-Codex canary;
+- execution of the non-blocking next-Codex canary;
 - disposable Windows 11 x64 runner evidence;
 - a compiled native Windows capability artifact and C0 digest; and
 - a shipping SQLite binding, DDL, migration, and D1 runtime.
@@ -204,9 +246,10 @@ Windows C0 and SQLite D1 remain `blocked-with-evidence` and deferred to v0.2.
 
 ## Hosted handoff
 
-If remote execution is separately authorized, create or update a pull request
-at the exact P5 source/evidence commits without changing repository settings,
-then observe every blocking job and the terminal `CI` context. Record each
+Any next remote action requires separate authorization. The local provenance
+repair and its evidence commit would need a new non-force push, which would
+naturally create a new pull-request run; neither action has been performed.
+If authorized later, observe every blocking job and the terminal `CI` context. Record each
 runner's actual image version, OS build, x64 architecture, NTFS filesystem,
 exact tool identities, attempt number, timeout, raw exit code, and resource
 postconditions using the sanitized writer. A cancelled run, a canary pass, a
