@@ -1,0 +1,320 @@
+{
+  "schemaVersion": "p5-attempt-ledger-v1",
+  "phase": "P5",
+  "sourceCommit": "6fe4694018075782e9e80e7de9fe11a4b54c6dee",
+  "automaticRetryPolicy": {
+    "count": 0,
+    "cancelledIsPassing": false,
+    "failedAttemptMayBeRewritten": false
+  },
+  "attempts": [
+    {
+      "ordinal": 1,
+      "id": "p5-red-001",
+      "commandClass": "targeted-p5-contract-test",
+      "executionStatus": "executed-fail",
+      "rawExitCode": 1,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "the smallest P5 policy test fails before implementation",
+      "observed": "seven missing profile, scenario, workflow, resource, canary, and evidence contracts failed",
+      "disposition": "meaningful-red-retained"
+    },
+    {
+      "ordinal": 2,
+      "id": "p5-resource-draft-001",
+      "commandClass": "windows-resource-oracle",
+      "executionStatus": "executed-fail",
+      "rawExitCode": 1,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "child becomes ready and retains an exclusive handle",
+      "observed": "first PowerShell child command did not signal ready",
+      "disposition": "fixture-corrected"
+    },
+    {
+      "ordinal": 3,
+      "id": "p5-resource-draft-002",
+      "commandClass": "windows-resource-oracle",
+      "executionStatus": "executed-fail",
+      "rawExitCode": 1,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "rename is blocked while the child owns the handle",
+      "observed": "Node file sharing semantics allowed rename and did not prove the Windows postcondition",
+      "disposition": "fixture-replaced-with-exclusive-win32-handle"
+    },
+    {
+      "ordinal": 4,
+      "id": "p5-resource-draft-003",
+      "commandClass": "windows-resource-oracle",
+      "executionStatus": "executed-fail",
+      "rawExitCode": 1,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "encoded PowerShell root launches a ready child",
+      "observed": "intermediate root process command did not signal the child",
+      "disposition": "fixture-encoding-corrected"
+    },
+    {
+      "ordinal": 5,
+      "id": "p5-resource-final-001",
+      "commandClass": "windows-resource-oracle",
+      "executionStatus": "executed-pass",
+      "rawExitCode": 0,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "exact owned tree disappears and exclusive handle is released",
+      "observed": "root and child PIDs disappeared; rename and delete succeeded",
+      "disposition": "accepted"
+    },
+    {
+      "ordinal": 6,
+      "id": "p5-zizmor-first-001",
+      "commandClass": "workflow-security-audit",
+      "executionStatus": "executed-fail",
+      "rawExitCode": 1,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "pedantic workflow audit has no finding",
+      "observed": "24 template-injection findings identified matrix expressions inside run blocks",
+      "disposition": "matrix-values-moved-to-step-environment"
+    },
+    {
+      "ordinal": 7,
+      "id": "p5-zizmor-final-001",
+      "commandClass": "workflow-security-audit",
+      "executionStatus": "executed-pass",
+      "rawExitCode": 0,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "offline pedantic strict collection has no finding",
+      "observed": "no findings",
+      "disposition": "accepted"
+    },
+    {
+      "ordinal": 8,
+      "id": "p5-p4-adapter-001",
+      "commandClass": "exact-p4-handoff-validation",
+      "executionStatus": "executed-fail",
+      "rawExitCode": 1,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "original P4 validator runs in a fresh detached worktree",
+      "observed": "P4 validator assumed an ignored generated tree already existed",
+      "disposition": "adapter-reproduces-generated-tree"
+    },
+    {
+      "ordinal": 9,
+      "id": "p5-p4-adapter-002",
+      "commandClass": "exact-p4-handoff-validation",
+      "executionStatus": "executed-fail",
+      "rawExitCode": 1,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "exact Codex generation materializes the P4 tree",
+      "observed": "fresh worktree lacked repository TypeScript dependencies",
+      "disposition": "adapter-runs-exact-npm-clean-install"
+    },
+    {
+      "ordinal": 10,
+      "id": "p5-p4-adapter-final-001",
+      "commandClass": "exact-p4-handoff-validation",
+      "executionStatus": "executed-pass",
+      "rawExitCode": 0,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "exact runtime, install, generated tree, and original P4 validator pass",
+      "observed": "P4 generated digest and original validator passed at the exact final commit",
+      "disposition": "accepted-then-superseded-by-dependency-free-adapter"
+    },
+    {
+      "ordinal": 11,
+      "id": "p5-tool-batch-001",
+      "commandClass": "parallel-exact-tool-acquisition",
+      "executionStatus": "executed-fail",
+      "rawExitCode": 124,
+      "retryCount": 0,
+      "timeout": true,
+      "expected": "all exact tools complete within the bounded batch call",
+      "observed": "Codex and security tools completed; two Claude downloads exceeded the aggregate timeout",
+      "disposition": "orphaned-owned-installers-stopped-and-claude-retried-sequentially"
+    },
+    {
+      "ordinal": 12,
+      "id": "p5-windows-profile-001",
+      "commandClass": "serial-windows-integration",
+      "executionStatus": "executed-fail",
+      "rawExitCode": 1,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "87 Windows tests pass",
+      "observed": "86 passed; one inherited broker cancel race saw a localized taskkill exit after the child had already exited",
+      "disposition": "retained-as-flake-evidence-and-rerun-alone"
+    },
+    {
+      "ordinal": 13,
+      "id": "p5-windows-profile-002",
+      "commandClass": "serial-windows-integration",
+      "executionStatus": "executed-pass",
+      "rawExitCode": 0,
+      "retryCount": 1,
+      "timeout": false,
+      "expected": "same exact Windows command passes alone",
+      "observed": "87 of 87 passed with zero skip",
+      "disposition": "local-pass-with-first-flake-retained"
+    },
+    {
+      "ordinal": 14,
+      "id": "p5-core-wrapper-001",
+      "commandClass": "codex-direct-broker-lifecycle",
+      "executionStatus": "executed-fail",
+      "rawExitCode": 1,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "P5 wrapper accepts the exact P4 lifecycle summary",
+      "observed": "wrapper required a lane field that the P4 summary contract does not emit",
+      "disposition": "removed-nonexistent-field-check"
+    },
+    {
+      "ordinal": 15,
+      "id": "p5-core-underlying-001",
+      "commandClass": "codex-direct-lifecycle-diagnostic",
+      "executionStatus": "executed-pass",
+      "rawExitCode": 0,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "current and previous underlying lifecycle summaries satisfy exact oracles",
+      "observed": "both exact versions and digests completed and interrupted as expected",
+      "disposition": "wrapper-defect-confirmed"
+    },
+    {
+      "ordinal": 16,
+      "id": "p5-core-wrapper-final-001",
+      "commandClass": "codex-direct-broker-lifecycle",
+      "executionStatus": "executed-pass",
+      "rawExitCode": 0,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "both lanes and both transports satisfy exact lifecycle oracles",
+      "observed": "four lifecycle runs passed with exact digest and exit zero",
+      "disposition": "accepted"
+    },
+    {
+      "ordinal": 17,
+      "id": "p5-runner-writer-001",
+      "commandClass": "sanitized-runner-evidence",
+      "executionStatus": "executed-fail",
+      "rawExitCode": 1,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "writer rejects a non-exact ambient Node runtime",
+      "observed": "exact Node identity guard failed closed",
+      "disposition": "expected-negative-control"
+    },
+    {
+      "ordinal": 18,
+      "id": "p5-runner-writer-002",
+      "commandClass": "sanitized-runner-evidence",
+      "executionStatus": "executed-fail",
+      "rawExitCode": 1,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "writer selects the first exact Node application from PATH",
+      "observed": "multiple command records were concatenated into an invalid executable name",
+      "disposition": "select-first-application-fix"
+    },
+    {
+      "ordinal": 19,
+      "id": "p5-runner-writer-final-001",
+      "commandClass": "sanitized-runner-evidence",
+      "executionStatus": "executed-pass",
+      "rawExitCode": 0,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "exact local runner evidence contains only allowlisted metadata",
+      "observed": "schema-shaped evidence recorded exact runtime and signer identity without private paths or raw output",
+      "disposition": "accepted"
+    },
+    {
+      "ordinal": 20,
+      "id": "p5-p4-adapter-dependency-free-001",
+      "commandClass": "exact-p4-handoff-validation",
+      "executionStatus": "executed-pass",
+      "rawExitCode": 0,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "the original P4 validator passes before repository dependency installation",
+      "observed": "exact Codex generated the ignored tree through the dependency-free P4 generator path and the original validator passed",
+      "disposition": "accepted-final"
+    },
+    {
+      "ordinal": 21,
+      "id": "p5-full-regression-source-f52-001",
+      "commandClass": "full-exact-node-regression",
+      "executionStatus": "executed-fail",
+      "rawExitCode": 1,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "177 tests pass serially at source revision f52",
+      "observed": "176 passed; one inherited broker-cancel test read a partially written child-state JSON document",
+      "disposition": "failure-retained-no-same-source-retry"
+    },
+    {
+      "ordinal": 22,
+      "id": "p5-full-regression-source-6fe-001",
+      "commandClass": "full-exact-node-regression",
+      "executionStatus": "executed-pass",
+      "rawExitCode": 0,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "177 tests pass serially at final bound source revision 6fe",
+      "observed": "177 passed with zero failure, zero cancellation, and zero skip",
+      "disposition": "accepted-final-source"
+    }
+  ],
+  "reviewFindings": [
+    {
+      "id": "P5-REVIEW-001",
+      "severity": "P1",
+      "disposition": "accepted-fixed",
+      "summary": "matrix lane evidence claimed aggregate fixtures that the individual lane did not execute",
+      "correction": "record aggregate scenario membership separately from a validated executed-fixture subset and lane-specific oracle"
+    },
+    {
+      "id": "P5-REVIEW-002",
+      "severity": "P2",
+      "disposition": "accepted-fixed",
+      "summary": "pull-request merge SHA was mislabeled as the source SHA",
+      "correction": "record PR head, checkout merge, and workflow provenance SHAs separately"
+    },
+    {
+      "id": "P5-REVIEW-003",
+      "severity": "P2",
+      "disposition": "accepted-fixed",
+      "summary": "hosted writer did not fail closed on self-hosted, missing image metadata, or non-NTFS execution",
+      "correction": "require GitHub-hosted Windows X64 image metadata, OS build, and NTFS before hosted evidence can pass"
+    },
+    {
+      "id": "P5-REVIEW-004",
+      "severity": "P2",
+      "disposition": "accepted-fixed",
+      "summary": "evidence source binding accepted any matching 40-hex values without ancestry or post-source path enforcement",
+      "correction": "require a resolvable P4-descended source commit and evidence-only successor changes with manifest, ledger, and baseline equality"
+    },
+    {
+      "id": "P5-REVIEW-005",
+      "severity": "P1",
+      "disposition": "accepted-resolved",
+      "summary": "the claimed final full-regression pass predated the bound final source revision",
+      "correction": "retain the earlier-source failure and execute the complete suite once at the final bound source revision"
+    }
+  ],
+  "privacy": {
+    "privatePathsPersisted": false,
+    "secretsPersisted": false,
+    "rawEnvironmentPersisted": false,
+    "rawPromptOrPayloadPersisted": false,
+    "rawStdoutOrStderrPersisted": false
+  }
+}
