@@ -691,13 +691,16 @@ export function validateP5Workflow(workflow, admittedActions, profileRegistry) {
     }
   }
   const core = jobs.get("core-contract") ?? "";
+  const exactP4ContractSteps = core.match(
+    /^ {6}- name: Run P4 targeted contract once[ \t]*\r?\n {8}if:[ \t]+\$\{\{[ \t]*matrix\.run_contract[ \t]*\}\}[ \t]*\r?\n {8}run:[ \t]+node --test --test-concurrency=1 tests\/p4-contract-baseline\.test\.mjs[ \t]*\r?\n(?:[ \t]*\r?\n)*(?= {6}- name:)/gm
+  ) ?? [];
   if (
     !/fail-fast:\s+false/.test(core) ||
     !/max-parallel:\s+2/.test(core) ||
     !/- lane:\s+current/.test(core) ||
     !/- lane:\s+previous/.test(core) ||
     !/- lane:\s+current[\s\S]*?run_contract:\s+true[\s\S]*?- lane:\s+previous[\s\S]*?run_contract:\s+false/.test(core) ||
-    !/- name:[ \t]+Run P4 targeted contract once[ \t]*\r?\n[ \t]+if:[ \t]+\$\{\{[ \t]*matrix\.run_contract[ \t]*\}\}[ \t]*\r?\n[ \t]+run:[ \t]+node --test --test-concurrency=1 tests\/p4-contract-baseline\.test\.mjs[ \t]*\r?\n(?:[ \t]*\r?\n)*(?=[ \t]*- name:)/.test(core) ||
+    exactP4ContractSteps.length !== 1 ||
     !/install-p4-codex\.ps1/.test(core) ||
     !/run-p5-core-contract\.mjs/.test(core) ||
     !/tests\/p4-contract-baseline\.test\.mjs/.test(core)
