@@ -198,7 +198,12 @@ pattern existed in seven finalizers. Local source
 surfaces, adds CRLF parity and empty-array regression coverage, and introduces
 the v2 evidence schema used here. Its P3 plus P5 policy set passed 27/27 and
 all five PowerShell sources parsed. This source is local-only and has not been
-pushed or run on GitHub.
+pushed or run on GitHub. Its one exact-Node full-suite invocation passed
+182/184 in 245136 milliseconds. Two unchanged runtime lifecycle fixtures
+failed: a background worker state disappeared before status readback, and the
+known cancel cleanup again treated `taskkill` exit 1 for already-ended
+descendants as fatal. The failure is retained as attempt 89, was not rerun,
+and exact related-process readback was zero afterward.
 
 Two sanitized fragments were independently rebound to REST records. Dependency
 review job `91198526087` passed on image `20260728.188.1`, PowerShell `7.6.4`;

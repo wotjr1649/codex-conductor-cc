@@ -1063,6 +1063,18 @@
       "expected": "the versioned manifest, attempt ledger, baseline, failed hosted observation, privacy controls, and protected readbacks validate at source e6314909cbb99cd823bc2a5e0f6c6b10973e6842",
       "observed": "P5 validation passed and all 16 targeted provenance tests passed with the exact failed attempt 1, two REST-bound fragments, and incomplete collector status retained",
       "disposition": "accepted-final-local-evidence"
+    },
+    {
+      "ordinal": 89,
+      "id": "p5-full-regression-source-e631-red-001",
+      "commandClass": "full-exact-node-regression",
+      "executionStatus": "executed-fail",
+      "rawExitCode": 1,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "all 184 tests pass once at the local provenance-repair source without repeating a failed invocation",
+      "observed": "182 of 184 passed in 245136 milliseconds; one unchanged background worker state disappeared before status readback and the unchanged cancel fixture again treated taskkill exit 1 for already-ended descendants as fatal; exact related-process readback was zero afterward",
+      "disposition": "retained-final-local-regression-no-rerun"
     }
   ],
   "reviewFindings": [
