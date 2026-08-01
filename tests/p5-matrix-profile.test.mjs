@@ -44,6 +44,11 @@ const scenarioRegistrySha256 = createHash("sha256")
 const runnerEvidenceSchema = readJson("evidence/schemas/p5-runner-evidence-v2.schema.json");
 const gateEvidenceSchema = readJson("evidence/schemas/p5-gate-evidence-v1.schema.json");
 const hostedHarvestSchema = readJson("evidence/schemas/p5-hosted-harvest-v1.schema.json");
+const p5EvidenceSchemas = new Map([
+  ["p5-evidence-v1", readJson("evidence/schemas/p5-evidence-v1.schema.json")],
+  ["p5-evidence-v2", readJson("evidence/schemas/p5-evidence-v2.schema.json")],
+  ["p5-evidence-v3", readJson("evidence/schemas/p5-evidence-v3.schema.json")]
+]);
 const gitAttributes = readFileSync(path.join(root, ".gitattributes"), "utf8")
   .replace(/\r\n/g, "\n");
 const workflow = readFileSync(
@@ -139,6 +144,7 @@ test("P5-RED-001 versioned profile, scenario, schema, and evidence sources exist
     "ci/scenario-registry-v1.json",
     "evidence/schemas/p5-evidence-v1.schema.json",
     "evidence/schemas/p5-evidence-v2.schema.json",
+    "evidence/schemas/p5-evidence-v3.schema.json",
     "evidence/schemas/p5-runner-evidence-v2.schema.json",
     "evidence/schemas/p5-gate-evidence-v1.schema.json",
     "evidence/schemas/p5-hosted-harvest-v1.schema.json",
@@ -150,6 +156,23 @@ test("P5-RED-001 versioned profile, scenario, schema, and evidence sources exist
     "scripts/write-p5-runner-evidence.ps1"
   ]) {
     assert.equal(existsSync(path.join(root, relativePath)), true, relativePath);
+  }
+  const v3SchemaText = JSON.stringify(p5EvidenceSchemas.get("p5-evidence-v3"));
+  for (const unsupportedKeyword of [
+    "maximum",
+    "oneOf",
+    "anyOf",
+    "uniqueItems",
+    "contains",
+    "if",
+    "then",
+    "else"
+  ]) {
+    assert.equal(
+      v3SchemaText.includes(`"${unsupportedKeyword}":`),
+      false,
+      `P5E_TEST_V3_SCHEMA_KEYWORD:${unsupportedKeyword}`
+    );
   }
 });
 
@@ -1288,30 +1311,170 @@ test("P5-EVIDENCE-001 local, hosted, not-run, canary, and blocked truth stays di
   const evidence = readJson(
     "evidence/manifests/p5/p5-matrix-profile-bootstrap-20260731.json"
   );
+  const evidenceSchema = p5EvidenceSchemas.get(evidence.schemaVersion);
+  assert.ok(evidenceSchema, "P5E_TEST_EVIDENCE_SCHEMA_VERSION");
+  assert.deepEqual(validateJsonSchema(evidence, evidenceSchema, "P5 evidence"), []);
   assert.deepEqual(validateP5Evidence(evidence, profiles), []);
-  for (const [label, mutate] of [
-    ["collector-error", (value) => { value.hostedObservation.collectionErrors[0] = "fabricated"; }],
-    ["fragment-job", (value) => { value.hostedObservation.validatedFragments[0].jobName = "CI"; }],
-    ["fragment-powershell", (value) => { value.hostedObservation.validatedFragments[0].powershellVersion = "0.0.0"; }],
-    ["fragment-clock", (value) => { value.hostedObservation.validatedFragments[0].startedAt = "2030-01-01T00:00:00Z"; }],
-    ["fragment-wall", (value) => { value.hostedObservation.validatedFragments[0].wallTimeMs = 0; }],
-    [
-      "evidence-id",
-      (value) => {
-        value.profileResults.find(({ profileId }) => profileId === "dependency-review")
-          .evidenceIds[0] = "fabricated";
-      }
-    ]
-  ]) {
+  const mutations =
+    evidence.schemaVersion === "p5-evidence-v3"
+      ? [
+          [
+            "observation-removed",
+            (value) => {
+              value.hostedObservations.pop();
+            },
+            "P5E_HOSTED_V3_BINDING"
+          ],
+          [
+            "observation-order",
+            (value) => {
+              value.hostedObservations.reverse();
+            },
+            "P5E_HOSTED_V3_BINDING"
+          ],
+          [
+            "observation-duplicate",
+            (value) => {
+              value.hostedObservations[1] = structuredClone(
+                value.hostedObservations[0]
+              );
+            },
+            "P5E_HOSTED_V3_BINDING"
+          ],
+          [
+            "run-head",
+            (value) => {
+              value.hostedObservations[1].sourceHeadSha = "0".repeat(40);
+            },
+            "P5E_HOSTED_V3_BINDING"
+          ],
+          [
+            "step-conclusion",
+            (value) => {
+              value.hostedObservations[1].jobObservations[1].steps[8].conclusion =
+                "success";
+            },
+            "P5E_HOSTED_V3_BINDING"
+          ],
+          [
+            "runner-tool-provenance",
+            (value) => {
+              value.hostedObservations[0].jobObservations[0]
+                .runnerToolProjection.powershellVersion = "7.6.3";
+            },
+            "P5E_HOSTED_V3_BINDING"
+          ],
+          [
+            "rejected-promotion",
+            (value) => {
+              const [fragment] = value.hostedObservations[1].rejectedFragments.splice(
+                0,
+                1
+              );
+              fragment.fragmentStatus = "validated-rest-bound";
+              fragment.validationErrorCodes = [];
+              fragment.sanitizedLogProjection.hostedGateInput = true;
+              value.hostedObservations[1].validatedFragments[0] = fragment;
+            },
+            "P5E_HOSTED_V3_TRUST_BOUNDARY"
+          ],
+          [
+            "registry-digest",
+            (value) => {
+              value.hostedObservations[0].rejectedFragments[0]
+                .expectedRegistrySha256 = "0".repeat(64);
+            },
+            "P5E_HOSTED_V3_BINDING"
+          ],
+          [
+            "artifact-count",
+            (value) => {
+              value.hostedObservations[0].artifacts.observedCount = 1;
+            },
+            "P5E_HOSTED_V3_BINDING"
+          ],
+          [
+            "cache-attribution",
+            (value) => {
+              value.prRefCacheObservation.executionWindowAttribution = "observed";
+            },
+            "P5E_HOSTED_V3_CACHE"
+          ],
+          [
+            "evidence-id",
+            (value) => {
+              value.profileResults.find(
+                ({ profileId }) => profileId === "dependency-review"
+              ).evidenceIds[0] = "fabricated";
+            },
+            "P5E_HOSTED_V3_PROFILE_EVIDENCE"
+          ]
+        ]
+      : [
+          [
+            "collector-error",
+            (value) => {
+              value.hostedObservation.collectionErrors[0] = "fabricated";
+            },
+            "P5E_HOSTED_FAILURE_BINDING"
+          ],
+          [
+            "fragment-job",
+            (value) => {
+              value.hostedObservation.validatedFragments[0].jobName = "CI";
+            },
+            "P5E_HOSTED_FAILURE_BINDING"
+          ],
+          [
+            "fragment-powershell",
+            (value) => {
+              value.hostedObservation.validatedFragments[0].powershellVersion =
+                "0.0.0";
+            },
+            "P5E_HOSTED_FAILURE_BINDING"
+          ],
+          [
+            "fragment-clock",
+            (value) => {
+              value.hostedObservation.validatedFragments[0].startedAt =
+                "2030-01-01T00:00:00Z";
+            },
+            "P5E_HOSTED_FAILURE_BINDING"
+          ],
+          [
+            "fragment-wall",
+            (value) => {
+              value.hostedObservation.validatedFragments[0].wallTimeMs = 0;
+            },
+            "P5E_HOSTED_FAILURE_BINDING"
+          ],
+          [
+            "evidence-id",
+            (value) => {
+              value.profileResults.find(
+                ({ profileId }) => profileId === "dependency-review"
+              ).evidenceIds[0] = "fabricated";
+            },
+            "P5E_HOSTED_FAILURE_BINDING"
+          ]
+        ];
+  for (const [label, mutate, diagnostic] of mutations) {
     const fabricated = structuredClone(evidence);
     mutate(fabricated);
     assert.ok(
       validateP5Evidence(fabricated, profiles).some((entry) =>
-        entry.includes("P5E_HOSTED_FAILURE_BINDING")
+        entry.includes(diagnostic)
       ),
       label
     );
   }
+  const unknown = structuredClone(evidence);
+  unknown.schemaVersion = "p5-evidence-v999";
+  assert.ok(
+    validateP5Evidence(unknown, profiles).some((entry) =>
+      entry.includes("P5E_EVIDENCE_SCHEMA_VERSION")
+    )
+  );
 });
 
 test("P5-PRIVACY-001 seeded credential, private path, and raw payload are rejected", () => {

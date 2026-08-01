@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { isDeepStrictEqual } from "node:util";
 
 import { validateWorkflowText as validateP3WorkflowText } from "./p3-validation.mjs";
 import { validateJsonSchema } from "./p4-schema-validator.mjs";
@@ -1913,12 +1914,691 @@ export function validateP5HostedHarvest(harvest, validationContext = {}) {
   return errors;
 }
 
+const P5_V3_REGISTRY_SOURCE_SHA256 =
+  "28781c049eaeebcfe189b360d3f77583843c50ce08cbc073748537e84e9e6aa8";
+const P5_V3_REGISTRY_RUNNER_SHA256 =
+  "854bb2937f087090ebebf8d03990ff1ee441e18bbcb006743cb29939f61fcb3a";
+const P5_V3_NODE_SHA256 =
+  "ac51903c4c111815d52280b1fdcc8da067cbb37e2fe1a765097b85c3292c8582";
+
+function p5V3Step([number, name, conclusion]) {
+  return { number, name, status: "completed", conclusion };
+}
+
+function p5V3Log(
+  readbackStatus,
+  markerCount,
+  failureCodes = [],
+  policyTestTotal = null,
+  policyTestPassed = null,
+  failureObservations = []
+) {
+  return {
+    authority: "read-only-sanitized-log-projection",
+    readbackStatus,
+    markerCount,
+    failureCodes,
+    failureObservations,
+    policyTestTotal,
+    policyTestPassed,
+    rawLogsPersisted: false
+  };
+}
+
+function p5V3JobRunnerToolProjection(imageVersion, powershellVersion = null) {
+  return {
+    authority: "read-only-job-log-runner-tool-projection",
+    requestedLabel: "windows-2025",
+    runnerVersion: "2.336.0",
+    imageOS: "win25-vs2026",
+    imageVersion,
+    osCaption: "Microsoft Windows Server 2025 Datacenter",
+    osVersion: "10.0.26100",
+    osBuild: "26100",
+    architecture: "X64",
+    powershellVersion,
+    powershellObservationStatus:
+      powershellVersion === null
+        ? "not-observed"
+        : "observed-in-sanitized-marker",
+    filesystem: powershellVersion === null ? null : "NTFS",
+    filesystemObservationStatus:
+      powershellVersion === null
+        ? "not-observed"
+        : "observed-in-sanitized-marker",
+    node: "24.18.1",
+    npm: "11.16.0",
+    nodeExecutableSha256: P5_V3_NODE_SHA256,
+    rawLogsPersisted: false,
+    hostedGateInput: false
+  };
+}
+
+function p5V3Job({
+  jobName,
+  jobKey,
+  checkRunId,
+  conclusion,
+  startedAt,
+  completedAt,
+  runnerName,
+  runnerToolProjection = null,
+  steps = [],
+  log
+}) {
+  return {
+    jobName,
+    jobKey,
+    checkRunId,
+    status: "completed",
+    conclusion,
+    startedAt,
+    completedAt,
+    runnerName,
+    runnerToolProjection,
+    steps: steps.map(p5V3Step),
+    log
+  };
+}
+
+const P5_V3_DEPENDENCY_STEPS = [
+  [1, "Set up job", "success"],
+  [2, "Check out repository", "success"],
+  [3, "Start profile clock", "success"],
+  [4, "Set up Node.js", "success"],
+  [5, "Verify exact Node identity", "success"],
+  [6, "Review dependency changes", "success"],
+  [7, "Verify clean evidence source", "success"],
+  [8, "Write sanitized runner evidence", "success"],
+  [15, "Post Set up Node.js", "success"],
+  [16, "Post Check out repository", "success"],
+  [17, "Complete job", "success"]
+];
+const P5_V3_POLICY_STEPS = [
+  [1, "Set up job", "success"],
+  [2, "Check out repository", "success"],
+  [3, "Start profile clock", "success"],
+  [4, "Set up Node.js", "success"],
+  [5, "Verify exact Node identity", "success"],
+  [6, "Validate P3 baseline", "success"],
+  [7, "Validate exact P4 handoff", "success"],
+  [8, "Validate P5 profiles", "success"],
+  [9, "Run policy tests", "failure"],
+  [10, "Verify clean evidence source", "success"],
+  [11, "Write sanitized runner evidence", "success"],
+  [21, "Post Set up Node.js", "skipped"],
+  [22, "Post Check out repository", "success"],
+  [23, "Complete job", "success"]
+];
+const P5_V3_GATE_STEPS = [
+  [1, "Set up job", "success"],
+  [2, "Check out repository", "success"],
+  [3, "Start profile clock", "success"],
+  [4, "Set up Node.js", "success"],
+  [5, "Verify exact Node identity", "success"],
+  [6, "Require every blocking profile", "failure"],
+  [7, "Verify clean evidence source", "success"],
+  [8, "Write sanitized terminal gate evidence", "success"],
+  [15, "Post Set up Node.js", "skipped"],
+  [16, "Post Check out repository", "success"],
+  [17, "Complete job", "success"]
+];
+
+function p5V3SkippedJob(jobName, jobKey, checkRunId, timestamp) {
+  return p5V3Job({
+    jobName,
+    jobKey,
+    checkRunId,
+    conclusion: "skipped",
+    startedAt: timestamp,
+    completedAt: timestamp,
+    runnerName: null,
+    log: p5V3Log("not-applicable-skipped-job", 0)
+  });
+}
+
+const P5_V3_EXPECTED_JOBS = new Map([
+  [
+    30643349422,
+    [
+      p5V3Job({
+        jobName: "Policy validation",
+        jobKey: "policy-validation",
+        checkRunId: 91198526022,
+        conclusion: "failure",
+        startedAt: "2026-07-31T15:32:56Z",
+        completedAt: "2026-07-31T15:33:44Z",
+        runnerName: "GitHub Actions 1000002173",
+        runnerToolProjection: p5V3JobRunnerToolProjection("20260714.173.1"),
+        steps: P5_V3_POLICY_STEPS.map((step) =>
+          step[0] === 11 ? [11, step[1], "failure"] : step
+        ),
+        log: p5V3Log(
+          "resolved",
+          0,
+          [
+            "P5E_NODE_IDENTITY"
+          ],
+          27,
+          25,
+          [
+            "policy-assertion-falsy",
+            "runner-evidence-null-fixture-ids"
+          ]
+        )
+      }),
+      p5V3Job({
+        jobName: "Dependency review",
+        jobKey: "dependency-review",
+        checkRunId: 91198526087,
+        conclusion: "success",
+        startedAt: "2026-07-31T15:32:56Z",
+        completedAt: "2026-07-31T15:33:32Z",
+        runnerName: "GitHub Actions 1000002174",
+        runnerToolProjection: p5V3JobRunnerToolProjection(
+          "20260728.188.1",
+          "7.6.4"
+        ),
+        steps: P5_V3_DEPENDENCY_STEPS,
+        log: p5V3Log("resolved", 1)
+      }),
+      p5V3Job({
+        jobName: "CI",
+        jobKey: "gate",
+        checkRunId: 91198731832,
+        conclusion: "failure",
+        startedAt: "2026-07-31T15:33:46Z",
+        completedAt: "2026-07-31T15:34:12Z",
+        runnerName: "GitHub Actions 1000002175",
+        runnerToolProjection: p5V3JobRunnerToolProjection(
+          "20260714.173.1",
+          "7.6.3"
+        ),
+        steps: P5_V3_GATE_STEPS,
+        log: p5V3Log("resolved", 1, ["P5E_BLOCKING_PROFILE_RESULT"])
+      }),
+      {
+        ...p5V3SkippedJob(
+          "Unit tests",
+          "unit",
+          91198731960,
+          "2026-07-31T15:33:45Z"
+        ),
+        completedAt: "2026-07-31T15:33:44Z"
+      },
+      {
+        ...p5V3SkippedJob(
+          "Install and build",
+          "install-build",
+          91198732002,
+          "2026-07-31T15:33:45Z"
+        ),
+        completedAt: "2026-07-31T15:33:44Z"
+      },
+      {
+        ...p5V3SkippedJob(
+          "Core contract / ${{ matrix.lane }}",
+          "core-contract",
+          91198732128,
+          "2026-07-31T15:33:45Z"
+        ),
+        completedAt: "2026-07-31T15:33:44Z"
+      },
+      {
+        ...p5V3SkippedJob(
+          "Security",
+          "security",
+          91198732193,
+          "2026-07-31T15:33:45Z"
+        ),
+        completedAt: "2026-07-31T15:33:44Z"
+      },
+      {
+        ...p5V3SkippedJob(
+          "Windows integration",
+          "windows-integration",
+          91198732292,
+          "2026-07-31T15:33:45Z"
+        ),
+        completedAt: "2026-07-31T15:33:44Z"
+      },
+      {
+        ...p5V3SkippedJob(
+          "Claude structural lifecycle / ${{ matrix.lane }}",
+          "claude-lifecycle",
+          91198732463,
+          "2026-07-31T15:33:45Z"
+        ),
+        completedAt: "2026-07-31T15:33:44Z"
+      },
+      {
+        ...p5V3SkippedJob(
+          "Non-blocking Codex canary / ${{ matrix.lane }}",
+          "next-canary",
+          91198732483,
+          "2026-07-31T15:33:45Z"
+        ),
+        completedAt: "2026-07-31T15:33:44Z"
+      }
+    ]
+  ],
+  [
+    30660084412,
+    [
+      p5V3Job({
+        jobName: "Dependency review",
+        jobKey: "dependency-review",
+        checkRunId: 91253973440,
+        conclusion: "success",
+        startedAt: "2026-07-31T19:41:57Z",
+        completedAt: "2026-07-31T19:42:35Z",
+        runnerName: "GitHub Actions 1000002189",
+        runnerToolProjection: p5V3JobRunnerToolProjection(
+          "20260728.188.1",
+          "7.6.4"
+        ),
+        steps: P5_V3_DEPENDENCY_STEPS,
+        log: p5V3Log("resolved", 1)
+      }),
+      p5V3Job({
+        jobName: "Policy validation",
+        jobKey: "policy-validation",
+        checkRunId: 91253973529,
+        conclusion: "failure",
+        startedAt: "2026-07-31T19:41:59Z",
+        completedAt: "2026-07-31T19:42:47Z",
+        runnerName: "GitHub Actions 1000002190",
+        runnerToolProjection: p5V3JobRunnerToolProjection(
+          "20260714.173.1",
+          "7.6.3"
+        ),
+        steps: P5_V3_POLICY_STEPS,
+        log: p5V3Log("resolved", 1, ["P5E_NODE_IDENTITY"], 27, 26)
+      }),
+      p5V3Job({
+        jobName: "CI",
+        jobKey: "gate",
+        checkRunId: 91254158347,
+        conclusion: "failure",
+        startedAt: "2026-07-31T19:42:51Z",
+        completedAt: "2026-07-31T19:43:21Z",
+        runnerName: "GitHub Actions 1000002191",
+        runnerToolProjection: p5V3JobRunnerToolProjection(
+          "20260728.188.1",
+          "7.6.4"
+        ),
+        steps: P5_V3_GATE_STEPS,
+        log: p5V3Log("resolved", 1, ["P5E_BLOCKING_PROFILE_RESULT"])
+      }),
+      p5V3SkippedJob(
+        "Install and build",
+        "install-build",
+        91254158472,
+        "2026-07-31T19:42:48Z"
+      ),
+      p5V3SkippedJob(
+        "Security",
+        "security",
+        91254158599,
+        "2026-07-31T19:42:48Z"
+      ),
+      p5V3SkippedJob(
+        "Claude structural lifecycle / ${{ matrix.lane }}",
+        "claude-lifecycle",
+        91254158746,
+        "2026-07-31T19:42:48Z"
+      ),
+      p5V3SkippedJob(
+        "Windows integration",
+        "windows-integration",
+        91254158821,
+        "2026-07-31T19:42:48Z"
+      ),
+      p5V3SkippedJob(
+        "Non-blocking Codex canary / ${{ matrix.lane }}",
+        "next-canary",
+        91254158947,
+        "2026-07-31T19:42:48Z"
+      ),
+      p5V3SkippedJob(
+        "Unit tests",
+        "unit",
+        91254158974,
+        "2026-07-31T19:42:48Z"
+      ),
+      p5V3SkippedJob(
+        "Core contract / ${{ matrix.lane }}",
+        "core-contract",
+        91254159050,
+        "2026-07-31T19:42:48Z"
+      )
+    ]
+  ]
+]);
+
+function p5V3RunnerProjection({
+  imageVersion,
+  powershellVersion,
+  startedAt,
+  finishedAt,
+  wallTimeMs,
+  rawExitCode,
+  observedStatus,
+  hostedGateInput
+}) {
+  return {
+    authority: "read-only-sanitized-log-projection",
+    imageOS: "win25-vs2026",
+    imageVersion,
+    osCaption: "Microsoft Windows Server 2025 Datacenter",
+    osVersion: "10.0.26100",
+    osBuild: "26100",
+    architecture: "X64",
+    powershellVersion,
+    filesystem: "NTFS",
+    node: "24.18.1",
+    npm: "11.16.0",
+    nodeExecutableSha256: P5_V3_NODE_SHA256,
+    runnerVersion: "2.336.0",
+    startedAt,
+    finishedAt,
+    wallTimeMs,
+    rawExitCode,
+    observedStatus,
+    rawLogsPersisted: false,
+    hostedGateInput
+  };
+}
+
+function p5V3Fragment({
+  jobName,
+  jobKey,
+  checkRunId,
+  conclusion,
+  markerSha256,
+  fragmentStatus,
+  observedRegistrySha256,
+  expectedRegistrySha256,
+  validationErrorCodes,
+  projection
+}) {
+  return {
+    jobName,
+    jobKey,
+    checkRunId,
+    conclusion,
+    markerCount: 1,
+    markerSha256,
+    fragmentStatus,
+    restBindingStatus: "validated",
+    observedRegistrySha256,
+    expectedRegistrySha256,
+    validationErrorCodes,
+    releaseTrustInput: false,
+    sanitizedLogProjection: projection
+  };
+}
+
+const P5_V3_EXPECTED_OBSERVATIONS = [
+  {
+    repository: "wotjr1649/codex-conductor-cc",
+    pullRequestNumber: 2,
+    runId: 30643349422,
+    runNumber: 2,
+    runAttempt: 1,
+    rerunCount: 0,
+    automaticRetryCount: null,
+    event: "pull_request",
+    runUrl:
+      "https://github.com/wotjr1649/codex-conductor-cc/actions/runs/30643349422",
+    sourceHeadSha: "4eeeb17b0ca3f2c248e7523dc65bddd69ca26f07",
+    eventMergeSha: "de9c7dfc766716f53aa2dcc3c417d33fcb557bf2",
+    workflowSha: "de9c7dfc766716f53aa2dcc3c417d33fcb557bf2",
+    baseSha: "84515289913dfe8a7452754ad442d37873bdfd53",
+    checkSuiteId: 83100676283,
+    runStartedAt: "2026-07-31T15:32:54Z",
+    runCompletedAt: "2026-07-31T15:34:13Z",
+    conclusion: "failure",
+    expectedLogicalJobCount: 12,
+    observedRestJobCount: 10,
+    placeholderJobCount: 3,
+    collectionStatus: "incomplete-or-invalid",
+    collectionIssues: [
+      {
+        code: "P5E_COLLECT_JOB_SET",
+        jobKey: null,
+        stepName: null,
+        count: 1
+      },
+      {
+        code: "P5E_RUNNER_EVIDENCE_IDENTITY",
+        jobKey: "dependency-review",
+        stepName: "Write sanitized runner evidence",
+        count: 1
+      },
+      {
+        code: "P5E_COLLECT_STEP",
+        jobKey: null,
+        stepName: "Write sanitized runner evidence",
+        count: 5
+      }
+    ],
+    jobObservations: P5_V3_EXPECTED_JOBS.get(30643349422),
+    validatedFragments: [
+      p5V3Fragment({
+        jobName: "CI",
+        jobKey: "gate",
+        checkRunId: 91198731832,
+        conclusion: "failure",
+        markerSha256:
+          "8813a43e28df050ac7b3b6a089e1998f30b783c32cd54bb049b7cd513fdb5450",
+        fragmentStatus: "validated-rest-bound",
+        observedRegistrySha256: null,
+        expectedRegistrySha256: null,
+        validationErrorCodes: [],
+        projection: p5V3RunnerProjection({
+          imageVersion: "20260714.173.1",
+          powershellVersion: "7.6.3",
+          startedAt: "2026-07-31T15:33:57.7579972+00:00",
+          finishedAt: "2026-07-31T15:34:09.6007735+00:00",
+          wallTimeMs: 11843,
+          rawExitCode: 1,
+          observedStatus: "executed-fail",
+          hostedGateInput: true
+        })
+      })
+    ],
+    rejectedFragments: [
+      p5V3Fragment({
+        jobName: "Dependency review",
+        jobKey: "dependency-review",
+        checkRunId: 91198526087,
+        conclusion: "success",
+        markerSha256:
+          "5d7f57ad58da0370160fdaad4ac2c2431803baf7235bf6c481a808cd984379d6",
+        fragmentStatus: "rejected-untrusted-fragment",
+        observedRegistrySha256: P5_V3_REGISTRY_RUNNER_SHA256,
+        expectedRegistrySha256: P5_V3_REGISTRY_SOURCE_SHA256,
+        validationErrorCodes: ["P5E_RUNNER_EVIDENCE_IDENTITY"],
+        projection: p5V3RunnerProjection({
+          imageVersion: "20260728.188.1",
+          powershellVersion: "7.6.4",
+          startedAt: "2026-07-31T15:33:08.9061482+00:00",
+          finishedAt: "2026-07-31T15:33:28.6664146+00:00",
+          wallTimeMs: 19760,
+          rawExitCode: 0,
+          observedStatus: "executed-pass",
+          hostedGateInput: false
+        })
+      })
+    ],
+    artifacts: {
+      authority: "run-artifacts-rest-readback",
+      endpoint:
+        "repos/wotjr1649/codex-conductor-cc/actions/runs/30643349422/artifacts",
+      observedAt: "2026-08-01T00:05:36Z",
+      readbackStatus: "resolved",
+      observedCount: 0,
+      entries: [],
+      releaseTrustInput: false
+    }
+  },
+  {
+    repository: "wotjr1649/codex-conductor-cc",
+    pullRequestNumber: 2,
+    runId: 30660084412,
+    runNumber: 3,
+    runAttempt: 1,
+    rerunCount: 0,
+    automaticRetryCount: null,
+    event: "pull_request",
+    runUrl:
+      "https://github.com/wotjr1649/codex-conductor-cc/actions/runs/30660084412",
+    sourceHeadSha: "9d2422c4cdf1156008f7dbc744f1ebc4171febe5",
+    eventMergeSha: "7a84c7cfd45c9f8f8f74fb5ac2106dec8d0904f7",
+    workflowSha: "7a84c7cfd45c9f8f8f74fb5ac2106dec8d0904f7",
+    baseSha: "84515289913dfe8a7452754ad442d37873bdfd53",
+    checkSuiteId: 83150548208,
+    runStartedAt: "2026-07-31T19:41:53Z",
+    runCompletedAt: "2026-07-31T19:43:22Z",
+    conclusion: "failure",
+    expectedLogicalJobCount: 12,
+    observedRestJobCount: 10,
+    placeholderJobCount: 3,
+    collectionStatus: "incomplete-or-invalid",
+    collectionIssues: [
+      {
+        code: "P5E_COLLECT_JOB_SET",
+        jobKey: null,
+        stepName: null,
+        count: 1
+      },
+      {
+        code: "P5E_RUNNER_EVIDENCE_IDENTITY",
+        jobKey: null,
+        stepName: "Write sanitized runner evidence",
+        count: 2
+      },
+      {
+        code: "P5E_COLLECT_STEP",
+        jobKey: null,
+        stepName: "Write sanitized runner evidence",
+        count: 4
+      }
+    ],
+    jobObservations: P5_V3_EXPECTED_JOBS.get(30660084412),
+    validatedFragments: [
+      p5V3Fragment({
+        jobName: "CI",
+        jobKey: "gate",
+        checkRunId: 91254158347,
+        conclusion: "failure",
+        markerSha256:
+          "506478994bf35af69f35746a4511f8b6b551e8a409ee0c0de78c5ecac10b7f28",
+        fragmentStatus: "validated-rest-bound",
+        observedRegistrySha256: null,
+        expectedRegistrySha256: null,
+        validationErrorCodes: [],
+        projection: p5V3RunnerProjection({
+          imageVersion: "20260728.188.1",
+          powershellVersion: "7.6.4",
+          startedAt: "2026-07-31T19:43:02.4047291+00:00",
+          finishedAt: "2026-07-31T19:43:16.5340099+00:00",
+          wallTimeMs: 14129,
+          rawExitCode: 1,
+          observedStatus: "executed-fail",
+          hostedGateInput: true
+        })
+      })
+    ],
+    rejectedFragments: [
+      p5V3Fragment({
+        jobName: "Dependency review",
+        jobKey: "dependency-review",
+        checkRunId: 91253973440,
+        conclusion: "success",
+        markerSha256:
+          "60c6a64ffdb6d645fddce8b4d20d7cea43d9f21872c10a785da226fbb1fae8ff",
+        fragmentStatus: "rejected-untrusted-fragment",
+        observedRegistrySha256: P5_V3_REGISTRY_RUNNER_SHA256,
+        expectedRegistrySha256: P5_V3_REGISTRY_SOURCE_SHA256,
+        validationErrorCodes: ["P5E_RUNNER_EVIDENCE_IDENTITY"],
+        projection: p5V3RunnerProjection({
+          imageVersion: "20260728.188.1",
+          powershellVersion: "7.6.4",
+          startedAt: "2026-07-31T19:42:10.3332473+00:00",
+          finishedAt: "2026-07-31T19:42:32.0375404+00:00",
+          wallTimeMs: 21704,
+          rawExitCode: 0,
+          observedStatus: "executed-pass",
+          hostedGateInput: false
+        })
+      }),
+      p5V3Fragment({
+        jobName: "Policy validation",
+        jobKey: "policy-validation",
+        checkRunId: 91253973529,
+        conclusion: "failure",
+        markerSha256:
+          "db9f0476c091dec2dd1a6fe0077423279274a36580284ecf0e121196cfe58897",
+        fragmentStatus: "rejected-untrusted-fragment",
+        observedRegistrySha256: P5_V3_REGISTRY_RUNNER_SHA256,
+        expectedRegistrySha256: P5_V3_REGISTRY_SOURCE_SHA256,
+        validationErrorCodes: ["P5E_RUNNER_EVIDENCE_IDENTITY"],
+        projection: p5V3RunnerProjection({
+          imageVersion: "20260714.173.1",
+          powershellVersion: "7.6.3",
+          startedAt: "2026-07-31T19:42:09.1630521+00:00",
+          finishedAt: "2026-07-31T19:42:43.9815676+00:00",
+          wallTimeMs: 34819,
+          rawExitCode: 1,
+          observedStatus: "executed-fail",
+          hostedGateInput: false
+        })
+      })
+    ],
+    artifacts: {
+      authority: "run-artifacts-rest-readback",
+      endpoint:
+        "repos/wotjr1649/codex-conductor-cc/actions/runs/30660084412/artifacts",
+      observedAt: "2026-08-01T00:05:36Z",
+      readbackStatus: "resolved",
+      observedCount: 0,
+      entries: [],
+      releaseTrustInput: false
+    }
+  }
+];
+
+const P5_V3_EXPECTED_CACHE = {
+  authority: "actions-cache-rest-readback",
+  endpoint:
+    "repos/wotjr1649/codex-conductor-cc/actions/caches?ref=refs/pull/2/merge",
+  ref: "refs/pull/2/merge",
+  mergeSha: "7a84c7cfd45c9f8f8f74fb5ac2106dec8d0904f7",
+  observedAt: "2026-08-01T00:05:36Z",
+  readbackStatus: "resolved",
+  matchingRefCacheCount: 0,
+  entries: [],
+  inventorySha256:
+    "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+  executionWindowAttribution: "not-observed",
+  releaseTrustInput: false
+};
+
 export function validateP5Evidence(manifest, profileRegistry) {
   const errors = [];
   const localOnly = manifest?.schemaVersion === "p5-evidence-v1";
-  const hostedFailure = manifest?.schemaVersion === "p5-evidence-v2";
+  const hostedFailureV2 = manifest?.schemaVersion === "p5-evidence-v2";
+  const hostedFailureV3 = manifest?.schemaVersion === "p5-evidence-v3";
+  const hostedObserved = hostedFailureV2 || hostedFailureV3;
+  if (!localOnly && !hostedObserved) {
+    errors.push(
+      `P5E_EVIDENCE_SCHEMA_VERSION:${manifest?.schemaVersion ?? "missing"}`
+    );
+  }
   if (
-    (!localOnly && !hostedFailure) ||
+    (!localOnly && !hostedObserved) ||
     manifest.phase !== "P5" ||
     manifest.source?.handoffCommit !==
       "84515289913dfe8a7452754ad442d37873bdfd53" ||
@@ -1945,7 +2625,7 @@ export function validateP5Evidence(manifest, profileRegistry) {
     "security"
   ]) {
     const result = actual.get(id);
-    const expectedHostedStatus = hostedFailure
+    const expectedHostedStatus = hostedObserved
       ? id === "policy-validation"
         ? "executed-fail"
         : "skipped"
@@ -1960,7 +2640,7 @@ export function validateP5Evidence(manifest, profileRegistry) {
   const dependency = actual.get("dependency-review");
   if (
     dependency?.localStatus !== "not-applicable" ||
-    dependency?.hostedStatus !== (hostedFailure ? "hosted-pass" : "not-run")
+    dependency?.hostedStatus !== (hostedObserved ? "hosted-pass" : "not-run")
   ) {
     errors.push("P5E_DEPENDENCY_TRUTH: hosted dependency result differs from the bound attempt");
   }
@@ -1968,7 +2648,7 @@ export function validateP5Evidence(manifest, profileRegistry) {
   if (
     canary?.blocking !== false ||
     canary?.localStatus !== "not-run" ||
-    canary?.hostedStatus !== (hostedFailure ? "skipped" : "not-run") ||
+    canary?.hostedStatus !== (hostedObserved ? "skipped" : "not-run") ||
     canary?.disposition !== "non-blocking-canary"
   ) {
     errors.push("P5E_CANARY_TRUTH: defined canary is not an executed supported lane");
@@ -2000,7 +2680,7 @@ export function validateP5Evidence(manifest, profileRegistry) {
       errors.push("P5E_HOSTED_EVIDENCE_MISSING: YAML definition is not a hosted run");
     }
   }
-  if (hostedFailure) {
+  if (hostedFailureV2) {
     const observation = manifest.hostedObservation;
     const expectedCollectionErrors = [
       "P5E_COLLECT_JOB_SET: exact attempt allocation set differs",
@@ -2114,6 +2794,150 @@ export function validateP5Evidence(manifest, profileRegistry) {
       errors.push("P5E_HOSTED_FAILURE_BINDING: exact failed attempt 1 evidence is required");
     }
   }
+  if (hostedFailureV3) {
+    const expectedEvidenceIds = new Map([
+      [
+        "policy-validation",
+        [
+          "p5-p3-validator",
+          "p5-p4-validator-at-handoff",
+          "p5-targeted",
+          "p5-hosted-run-30643349422-attempt-1",
+          "p5-hosted-run-30660084412-attempt-1"
+        ]
+      ],
+      [
+        "install-build",
+        [
+          "p5-npm-ci",
+          "p5-build",
+          "p5-hosted-skip-91198732002",
+          "p5-hosted-skip-91254158472"
+        ]
+      ],
+      [
+        "unit",
+        [
+          "p5-full-regression",
+          "p5-hosted-skip-91198731960",
+          "p5-hosted-skip-91254158974"
+        ]
+      ],
+      [
+        "core-contract",
+        [
+          "p5-p4-targeted",
+          "p5-codex-current-lifecycle",
+          "p5-codex-previous-lifecycle",
+          "p5-hosted-placeholder-91198732128",
+          "p5-hosted-placeholder-91254159050"
+        ]
+      ],
+      [
+        "windows-integration",
+        [
+          "p5-windows-resource",
+          "p5-full-regression",
+          "p5-hosted-skip-91198732292",
+          "p5-hosted-skip-91254158821"
+        ]
+      ],
+      [
+        "claude-lifecycle",
+        [
+          "p5-claude-minimum",
+          "p5-claude-current",
+          "p5-hosted-placeholder-91198732463",
+          "p5-hosted-placeholder-91254158746"
+        ]
+      ],
+      [
+        "security",
+        [
+          "p5-actionlint",
+          "p5-zizmor",
+          "p5-osv",
+          "p5-gitleaks",
+          "p5-hosted-skip-91198732193",
+          "p5-hosted-skip-91254158599"
+        ]
+      ],
+      [
+        "dependency-review",
+        [
+          "p5-hosted-dependency-job-91198526087",
+          "p5-hosted-dependency-job-91253973440"
+        ]
+      ],
+      [
+        "next-canary",
+        [
+          "p5-hosted-placeholder-91198732483",
+          "p5-hosted-placeholder-91254158947"
+        ]
+      ],
+      ["windows-c0", ["P5-C0-BLOCKED"]],
+      ["state-d1", ["P5-D1-BLOCKED"]]
+    ]);
+    const evidenceIdsDiffer = [...expectedEvidenceIds].some(
+      ([profileId, evidenceIds]) =>
+        !isDeepStrictEqual(actual.get(profileId)?.evidenceIds, evidenceIds)
+    );
+    if (
+      manifest.overallStatus !== "blocked" ||
+      manifest.hostedGateStatus !== "executed-fail" ||
+      manifest.remoteExecution !== "executed-fail"
+    ) {
+      errors.push("P5E_HOSTED_V3_GATE: two failed hosted attempts must remain blocking");
+    }
+    if (
+      !isDeepStrictEqual(
+        manifest.hostedObservations,
+        P5_V3_EXPECTED_OBSERVATIONS
+      )
+    ) {
+      errors.push(
+        "P5E_HOSTED_V3_BINDING: exact ordered run, job, step, log, artifact, and fragment observations are required"
+      );
+    }
+    if (!isDeepStrictEqual(manifest.prRefCacheObservation, P5_V3_EXPECTED_CACHE)) {
+      errors.push(
+        "P5E_HOSTED_V3_CACHE: the mutable PR-ref cache snapshot must remain run-unattributed"
+      );
+    }
+    if (evidenceIdsDiffer) {
+      errors.push(
+        "P5E_HOSTED_V3_PROFILE_EVIDENCE: both hosted attempts must remain linked without promoting rejected fragments"
+      );
+    }
+    for (const observation of manifest.hostedObservations ?? []) {
+      const validated = observation?.validatedFragments ?? [];
+      const rejected = observation?.rejectedFragments ?? [];
+      const validatedIds = new Set(validated.map((fragment) => fragment?.checkRunId));
+      if (
+        validated.some(
+          (fragment) =>
+            fragment?.fragmentStatus !== "validated-rest-bound" ||
+            fragment?.jobKey !== "gate" ||
+            fragment?.validationErrorCodes?.length !== 0 ||
+            fragment?.sanitizedLogProjection?.hostedGateInput !== true
+        ) ||
+        rejected.some(
+          (fragment) =>
+            validatedIds.has(fragment?.checkRunId) ||
+            fragment?.fragmentStatus !== "rejected-untrusted-fragment" ||
+            fragment?.validationErrorCodes?.[0] !==
+              "P5E_RUNNER_EVIDENCE_IDENTITY" ||
+            fragment?.releaseTrustInput !== false ||
+            fragment?.sanitizedLogProjection?.hostedGateInput !== false
+        )
+      ) {
+        errors.push(
+          "P5E_HOSTED_V3_TRUST_BOUNDARY: rejected runner projections cannot become hosted gate inputs"
+        );
+      }
+    }
+  }
   if (
     manifest.p4SourceBinding?.recordedCommit !==
       "843e679a90d4ef6946af251d36f43d257f8a5a10" ||
@@ -2194,7 +3018,7 @@ export function validateP5Evidence(manifest, profileRegistry) {
   for (const result of manifest.profileResults ?? []) {
     for (const status of [result.localStatus, result.hostedStatus]) {
       const hostedFailureStatus =
-        hostedFailure &&
+        hostedObserved &&
         status === result.hostedStatus &&
         ["executed-fail", "skipped"].includes(status);
       if (

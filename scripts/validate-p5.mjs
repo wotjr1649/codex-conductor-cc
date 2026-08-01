@@ -51,6 +51,7 @@ const requiredFiles = [
   "evidence/inventory/p5-prechange-20260731.json",
   "evidence/schemas/p5-evidence-v1.schema.json",
   "evidence/schemas/p5-evidence-v2.schema.json",
+  "evidence/schemas/p5-evidence-v3.schema.json",
   "evidence/schemas/p5-runner-evidence-v2.schema.json",
   "evidence/schemas/p5-gate-evidence-v1.schema.json",
   "evidence/schemas/p5-hosted-harvest-v1.schema.json",
@@ -81,10 +82,20 @@ const scenarios = readJson("ci/scenario-registry-v1.json");
 const evidence = readJson(
   "evidence/manifests/p5/p5-matrix-profile-bootstrap-20260731.json"
 );
-const evidenceSchemaPath = evidence?.schemaVersion === "p5-evidence-v2"
-  ? "evidence/schemas/p5-evidence-v2.schema.json"
-  : "evidence/schemas/p5-evidence-v1.schema.json";
-const schema = readJson(evidenceSchemaPath);
+const evidenceSchemaPaths = new Map([
+  ["p5-evidence-v1", "evidence/schemas/p5-evidence-v1.schema.json"],
+  ["p5-evidence-v2", "evidence/schemas/p5-evidence-v2.schema.json"],
+  ["p5-evidence-v3", "evidence/schemas/p5-evidence-v3.schema.json"]
+]);
+const evidenceSchemaPath = evidenceSchemaPaths.get(evidence?.schemaVersion);
+if (!evidenceSchemaPath) {
+  errors.push(
+    `P5E_EVIDENCE_SCHEMA_VERSION: unsupported schema version ${
+      evidence?.schemaVersion ?? "missing"
+    }`
+  );
+}
+const schema = evidenceSchemaPath ? readJson(evidenceSchemaPath) : null;
 const runnerEvidenceSchema = readJson("evidence/schemas/p5-runner-evidence-v2.schema.json");
 const gateEvidenceSchema = readJson("evidence/schemas/p5-gate-evidence-v1.schema.json");
 const hostedHarvestSchema = readJson("evidence/schemas/p5-hosted-harvest-v1.schema.json");
