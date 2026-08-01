@@ -1,7 +1,7 @@
 {
   "schemaVersion": "p5-attempt-ledger-v1",
   "phase": "P5",
-  "sourceCommit": "8e3edc48a869d92609726036ddb717ee7245c0e7",
+  "sourceCommit": "4ad56ea41a479cae0950bce817760455d5fb87fc",
   "automaticRetryPolicy": {
     "count": 0,
     "cancelledIsPassing": false,
@@ -1087,6 +1087,186 @@
       "expected": "fabricated collector errors, fragment tuples, clocks, wall time, and remote evidence identifiers are rejected",
       "observed": "all 16 P5 tests passed after six new hosted-failure mutations were required to produce P5E_HOSTED_FAILURE_BINDING",
       "disposition": "accepted-final-local-source"
+    },
+    {
+      "ordinal": 91,
+      "id": "p5-hosted-run-30660084412-attempt-1-red-001",
+      "commandClass": "github-hosted-pull-request-gate",
+      "executionStatus": "executed-fail",
+      "rawExitCode": 1,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "the natural pull-request synchronize run for head 9d2422c allocates all twelve logical jobs and every blocking Windows hosted profile plus terminal CI passes",
+      "observed": "attempt 1 failed policy validation and terminal CI; dependency review passed, four non-matrix jobs were skipped, and three matrices remained unexpanded skipped placeholders",
+      "disposition": "retained-hosted-failure-no-rerun"
+    },
+    {
+      "ordinal": 92,
+      "id": "p5-hosted-observation-30660084412-attempt-1-final-001",
+      "commandClass": "read-only-hosted-evidence-observation",
+      "executionStatus": "executed-pass",
+      "rawExitCode": 0,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "read-only run, job, step, log, artifact, and PR-ref cache metadata preserve the exact failed attempt without downloading artifacts or caches",
+      "observed": "ten REST jobs, three sanitized markers, zero run artifacts, and a current zero-entry PR-ref cache snapshot were observed; dependency and policy markers were rejected for registry source-object mismatch while the terminal gate marker remained REST-bound",
+      "disposition": "accepted-incomplete-or-invalid-release-trust-false"
+    },
+    {
+      "ordinal": 93,
+      "id": "p5-hostile-node-path-pre-ee6-red-001",
+      "commandClass": "targeted-hostile-path-provenance-test",
+      "executionStatus": "executed-fail",
+      "rawExitCode": 1,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "the legacy PowerShell probe uses the exact process Node even when a case-ambiguous inherited PATH alias points to a hostile executable",
+      "observed": "the pre-repair child environment retained the hostile alias and reproduced P5E_NODE_IDENTITY",
+      "disposition": "retained-meaningful-red-fixed-local"
+    },
+    {
+      "ordinal": 94,
+      "id": "p5-registry-eol-pre-ee6-red-001",
+      "commandClass": "registry-source-object-provenance-test",
+      "executionStatus": "executed-fail",
+      "rawExitCode": 1,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "the scenario registry checkout bytes retain the exact LF Git source-object SHA-256",
+      "observed": "the pre-repair hosted checkout produced CRLF digest 854bb2937f087090ebebf8d03990ff1ee441e18bbcb006743cb29939f61fcb3a instead of source-object digest 28781c049eaeebcfe189b360d3f77583843c50ce08cbc073748537e84e9e6aa8",
+      "disposition": "retained-meaningful-red-fixed-local"
+    },
+    {
+      "ordinal": 95,
+      "id": "p5-portability-source-ee6-final-001",
+      "commandClass": "local-provenance-repair-validation",
+      "executionStatus": "executed-pass",
+      "rawExitCode": 0,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "the local-only PATH, LF source-object, privacy, and cleanup repairs preserve P5 workflow and product semantics",
+      "observed": "P3 plus P5 policy tests passed 27 of 27, targeted P5 passed 16 of 16, P5 plus Windows passed 17 of 17, five PowerShell sources parsed, and bounded repair reviews passed",
+      "disposition": "accepted-local-repair-source"
+    },
+    {
+      "ordinal": 96,
+      "id": "p5-full-regression-source-ee6-red-001",
+      "commandClass": "full-exact-node-regression",
+      "executionStatus": "executed-fail",
+      "rawExitCode": 1,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "all 184 tests pass once at the local portability-repair source without repeating a failed invocation",
+      "observed": "183 of 184 passed; the unchanged Windows broker-cancel fixture again treated taskkill exit 1 for already-ended descendants as fatal, and exact related-process readback was zero afterward",
+      "disposition": "retained-protected-runtime-observation-waiver-no-rerun"
+    },
+    {
+      "ordinal": 97,
+      "id": "p5-independent-review-source-ee6-final-001",
+      "commandClass": "bounded-independent-review",
+      "executionStatus": "executed-pass",
+      "rawExitCode": 0,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "the provenance-only portability repair has no remaining actionable P0 through P2 finding",
+      "observed": "collector, workflow, and PowerShell reviewers passed after fixed diagnostic tokens and immediate temporary-directory cleanup registration were added",
+      "disposition": "accepted-main-agent-reproduced-and-adjudicated"
+    },
+    {
+      "ordinal": 98,
+      "id": "p5-provenance-v3-model-source-4ad-final-001",
+      "commandClass": "bounded-independent-source-model-review",
+      "executionStatus": "executed-pass",
+      "rawExitCode": 0,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "v3 preserves two exact hosted attempts, keeps rejected runner projections outside gate trust, and leaves v2 and protected semantics unchanged",
+      "observed": "schema and validator reviews passed after seven provenance and coverage corrections; v2 SHA-256 remained 13f51cf02309c3f19921722ec28c344dd416652fb011d9a904dec35d25aa3d09",
+      "disposition": "accepted-source-model"
+    },
+    {
+      "ordinal": 99,
+      "id": "p5-v3-targeted-local-red-001",
+      "commandClass": "targeted-p5-and-windows-resource-test",
+      "executionStatus": "executed-fail",
+      "rawExitCode": 1,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "all 17 P5 and independent Windows resource tests pass once under exact Node 24.18.1",
+      "observed": "15 of 17 passed; P5-EVIDENCE rejected a provisional non-canary disposition that was corrected, and P5-POWERSHELL used an exact node.exe copy without adjacent npm.cmd so the fixed module probe failed; the Windows resource oracle passed",
+      "disposition": "retained-single-invocation-no-rerun-distinct-full-suite-used"
+    },
+    {
+      "ordinal": 100,
+      "id": "p5-v3-powershell-parser-final-001",
+      "commandClass": "powershell-parser-validation",
+      "executionStatus": "executed-pass",
+      "rawExitCode": 0,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "all five P5 PowerShell provenance sources parse once",
+      "observed": "five of five parser checks passed with zero syntax error",
+      "disposition": "accepted-final-evidence-worktree"
+    },
+    {
+      "ordinal": 101,
+      "id": "p5-v3-p3-validator-final-001",
+      "commandClass": "exact-p3-validation",
+      "executionStatus": "executed-pass",
+      "rawExitCode": 0,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "the immutable P3 toolchain, policy, evidence ledger, and privacy controls remain exact",
+      "observed": "P3 validation passed under exact Node 24.18.1",
+      "disposition": "accepted-final-evidence-worktree"
+    },
+    {
+      "ordinal": 102,
+      "id": "p5-v3-build-security-final-001",
+      "commandClass": "exact-install-build-and-security-suite",
+      "executionStatus": "executed-pass",
+      "rawExitCode": 0,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "exact npm 11.16.0 clean install, build, actionlint, zizmor, OSV Scanner, and gitleaks each exit zero once",
+      "observed": "three packages installed and four audited with zero vulnerability; generated digest remained e504c5f0, TypeScript built, actionlint and offline pedantic strict zizmor reported no finding, OSV found no issue in three packages, and gitleaks found no leak",
+      "disposition": "accepted-final-evidence-worktree"
+    },
+    {
+      "ordinal": 103,
+      "id": "p5-v3-full-regression-final-red-001",
+      "commandClass": "full-exact-node-regression",
+      "executionStatus": "executed-fail",
+      "rawExitCode": 1,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "all 184 tests pass in one exact Node 24.18.1 serial invocation",
+      "observed": "183 of 184 passed in 247523 milliseconds; the unchanged broker-cancel fixture treated taskkill exit 1 for already-ended descendants as fatal, and read-only follow-up found all three reported PIDs absent",
+      "disposition": "retained-protected-runtime-observation-waiver-no-rerun"
+    },
+    {
+      "ordinal": 104,
+      "id": "p5-v3-evidence-review-final-001",
+      "commandClass": "bounded-independent-evidence-review",
+      "executionStatus": "executed-pass",
+      "rawExitCode": 0,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "the exact three-file evidence diff matches both hosted attempts, the v3 trust model, current authorization, privacy, and the source/evidence commit boundary",
+      "observed": "remote-fact review passed; source binding, contiguous attempts, privacy, and protected scope passed; one cache-scope objection was rejected because the current approval explicitly authorized PR-ref Actions cache metadata readback",
+      "disposition": "accepted-main-agent-final-adjudication"
+    },
+    {
+      "ordinal": 105,
+      "id": "p5-v3-evidence-validator-final-001",
+      "commandClass": "p5-evidence-validation",
+      "executionStatus": "executed-pass",
+      "rawExitCode": 0,
+      "retryCount": 0,
+      "timeout": false,
+      "expected": "the restricted v3 schema, exact semantic bindings, ordered ledger, baseline source binding, privacy, and immutable P2/P3/P4 readbacks validate once",
+      "observed": "P5 validation passed on the final three-file evidence worktree with source commit 4ad56ea41a479cae0950bce817760455d5fb87fc",
+      "disposition": "accepted-final-evidence"
     }
   ],
   "reviewFindings": [
@@ -1327,6 +1507,76 @@
       "disposition": "accepted-fixed-local",
       "summary": "the baseline still described hosted runner fields as null after v2 recorded the failed attempt's terminal runner",
       "correction": "distinguish the superseded v1 local-only bootstrap from v2 failed-attempt runner evidence"
+    },
+    {
+      "id": "P5-REVIEW-035",
+      "severity": "P2",
+      "disposition": "accepted-fixed-local",
+      "summary": "child-process assertion failures could persist raw stdout, stderr, and private temporary paths",
+      "correction": "replace child output assertions with fixed diagnostic tokens while retaining exact exit and semantic checks"
+    },
+    {
+      "id": "P5-REVIEW-036",
+      "severity": "P2",
+      "disposition": "accepted-fixed-local",
+      "summary": "temporary-directory cleanup registration occurred after setup and could miss an early failure",
+      "correction": "register bounded recursive cleanup immediately after creating the exact owned temporary directory"
+    },
+    {
+      "id": "P5-REVIEW-037",
+      "severity": "P1",
+      "disposition": "accepted-fixed-local",
+      "summary": "the first v3 schema used unsupported maximum and would fail only after the manifest selected v3",
+      "correction": "encode marker cardinality with the restricted validator's supported enum and add forbidden-vocabulary regression assertions"
+    },
+    {
+      "id": "P5-REVIEW-038",
+      "severity": "P1",
+      "disposition": "accepted-fixed-local",
+      "summary": "the first v3 model normalized the exact workflow job key policy-validation to the false key policy",
+      "correction": "bind policy-validation exactly in schema, semantic expectations, fragments, and job observations"
+    },
+    {
+      "id": "P5-REVIEW-039",
+      "severity": "P1",
+      "disposition": "accepted-fixed-local",
+      "summary": "two post-hoc run-1 failure labels were stored beside literal P5E log codes and could be mistaken for emitted diagnostics",
+      "correction": "retain only literal P5E codes in failureCodes and store normalized falsy-assertion and null-fixture facts in typed failureObservations"
+    },
+    {
+      "id": "P5-REVIEW-040",
+      "severity": "P2",
+      "disposition": "accepted-fixed-local",
+      "summary": "the rejected-fragment promotion mutation asserted only exact deep binding and did not independently exercise the trust-boundary diagnostic",
+      "correction": "require P5E_HOSTED_V3_TRUST_BOUNDARY directly for the promotion negative control"
+    },
+    {
+      "id": "P5-REVIEW-041",
+      "severity": "P1",
+      "disposition": "accepted-fixed-local",
+      "summary": "run-1 policy runner and tool provenance disappeared because its evidence writer emitted no marker",
+      "correction": "add a distinct read-only job-log runner-tool projection for all six executed jobs without fabricating a fragment"
+    },
+    {
+      "id": "P5-REVIEW-042",
+      "severity": "P1",
+      "disposition": "accepted-fixed-local",
+      "summary": "run-1 policy PowerShell 7.6.3 was image-derived rather than directly emitted after its writer failed",
+      "correction": "record PowerShell as null and not-observed for that job while preserving marker-observed versions for the other five jobs"
+    },
+    {
+      "id": "P5-REVIEW-043",
+      "severity": "P1",
+      "disposition": "accepted-fixed-local",
+      "summary": "run-1 policy NTFS was likewise not directly emitted after its writer failed",
+      "correction": "record filesystem as null and not-observed for that job while preserving marker-observed NTFS for the other five jobs"
+    },
+    {
+      "id": "P5-REVIEW-044",
+      "severity": "P1",
+      "disposition": "rejected-current-authorization-explicit",
+      "summary": "the current PR-ref Actions cache metadata readback was claimed to be outside the latest evidence authorization",
+      "correction": "retain the already-observed run-unattributed cache snapshot because the current user request explicitly authorizes read-only PR-ref Actions cache metadata and forbids only download or deletion"
     }
   ],
   "privacy": {

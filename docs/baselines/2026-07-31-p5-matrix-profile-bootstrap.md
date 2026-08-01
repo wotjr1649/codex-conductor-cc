@@ -1,17 +1,18 @@
 # P5 Windows x64 matrix/profile bootstrap
 
 Date: 2026-07-31
-Source commit: `8e3edc48a869d92609726036ddb717ee7245c0e7`
+Source commit: `4ad56ea41a479cae0950bce817760455d5fb87fc`
 Handoff commit: `84515289913dfe8a7452754ad442d37873bdfd53`
 Platform: Windows x64, exact Node.js 24.18.1 and npm 11.16.0
 
 ## Outcome
 
 P5 defines a job-scoped pull-request workflow and validates its supported
-profiles locally. The local bootstrap is `executed-pass`. The authorized
-natural GitHub-hosted pull-request attempt ran once and failed, so the hosted
-gate is `executed-fail` and overall P5 status is `blocked`. This baseline is
-not a hosted CI pass and is not release evidence.
+profiles locally. The local bootstrap is `executed-pass`. Two authorized
+natural GitHub-hosted pull-request attempts ran at heads `4eeeb17` and
+`9d2422c`; both failed policy validation and terminal CI. The hosted gate is
+therefore `executed-fail`, overall P5 is `blocked`, and P6 is no-go. This
+baseline is not a hosted CI pass and is not release evidence.
 
 The immutable P4 evidence separately retains a `blocked-with-evidence` source
 binding defect because it records a source commit that does not resolve. The
@@ -26,8 +27,10 @@ workflow/ref concurrency group, cancellation, job timeouts, and the mutable
 `windows-2025` label. Every executable profile except GitHub's
 dependency-review action has a sanitized runner-evidence step. The evidence
 writer records the actual hosted image/build/filesystem only after a real run;
-the superseded v1 local-only bootstrap kept those fields null, while v2 binds
-the terminal runner from failed hosted attempt 1. Blocking-job finalizers run
+the superseded v1 local-only bootstrap kept those fields null. The immutable
+v2 schema remains unchanged. V3 binds both failed attempts, exact physical
+jobs and steps, sanitized log projections, run-scoped artifact metadata, and
+one current run-unattributed PR-ref cache snapshot. Blocking-job finalizers run
 after any non-cancelled outcome, distinguish a direct process exit from a
 GitHub job-status normalization, and cannot turn a blocked or unimplemented
 profile into an executed pass.
@@ -101,14 +104,33 @@ tools. The Claude checks are structural marketplace/plugin validation only;
 they are not authenticated inference or install/update/rollback/uninstall
 lifecycle evidence.
 
-The final source also passed 17/17 targeted P5 and Windows checks, five of five
-PowerShell parser checks, actionlint, offline pedantic strict zizmor, OSV
-Scanner, gitleaks, clean install, and build. Four independent frozen-tree
-reviews found no actionable P0-P2 issue in the workflow, PowerShell writers,
-hosted collector, or protected-scope boundary. The inherited cancel race is a
-local pre-push regression blocker unless a clean full run is observed or a
-separately authorized product-scope repair is made. That local protected race
-is distinct from the policy and evidence failures observed in hosted attempt 1.
+The portability-repair source also passed 17/17 targeted P5 and Windows
+checks, five of five PowerShell parser checks, actionlint, offline pedantic
+strict zizmor, OSV Scanner, gitleaks, clean install, and build. Bounded reviews
+found no remaining actionable P0-P2 issue after fixed diagnostic tokens and
+immediate temporary-directory cleanup were added. The v3 provenance-model
+source `4ad56ea41a479cae0950bce817760455d5fb87fc` then passed bounded schema
+and validator review after exact job-key, literal-log-code, trust-boundary,
+and marker-absent runner provenance corrections. The inherited cancel race
+remains a protected runtime observation under the approved local full-suite
+waiver; it is distinct from both hosted failures.
+
+On the v3 evidence worktree, exact P3 validation, five PowerShell parsers,
+npm 11.16.0 clean install, build, actionlint, offline pedantic strict zizmor,
+OSV Scanner, and gitleaks each passed once. The single targeted P5 plus
+Windows invocation passed 15/17: a provisional canary disposition was
+corrected, and the selected exact `node.exe` copy lacked adjacent `npm.cmd`
+for the module probe. It was not rerun. A distinct full-suite invocation used
+the npm-adjacent extracted runtime; all P5 tests passed there and the suite
+finished 183/184 in 247523 milliseconds with only the unchanged
+broker-cancel/taskkill race. Read-only follow-up found all three reported PIDs
+absent, and the full suite was not rerun.
+
+Two bounded evidence reviews then found no remaining actionable P0-P2 issue.
+One reviewer objected that PR-ref cache metadata was outside scope; main-agent
+adjudication rejected that claim because the current approval explicitly
+authorizes read-only PR-ref Actions cache metadata and forbids only download
+or deletion.
 
 The ordered attempt ledger retains all material failures. In particular:
 
@@ -170,54 +192,61 @@ The ordered attempt ledger retains all material failures. In particular:
 
 No failed or cancelled attempt was rewritten as a pass.
 
-## Hosted attempt 1
+## Hosted observations
 
-Draft pull request 2 bound P5 head
-`4eeeb17b0ca3f2c248e7523dc65bddd69ca26f07` to P4 base
-`84515289913dfe8a7452754ad442d37873bdfd53`. Its natural `pull_request` run
-`30643349422`, attempt 1, checked out merge/workflow commit
-`de9c7dfc766716f53aa2dcc3c417d33fcb557bf2` and concluded `failure`. No rerun
-or dispatch occurred.
+Draft pull request 2 binds P5 to exact P4 base
+`84515289913dfe8a7452754ad442d37873bdfd53`. No rerun, dispatch, cancel,
+settings change, ready/merge, tag/release, or P6 action occurred.
 
-The attempt-specific API returned ten physical records instead of the twelve
-logical allocations. Policy validation failed, dependency review passed, and
-the terminal `CI` gate failed. Install/build, unit, security, and Windows were
-skipped. The Core, Claude, and canary matrices were not expanded and appeared
-as three zero-step `${{ matrix.lane }}` placeholders. The collector therefore
-failed closed with `P5E_COLLECT_SEMANTIC`; its projected result is
-`incomplete-or-invalid`, with one job-set mismatch and five absent successful
-evidence steps. No collector output file was created.
+Run `30643349422`, run number 2 and attempt 1, bound source head
+`4eeeb17b0ca3f2c248e7523dc65bddd69ca26f07` to merge/workflow commit
+`de9c7dfc766716f53aa2dcc3c417d33fcb557bf2`. Run `30660084412`, run
+number 3 and attempt 1, bound source head
+`9d2422c4cdf1156008f7dbc744f1ebc4171febe5` to merge/workflow commit
+`7a84c7cfd45c9f8f8f74fb5ac2106dec8d0904f7`. Both concluded failure.
+Each exposed ten physical REST job records for twelve logical allocations:
+Policy and terminal CI failed, Dependency review succeeded, four non-matrix
+jobs were skipped, and Core, Claude, and canary remained zero-step literal
+`${{ matrix.lane }}` placeholders. Run-1 skipped records preserve GitHub's
+inverted timestamps (start one second after completion) as an observed API
+anomaly rather than inventing zero duration.
 
-Policy failed for two independent provenance-test defects. The nested legacy
-PowerShell probe re-resolved Node through a case-ambiguous inherited PATH even
-though the job-level exact Node check passed. A multiline negative workflow
-mutation used an LF-only needle and became a no-op on the CRLF hosted checkout.
-The subsequent failure writer also failed because an empty conditional array
-collapsed to null before binding mandatory `FixtureIds`. The same empty-array
-pattern existed in seven finalizers. Local source
-`8e3edc48a869d92609726036ddb717ee7245c0e7` repairs only these provenance
-surfaces, adds CRLF parity and empty-array regression coverage, and introduces
-the v2 evidence schema used here. Its P3 plus P5 policy set passed 27/27 and
-all five PowerShell sources parsed. This source is local-only and has not been
-pushed or run on GitHub. Its immediate predecessor source `e6314909` had one
-exact-Node full-suite invocation that passed 182/184 in 245136 milliseconds.
-Two unchanged runtime lifecycle fixtures
-failed: a background worker state disappeared before status readback, and the
-known cancel cleanup again treated `taskkill` exit 1 for already-ended
-descendants as fatal. The failure is retained as attempt 89, was not rerun,
-and exact related-process readback was zero afterward.
+The v3 observation preserves every physical job's status, conclusion, runner
+name, and exact step list plus sanitized log facts. Run 1 policy passed 25 of
+27 tests, failed literal `P5E_NODE_IDENTITY` plus a falsy assertion, then its
+failure writer rejected null `FixtureIds`, so no policy marker exists. Run 2
+policy passed 26 of 27 and failed only `P5E_NODE_IDENTITY`; its marker was
+written. Both terminal gates emitted `P5E_BLOCKING_PROFILE_RESULT`.
+Raw logs are not persisted.
 
-Two sanitized fragments were independently rebound to REST records. Dependency
-review job `91198526087` passed on image `20260728.188.1`, PowerShell `7.6.4`;
-terminal gate job `91198731832` failed on image `20260714.173.1`, PowerShell
-`7.6.3`. Both observed Windows Server 2025 build `26100`, X64, NTFS, Node
-24.18.1, npm 11.16.0, and exact Node executable SHA-256
+Exact Git source-object bytes of `ci/scenario-registry-v1.json` have SHA-256
+`28781c049eaeebcfe189b360d3f77583843c50ce08cbc073748537e84e9e6aa8`.
+The runner markers for run-1 Dependency and run-2 Dependency/Policy instead
+report CRLF digest
+`854bb2937f087090ebebf8d03990ff1ee441e18bbcb006743cb29939f61fcb3a`.
+V3 therefore retains those three records as
+`rejected-untrusted-fragment` with
+`P5E_RUNNER_EVIDENCE_IDENTITY`, read-only sanitized projections, and
+`hostedGateInput:false`. Only the two terminal CI markers remain
+`validated-rest-bound`; none is a pass or release-trust input. This corrects
+v2's run-1 Dependency trust adjudication without modifying the v2 schema.
+
+All six executed jobs directly prove runner 2.336.0, Windows Server 2025,
+Node 24.18.1, npm 11.16.0, X64, and exact Node executable SHA-256
 `ac51903c4c111815d52280b1fdcc8da067cbb37e2fe1a765097b85c3292c8582`.
-Their marker SHA-256 values are respectively
-`5d7f57ad58da0370160fdaad4ac2c2431803baf7235bf6c481a808cd984379d6`
-and `8813a43e28df050ac7b3b6a089e1998f30b783c32cd54bb049b7cd513fdb5450`.
-Run artifacts and PR-ref caches both read back as zero and are not release
-trust inputs.
+The five jobs that emitted markers additionally prove NTFS and PowerShell
+7.6.3 or 7.6.4. Run-1 Policy did not emit those two facts, so v3 records its
+PowerShell and filesystem as `null/not-observed` rather than inferring them
+from the image.
+
+Read-only artifact metadata returned zero entries for each run. A separate
+cache query for mutable `refs/pull/2/merge`, observed at
+`2026-08-01T00:05:36Z` with current merge SHA `7a84c7c...`, returned zero
+entries and empty inventory SHA-256
+`4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945`.
+That cache snapshot is explicitly `not-observed` for either historical
+execution window and is not duplicated into the run records. No artifact or
+cache was downloaded or deleted.
 
 ## Privacy and trust boundary
 
@@ -253,9 +282,9 @@ Windows C0 and SQLite D1 remain `blocked-with-evidence` and deferred to v0.2.
 
 ## Hosted handoff
 
-Any next remote action requires separate authorization. The local provenance
-repair and its evidence commit would need a new non-force push, which would
-naturally create a new pull-request run; neither action has been performed.
+Any next remote action requires separate authorization. The portability repair,
+v3 provenance-model source, and evidence-only rebind are local-only. No new
+push or pull-request run has been performed after head `9d2422c`.
 If authorized later, observe every blocking job and the terminal `CI` context. Record each
 runner's actual image version, OS build, x64 architecture, NTFS filesystem,
 exact tool identities, attempt number, timeout, raw exit code, and resource

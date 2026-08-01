@@ -1,6 +1,6 @@
 {
-  "$schema": "../../schemas/p5-evidence-v2.schema.json",
-  "schemaVersion": "p5-evidence-v2",
+  "$schema": "../../schemas/p5-evidence-v3.schema.json",
+  "schemaVersion": "p5-evidence-v3",
   "evidenceId": "p5-matrix-profile-bootstrap-20260731",
   "phase": "P5",
   "overallStatus": "blocked",
@@ -8,7 +8,7 @@
   "hostedGateStatus": "executed-fail",
   "source": {
     "handoffCommit": "84515289913dfe8a7452754ad442d37873bdfd53",
-    "sourceCommit": "8e3edc48a869d92609726036ddb717ee7245c0e7",
+    "sourceCommit": "4ad56ea41a479cae0950bce817760455d5fb87fc",
     "branch": "codex/p5-matrix-profile-bootstrap",
     "upstreamBase": "db52e28f4d9ded852ab3942cea316258ae4ef346"
   },
@@ -27,14 +27,15 @@
       "blocking": true,
       "localStatus": "local-pass",
       "hostedStatus": "executed-fail",
-      "disposition": "natural pull-request attempt 1 failed two policy tests and its failure-evidence writer",
+      "disposition": "natural pull-request attempts 1 at heads 4eeeb17 and 9d2422c both failed policy validation and terminal CI",
       "runtimeImplemented": true,
       "deferredPhase": null,
       "evidenceIds": [
         "p5-p3-validator",
         "p5-p4-validator-at-handoff",
         "p5-targeted",
-        "p5-hosted-run-30643349422-attempt-1"
+        "p5-hosted-run-30643349422-attempt-1",
+        "p5-hosted-run-30660084412-attempt-1"
       ]
     },
     {
@@ -42,12 +43,14 @@
       "blocking": true,
       "localStatus": "local-pass",
       "hostedStatus": "skipped",
-      "disposition": "exact npm clean install and generated TypeScript build passed locally; hosted job was skipped after policy failure",
+      "disposition": "exact npm clean install and build passed locally; both hosted jobs were skipped after policy failure",
       "runtimeImplemented": true,
       "deferredPhase": null,
       "evidenceIds": [
         "p5-npm-ci",
-        "p5-build"
+        "p5-build",
+        "p5-hosted-skip-91198732002",
+        "p5-hosted-skip-91254158472"
       ]
     },
     {
@@ -55,11 +58,13 @@
       "blocking": true,
       "localStatus": "local-pass",
       "hostedStatus": "skipped",
-      "disposition": "unit partition passed locally with serial file execution; hosted job was skipped after policy failure",
+      "disposition": "unit partition passed locally; both hosted jobs were skipped after policy failure",
       "runtimeImplemented": true,
       "deferredPhase": null,
       "evidenceIds": [
-        "p5-full-regression"
+        "p5-full-regression",
+        "p5-hosted-skip-91198731960",
+        "p5-hosted-skip-91254158974"
       ]
     },
     {
@@ -67,13 +72,15 @@
       "blocking": true,
       "localStatus": "local-pass",
       "hostedStatus": "skipped",
-      "disposition": "current and previous exact Codex oracles passed locally; hosted matrix was not expanded after policy failure",
+      "disposition": "current and previous exact Codex oracles passed locally; both hosted matrices remained unexpanded skipped placeholders",
       "runtimeImplemented": true,
       "deferredPhase": null,
       "evidenceIds": [
         "p5-p4-targeted",
         "p5-codex-current-lifecycle",
-        "p5-codex-previous-lifecycle"
+        "p5-codex-previous-lifecycle",
+        "p5-hosted-placeholder-91198732128",
+        "p5-hosted-placeholder-91254159050"
       ]
     },
     {
@@ -81,12 +88,14 @@
       "blocking": true,
       "localStatus": "local-pass",
       "hostedStatus": "skipped",
-      "disposition": "serial Windows integration passed locally; hosted job was skipped after policy failure",
+      "disposition": "serial Windows integration passed locally; both hosted jobs were skipped after policy failure",
       "runtimeImplemented": true,
       "deferredPhase": null,
       "evidenceIds": [
         "p5-windows-resource",
-        "p5-full-regression"
+        "p5-full-regression",
+        "p5-hosted-skip-91198732292",
+        "p5-hosted-skip-91254158821"
       ]
     },
     {
@@ -94,12 +103,14 @@
       "blocking": true,
       "localStatus": "local-pass",
       "hostedStatus": "skipped",
-      "disposition": "minimum and current exact Claude structural validation passed locally; hosted matrix was not expanded after policy failure",
+      "disposition": "minimum and current structural validation passed locally without authentication; both hosted matrices remained unexpanded skipped placeholders",
       "runtimeImplemented": true,
       "deferredPhase": null,
       "evidenceIds": [
         "p5-claude-minimum",
-        "p5-claude-current"
+        "p5-claude-current",
+        "p5-hosted-placeholder-91198732463",
+        "p5-hosted-placeholder-91254158746"
       ]
     },
     {
@@ -107,14 +118,16 @@
       "blocking": true,
       "localStatus": "local-pass",
       "hostedStatus": "skipped",
-      "disposition": "pinned security tools passed locally; hosted job was skipped after policy failure",
+      "disposition": "pinned security tools passed locally; both hosted jobs were skipped after policy failure",
       "runtimeImplemented": true,
       "deferredPhase": null,
       "evidenceIds": [
         "p5-actionlint",
         "p5-zizmor",
         "p5-osv",
-        "p5-gitleaks"
+        "p5-gitleaks",
+        "p5-hosted-skip-91198732193",
+        "p5-hosted-skip-91254158599"
       ]
     },
     {
@@ -122,11 +135,12 @@
       "blocking": true,
       "localStatus": "not-applicable",
       "hostedStatus": "hosted-pass",
-      "disposition": "attempt 1 dependency review and its REST-bound sanitized fragment passed",
+      "disposition": "both dependency-review jobs concluded success; their runner markers are retained as rejected projections because the reported CRLF registry digest differs from the exact Git source object",
       "runtimeImplemented": true,
       "deferredPhase": null,
       "evidenceIds": [
-        "p5-hosted-dependency-91198526087"
+        "p5-hosted-dependency-job-91198526087",
+        "p5-hosted-dependency-job-91253973440"
       ]
     },
     {
@@ -137,7 +151,10 @@
       "disposition": "non-blocking-canary",
       "runtimeImplemented": true,
       "deferredPhase": null,
-      "evidenceIds": []
+      "evidenceIds": [
+        "p5-hosted-placeholder-91198732483",
+        "p5-hosted-placeholder-91254158947"
+      ]
     },
     {
       "profileId": "windows-c0",
@@ -170,100 +187,16 @@
     "secretUsed": false,
     "paidInferenceUsed": false
   },
-  "hostedRunner": {
-    "requestedLabel": "windows-2025",
-    "imageVersion": "20260714.173.1",
-    "osBuild": "26100",
-    "architecture": "X64",
-    "filesystem": "NTFS",
-    "executionStatus": "executed-fail",
-    "evidenceRole": "terminal-gate-runner"
-  },
-  "hostedObservation": {
-    "repository": "wotjr1649/codex-conductor-cc",
-    "pullRequestNumber": 2,
-    "runId": 30643349422,
-    "runAttempt": 1,
-    "rerunCount": 0,
-    "event": "pull_request",
-    "runUrl": "https://github.com/wotjr1649/codex-conductor-cc/actions/runs/30643349422",
-    "sourceHeadSha": "4eeeb17b0ca3f2c248e7523dc65bddd69ca26f07",
-    "eventMergeSha": "de9c7dfc766716f53aa2dcc3c417d33fcb557bf2",
-    "workflowSha": "de9c7dfc766716f53aa2dcc3c417d33fcb557bf2",
-    "baseSha": "84515289913dfe8a7452754ad442d37873bdfd53",
-    "conclusion": "failure",
-    "expectedLogicalJobCount": 12,
-    "observedRestJobCount": 10,
-    "placeholderJobCount": 3,
-    "collectionStatus": "incomplete-or-invalid",
-    "collectionErrors": [
-      "P5E_COLLECT_JOB_SET: exact attempt allocation set differs",
-      "P5E_COLLECT_STEP: exact successful evidence step is absent",
-      "P5E_COLLECT_STEP: exact successful evidence step is absent",
-      "P5E_COLLECT_STEP: exact successful evidence step is absent",
-      "P5E_COLLECT_STEP: exact successful evidence step is absent",
-      "P5E_COLLECT_STEP: exact successful evidence step is absent"
-    ],
-    "validatedFragments": [
-      {
-        "jobName": "Dependency review",
-        "jobKey": "dependency-review",
-        "checkRunId": 91198526087,
-        "conclusion": "success",
-        "markerSha256": "5d7f57ad58da0370160fdaad4ac2c2431803baf7235bf6c481a808cd984379d6",
-        "imageOS": "win25-vs2026",
-        "imageVersion": "20260728.188.1",
-        "osCaption": "Microsoft Windows Server 2025 Datacenter",
-        "osVersion": "10.0.26100",
-        "osBuild": "26100",
-        "architecture": "X64",
-        "powershellVersion": "7.6.4",
-        "filesystem": "NTFS",
-        "node": "24.18.1",
-        "npm": "11.16.0",
-        "nodeExecutableSha256": "ac51903c4c111815d52280b1fdcc8da067cbb37e2fe1a765097b85c3292c8582",
-        "startedAt": "2026-07-31T15:33:08.9061482+00:00",
-        "finishedAt": "2026-07-31T15:33:28.6664146+00:00",
-        "wallTimeMs": 19760
-      },
-      {
-        "jobName": "CI",
-        "jobKey": "gate",
-        "checkRunId": 91198731832,
-        "conclusion": "failure",
-        "markerSha256": "8813a43e28df050ac7b3b6a089e1998f30b783c32cd54bb049b7cd513fdb5450",
-        "imageOS": "win25-vs2026",
-        "imageVersion": "20260714.173.1",
-        "osCaption": "Microsoft Windows Server 2025 Datacenter",
-        "osVersion": "10.0.26100",
-        "osBuild": "26100",
-        "architecture": "X64",
-        "powershellVersion": "7.6.3",
-        "filesystem": "NTFS",
-        "node": "24.18.1",
-        "npm": "11.16.0",
-        "nodeExecutableSha256": "ac51903c4c111815d52280b1fdcc8da067cbb37e2fe1a765097b85c3292c8582",
-        "startedAt": "2026-07-31T15:33:57.7579972+00:00",
-        "finishedAt": "2026-07-31T15:34:09.6007735+00:00",
-        "wallTimeMs": 11843
-      }
-    ],
-    "artifacts": {
-      "readbackStatus": "resolved",
-      "observedCount": 0,
-      "releaseTrustInput": false
-    },
-    "cache": {
-      "readbackStatus": "resolved",
-      "observedCount": 0,
-      "releaseTrustInput": false
-    }
-  },
   "localChecks": [
     {
       "id": "p5-red",
-      "requirementIds": ["P5-1", "P5-12"],
-      "fixtureIds": ["P5-RED-001"],
+      "requirementIds": [
+        "P5-1",
+        "P5-12"
+      ],
+      "fixtureIds": [
+        "P5-RED-001"
+      ],
       "trial": 1,
       "retryCount": 0,
       "timeout": false,
@@ -280,8 +213,17 @@
     },
     {
       "id": "p5-targeted",
-      "requirementIds": ["P5-1", "P5-2", "P5-10", "P5-12"],
-      "fixtureIds": ["P5-PROFILE-001", "P5-PARTITION-001", "P5-WORKFLOW-001"],
+      "requirementIds": [
+        "P5-1",
+        "P5-2",
+        "P5-10",
+        "P5-12"
+      ],
+      "fixtureIds": [
+        "P5-PROFILE-001",
+        "P5-PARTITION-001",
+        "P5-WORKFLOW-001"
+      ],
       "trial": 1,
       "retryCount": 0,
       "timeout": false,
@@ -298,8 +240,12 @@
     },
     {
       "id": "p5-exact-node",
-      "requirementIds": ["P5-2"],
-      "fixtureIds": ["P5-NODE-EXACT-001"],
+      "requirementIds": [
+        "P5-2"
+      ],
+      "fixtureIds": [
+        "P5-NODE-EXACT-001"
+      ],
       "trial": 1,
       "retryCount": 0,
       "timeout": false,
@@ -316,8 +262,12 @@
     },
     {
       "id": "p5-npm-ci",
-      "requirementIds": ["P5-3"],
-      "fixtureIds": ["P5-NPM-CI-001"],
+      "requirementIds": [
+        "P5-3"
+      ],
+      "fixtureIds": [
+        "P5-NPM-CI-001"
+      ],
       "trial": 1,
       "retryCount": 0,
       "timeout": false,
@@ -334,8 +284,13 @@
     },
     {
       "id": "p5-p3-validator",
-      "requirementIds": ["P5-1", "P5-10"],
-      "fixtureIds": ["P5-P3-READBACK-001"],
+      "requirementIds": [
+        "P5-1",
+        "P5-10"
+      ],
+      "fixtureIds": [
+        "P5-P3-READBACK-001"
+      ],
       "trial": 1,
       "retryCount": 0,
       "timeout": false,
@@ -352,8 +307,13 @@
     },
     {
       "id": "p5-p4-validator-at-handoff",
-      "requirementIds": ["P5-1", "P5-10"],
-      "fixtureIds": ["P5-P4-HANDOFF-001"],
+      "requirementIds": [
+        "P5-1",
+        "P5-10"
+      ],
+      "fixtureIds": [
+        "P5-P4-HANDOFF-001"
+      ],
       "trial": 1,
       "retryCount": 0,
       "timeout": false,
@@ -370,8 +330,13 @@
     },
     {
       "id": "p5-p4-targeted",
-      "requirementIds": ["P5-3", "P5-4"],
-      "fixtureIds": ["P5-P4-CONTRACT-001"],
+      "requirementIds": [
+        "P5-3",
+        "P5-4"
+      ],
+      "fixtureIds": [
+        "P5-P4-CONTRACT-001"
+      ],
       "trial": 1,
       "retryCount": 0,
       "timeout": false,
@@ -388,8 +353,14 @@
     },
     {
       "id": "p5-full-regression",
-      "requirementIds": ["P5-3", "P5-6", "P5-8"],
-      "fixtureIds": ["P5-FULL-REGRESSION-001"],
+      "requirementIds": [
+        "P5-3",
+        "P5-6",
+        "P5-8"
+      ],
+      "fixtureIds": [
+        "P5-FULL-REGRESSION-001"
+      ],
       "trial": 1,
       "retryCount": 0,
       "timeout": false,
@@ -406,8 +377,12 @@
     },
     {
       "id": "p5-build",
-      "requirementIds": ["P5-3"],
-      "fixtureIds": ["P5-BUILD-EXACT-001"],
+      "requirementIds": [
+        "P5-3"
+      ],
+      "fixtureIds": [
+        "P5-BUILD-EXACT-001"
+      ],
       "trial": 1,
       "retryCount": 0,
       "timeout": false,
@@ -424,8 +399,13 @@
     },
     {
       "id": "p5-codex-current-lifecycle",
-      "requirementIds": ["P5-4", "P5-7"],
-      "fixtureIds": ["P5-LIFECYCLE-current-001"],
+      "requirementIds": [
+        "P5-4",
+        "P5-7"
+      ],
+      "fixtureIds": [
+        "P5-LIFECYCLE-current-001"
+      ],
       "trial": 1,
       "retryCount": 0,
       "timeout": false,
@@ -442,8 +422,13 @@
     },
     {
       "id": "p5-codex-previous-lifecycle",
-      "requirementIds": ["P5-4", "P5-7"],
-      "fixtureIds": ["P5-LIFECYCLE-previous-001"],
+      "requirementIds": [
+        "P5-4",
+        "P5-7"
+      ],
+      "fixtureIds": [
+        "P5-LIFECYCLE-previous-001"
+      ],
       "trial": 1,
       "retryCount": 0,
       "timeout": false,
@@ -460,8 +445,13 @@
     },
     {
       "id": "p5-claude-minimum",
-      "requirementIds": ["P5-5", "P5-7"],
-      "fixtureIds": ["P5-CLAUDE-minimum-001"],
+      "requirementIds": [
+        "P5-5",
+        "P5-7"
+      ],
+      "fixtureIds": [
+        "P5-CLAUDE-minimum-001"
+      ],
       "trial": 1,
       "retryCount": 0,
       "timeout": false,
@@ -478,8 +468,13 @@
     },
     {
       "id": "p5-claude-current",
-      "requirementIds": ["P5-5", "P5-7"],
-      "fixtureIds": ["P5-CLAUDE-current-001"],
+      "requirementIds": [
+        "P5-5",
+        "P5-7"
+      ],
+      "fixtureIds": [
+        "P5-CLAUDE-current-001"
+      ],
       "trial": 1,
       "retryCount": 0,
       "timeout": false,
@@ -496,8 +491,14 @@
     },
     {
       "id": "p5-windows-resource",
-      "requirementIds": ["P5-7", "P5-8"],
-      "fixtureIds": ["P5-PROCESS-TREE-001", "P5-OPEN-HANDLE-001"],
+      "requirementIds": [
+        "P5-7",
+        "P5-8"
+      ],
+      "fixtureIds": [
+        "P5-PROCESS-TREE-001",
+        "P5-OPEN-HANDLE-001"
+      ],
       "trial": 1,
       "retryCount": 0,
       "timeout": false,
@@ -514,8 +515,12 @@
     },
     {
       "id": "p5-actionlint",
-      "requirementIds": ["P5-10"],
-      "fixtureIds": ["P5-ACTIONLINT-001"],
+      "requirementIds": [
+        "P5-10"
+      ],
+      "fixtureIds": [
+        "P5-ACTIONLINT-001"
+      ],
       "trial": 1,
       "retryCount": 0,
       "timeout": false,
@@ -532,8 +537,13 @@
     },
     {
       "id": "p5-zizmor",
-      "requirementIds": ["P5-10", "X7"],
-      "fixtureIds": ["P5-ZIZMOR-001"],
+      "requirementIds": [
+        "P5-10",
+        "X7"
+      ],
+      "fixtureIds": [
+        "P5-ZIZMOR-001"
+      ],
       "trial": 1,
       "retryCount": 0,
       "timeout": false,
@@ -550,8 +560,13 @@
     },
     {
       "id": "p5-osv",
-      "requirementIds": ["P5-10", "X15"],
-      "fixtureIds": ["P5-OSV-001"],
+      "requirementIds": [
+        "P5-10",
+        "X15"
+      ],
+      "fixtureIds": [
+        "P5-OSV-001"
+      ],
       "trial": 1,
       "retryCount": 0,
       "timeout": false,
@@ -568,8 +583,13 @@
     },
     {
       "id": "p5-gitleaks",
-      "requirementIds": ["P5-10", "X9"],
-      "fixtureIds": ["P5-GITLEAKS-001"],
+      "requirementIds": [
+        "P5-10",
+        "X9"
+      ],
+      "fixtureIds": [
+        "P5-GITLEAKS-001"
+      ],
       "trial": 1,
       "retryCount": 0,
       "timeout": false,
@@ -586,8 +606,12 @@
     },
     {
       "id": "p5-privacy-negative",
-      "requirementIds": ["P5-10"],
-      "fixtureIds": ["P5-PRIVACY-001"],
+      "requirementIds": [
+        "P5-10"
+      ],
+      "fixtureIds": [
+        "P5-PRIVACY-001"
+      ],
       "trial": 1,
       "retryCount": 0,
       "timeout": false,
@@ -604,8 +628,13 @@
     },
     {
       "id": "p5-hygiene",
-      "requirementIds": ["P5-10", "P5-12"],
-      "fixtureIds": ["P5-HYGIENE-001"],
+      "requirementIds": [
+        "P5-10",
+        "P5-12"
+      ],
+      "fixtureIds": [
+        "P5-HYGIENE-001"
+      ],
       "trial": 1,
       "retryCount": 0,
       "timeout": false,
@@ -650,11 +679,1331 @@
   "remoteExecution": "executed-fail",
   "review": {
     "status": "executed-pass",
-    "findingCount": 34,
-    "acceptedCount": 33,
-    "rejectedCount": 1,
+    "findingCount": 44,
+    "acceptedCount": 42,
+    "rejectedCount": 2,
     "deferredCount": 0,
-    "summary": "Attempt 1 and final review added six accepted provenance findings: child PATH identity drift, CRLF no-op mutation, null empty-fixture binding, missing hosted-failure representation, incomplete semantic tuple binding, and stale v1 wording. All are repaired locally without rewriting the failed remote attempt; one earlier fork-failure claim remains rejected."
+    "summary": "Bounded reviews accepted and repaired post-hosted portability, privacy, cleanup, schema-vocabulary, exact job-key, literal-log-code separation, trust-negative coverage, and marker-absent runner-provenance findings. The v3 final reviews found no remaining actionable P0-P2 issue; one earlier fork-failure claim and one cache-scope objection contradicted by the current explicit approval remain rejected."
   },
-  "attemptLedger": "evidence/ledgers/p5-attempts.json"
+  "attemptLedger": "evidence/ledgers/p5-attempts.json",
+  "hostedObservations": [
+    {
+      "repository": "wotjr1649/codex-conductor-cc",
+      "pullRequestNumber": 2,
+      "runId": 30643349422,
+      "runNumber": 2,
+      "runAttempt": 1,
+      "rerunCount": 0,
+      "automaticRetryCount": null,
+      "event": "pull_request",
+      "runUrl": "https://github.com/wotjr1649/codex-conductor-cc/actions/runs/30643349422",
+      "sourceHeadSha": "4eeeb17b0ca3f2c248e7523dc65bddd69ca26f07",
+      "eventMergeSha": "de9c7dfc766716f53aa2dcc3c417d33fcb557bf2",
+      "workflowSha": "de9c7dfc766716f53aa2dcc3c417d33fcb557bf2",
+      "baseSha": "84515289913dfe8a7452754ad442d37873bdfd53",
+      "checkSuiteId": 83100676283,
+      "runStartedAt": "2026-07-31T15:32:54Z",
+      "runCompletedAt": "2026-07-31T15:34:13Z",
+      "conclusion": "failure",
+      "expectedLogicalJobCount": 12,
+      "observedRestJobCount": 10,
+      "placeholderJobCount": 3,
+      "collectionStatus": "incomplete-or-invalid",
+      "collectionIssues": [
+        {
+          "code": "P5E_COLLECT_JOB_SET",
+          "jobKey": null,
+          "stepName": null,
+          "count": 1
+        },
+        {
+          "code": "P5E_RUNNER_EVIDENCE_IDENTITY",
+          "jobKey": "dependency-review",
+          "stepName": "Write sanitized runner evidence",
+          "count": 1
+        },
+        {
+          "code": "P5E_COLLECT_STEP",
+          "jobKey": null,
+          "stepName": "Write sanitized runner evidence",
+          "count": 5
+        }
+      ],
+      "jobObservations": [
+        {
+          "jobName": "Policy validation",
+          "jobKey": "policy-validation",
+          "checkRunId": 91198526022,
+          "status": "completed",
+          "conclusion": "failure",
+          "startedAt": "2026-07-31T15:32:56Z",
+          "completedAt": "2026-07-31T15:33:44Z",
+          "runnerName": "GitHub Actions 1000002173",
+          "runnerToolProjection": {
+            "authority": "read-only-job-log-runner-tool-projection",
+            "requestedLabel": "windows-2025",
+            "runnerVersion": "2.336.0",
+            "imageOS": "win25-vs2026",
+            "imageVersion": "20260714.173.1",
+            "osCaption": "Microsoft Windows Server 2025 Datacenter",
+            "osVersion": "10.0.26100",
+            "osBuild": "26100",
+            "architecture": "X64",
+            "powershellVersion": null,
+            "powershellObservationStatus": "not-observed",
+            "filesystem": null,
+            "filesystemObservationStatus": "not-observed",
+            "node": "24.18.1",
+            "npm": "11.16.0",
+            "nodeExecutableSha256": "ac51903c4c111815d52280b1fdcc8da067cbb37e2fe1a765097b85c3292c8582",
+            "rawLogsPersisted": false,
+            "hostedGateInput": false
+          },
+          "steps": [
+            {
+              "number": 1,
+              "name": "Set up job",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "number": 2,
+              "name": "Check out repository",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "number": 3,
+              "name": "Start profile clock",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "number": 4,
+              "name": "Set up Node.js",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "number": 5,
+              "name": "Verify exact Node identity",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "number": 6,
+              "name": "Validate P3 baseline",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "number": 7,
+              "name": "Validate exact P4 handoff",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "number": 8,
+              "name": "Validate P5 profiles",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "number": 9,
+              "name": "Run policy tests",
+              "status": "completed",
+              "conclusion": "failure"
+            },
+            {
+              "number": 10,
+              "name": "Verify clean evidence source",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "number": 11,
+              "name": "Write sanitized runner evidence",
+              "status": "completed",
+              "conclusion": "failure"
+            },
+            {
+              "number": 21,
+              "name": "Post Set up Node.js",
+              "status": "completed",
+              "conclusion": "skipped"
+            },
+            {
+              "number": 22,
+              "name": "Post Check out repository",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "number": 23,
+              "name": "Complete job",
+              "status": "completed",
+              "conclusion": "success"
+            }
+          ],
+          "log": {
+            "authority": "read-only-sanitized-log-projection",
+            "readbackStatus": "resolved",
+            "markerCount": 0,
+            "failureCodes": [
+              "P5E_NODE_IDENTITY"
+            ],
+            "failureObservations": [
+              "policy-assertion-falsy",
+              "runner-evidence-null-fixture-ids"
+            ],
+            "policyTestTotal": 27,
+            "policyTestPassed": 25,
+            "rawLogsPersisted": false
+          }
+        },
+        {
+          "jobName": "Dependency review",
+          "jobKey": "dependency-review",
+          "checkRunId": 91198526087,
+          "status": "completed",
+          "conclusion": "success",
+          "startedAt": "2026-07-31T15:32:56Z",
+          "completedAt": "2026-07-31T15:33:32Z",
+          "runnerName": "GitHub Actions 1000002174",
+          "runnerToolProjection": {
+            "authority": "read-only-job-log-runner-tool-projection",
+            "requestedLabel": "windows-2025",
+            "runnerVersion": "2.336.0",
+            "imageOS": "win25-vs2026",
+            "imageVersion": "20260728.188.1",
+            "osCaption": "Microsoft Windows Server 2025 Datacenter",
+            "osVersion": "10.0.26100",
+            "osBuild": "26100",
+            "architecture": "X64",
+            "powershellVersion": "7.6.4",
+            "powershellObservationStatus": "observed-in-sanitized-marker",
+            "filesystem": "NTFS",
+            "filesystemObservationStatus": "observed-in-sanitized-marker",
+            "node": "24.18.1",
+            "npm": "11.16.0",
+            "nodeExecutableSha256": "ac51903c4c111815d52280b1fdcc8da067cbb37e2fe1a765097b85c3292c8582",
+            "rawLogsPersisted": false,
+            "hostedGateInput": false
+          },
+          "steps": [
+            {
+              "number": 1,
+              "name": "Set up job",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "number": 2,
+              "name": "Check out repository",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "number": 3,
+              "name": "Start profile clock",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "number": 4,
+              "name": "Set up Node.js",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "number": 5,
+              "name": "Verify exact Node identity",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "number": 6,
+              "name": "Review dependency changes",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "number": 7,
+              "name": "Verify clean evidence source",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "number": 8,
+              "name": "Write sanitized runner evidence",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "number": 15,
+              "name": "Post Set up Node.js",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "number": 16,
+              "name": "Post Check out repository",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "number": 17,
+              "name": "Complete job",
+              "status": "completed",
+              "conclusion": "success"
+            }
+          ],
+          "log": {
+            "authority": "read-only-sanitized-log-projection",
+            "readbackStatus": "resolved",
+            "markerCount": 1,
+            "failureCodes": [],
+            "failureObservations": [],
+            "policyTestTotal": null,
+            "policyTestPassed": null,
+            "rawLogsPersisted": false
+          }
+        },
+        {
+          "jobName": "CI",
+          "jobKey": "gate",
+          "checkRunId": 91198731832,
+          "status": "completed",
+          "conclusion": "failure",
+          "startedAt": "2026-07-31T15:33:46Z",
+          "completedAt": "2026-07-31T15:34:12Z",
+          "runnerName": "GitHub Actions 1000002175",
+          "runnerToolProjection": {
+            "authority": "read-only-job-log-runner-tool-projection",
+            "requestedLabel": "windows-2025",
+            "runnerVersion": "2.336.0",
+            "imageOS": "win25-vs2026",
+            "imageVersion": "20260714.173.1",
+            "osCaption": "Microsoft Windows Server 2025 Datacenter",
+            "osVersion": "10.0.26100",
+            "osBuild": "26100",
+            "architecture": "X64",
+            "powershellVersion": "7.6.3",
+            "powershellObservationStatus": "observed-in-sanitized-marker",
+            "filesystem": "NTFS",
+            "filesystemObservationStatus": "observed-in-sanitized-marker",
+            "node": "24.18.1",
+            "npm": "11.16.0",
+            "nodeExecutableSha256": "ac51903c4c111815d52280b1fdcc8da067cbb37e2fe1a765097b85c3292c8582",
+            "rawLogsPersisted": false,
+            "hostedGateInput": false
+          },
+          "steps": [
+            {
+              "number": 1,
+              "name": "Set up job",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "number": 2,
+              "name": "Check out repository",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "number": 3,
+              "name": "Start profile clock",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "number": 4,
+              "name": "Set up Node.js",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "number": 5,
+              "name": "Verify exact Node identity",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "number": 6,
+              "name": "Require every blocking profile",
+              "status": "completed",
+              "conclusion": "failure"
+            },
+            {
+              "number": 7,
+              "name": "Verify clean evidence source",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "number": 8,
+              "name": "Write sanitized terminal gate evidence",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "number": 15,
+              "name": "Post Set up Node.js",
+              "status": "completed",
+              "conclusion": "skipped"
+            },
+            {
+              "number": 16,
+              "name": "Post Check out repository",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "number": 17,
+              "name": "Complete job",
+              "status": "completed",
+              "conclusion": "success"
+            }
+          ],
+          "log": {
+            "authority": "read-only-sanitized-log-projection",
+            "readbackStatus": "resolved",
+            "markerCount": 1,
+            "failureCodes": [
+              "P5E_BLOCKING_PROFILE_RESULT"
+            ],
+            "failureObservations": [],
+            "policyTestTotal": null,
+            "policyTestPassed": null,
+            "rawLogsPersisted": false
+          }
+        },
+        {
+          "jobName": "Unit tests",
+          "jobKey": "unit",
+          "checkRunId": 91198731960,
+          "status": "completed",
+          "conclusion": "skipped",
+          "startedAt": "2026-07-31T15:33:45Z",
+          "completedAt": "2026-07-31T15:33:44Z",
+          "runnerName": null,
+          "runnerToolProjection": null,
+          "steps": [],
+          "log": {
+            "authority": "read-only-sanitized-log-projection",
+            "readbackStatus": "not-applicable-skipped-job",
+            "markerCount": 0,
+            "failureCodes": [],
+            "failureObservations": [],
+            "policyTestTotal": null,
+            "policyTestPassed": null,
+            "rawLogsPersisted": false
+          }
+        },
+        {
+          "jobName": "Install and build",
+          "jobKey": "install-build",
+          "checkRunId": 91198732002,
+          "status": "completed",
+          "conclusion": "skipped",
+          "startedAt": "2026-07-31T15:33:45Z",
+          "completedAt": "2026-07-31T15:33:44Z",
+          "runnerName": null,
+          "runnerToolProjection": null,
+          "steps": [],
+          "log": {
+            "authority": "read-only-sanitized-log-projection",
+            "readbackStatus": "not-applicable-skipped-job",
+            "markerCount": 0,
+            "failureCodes": [],
+            "failureObservations": [],
+            "policyTestTotal": null,
+            "policyTestPassed": null,
+            "rawLogsPersisted": false
+          }
+        },
+        {
+          "jobName": "Core contract / ${{ matrix.lane }}",
+          "jobKey": "core-contract",
+          "checkRunId": 91198732128,
+          "status": "completed",
+          "conclusion": "skipped",
+          "startedAt": "2026-07-31T15:33:45Z",
+          "completedAt": "2026-07-31T15:33:44Z",
+          "runnerName": null,
+          "runnerToolProjection": null,
+          "steps": [],
+          "log": {
+            "authority": "read-only-sanitized-log-projection",
+            "readbackStatus": "not-applicable-skipped-job",
+            "markerCount": 0,
+            "failureCodes": [],
+            "failureObservations": [],
+            "policyTestTotal": null,
+            "policyTestPassed": null,
+            "rawLogsPersisted": false
+          }
+        },
+        {
+          "jobName": "Security",
+          "jobKey": "security",
+          "checkRunId": 91198732193,
+          "status": "completed",
+          "conclusion": "skipped",
+          "startedAt": "2026-07-31T15:33:45Z",
+          "completedAt": "2026-07-31T15:33:44Z",
+          "runnerName": null,
+          "runnerToolProjection": null,
+          "steps": [],
+          "log": {
+            "authority": "read-only-sanitized-log-projection",
+            "readbackStatus": "not-applicable-skipped-job",
+            "markerCount": 0,
+            "failureCodes": [],
+            "failureObservations": [],
+            "policyTestTotal": null,
+            "policyTestPassed": null,
+            "rawLogsPersisted": false
+          }
+        },
+        {
+          "jobName": "Windows integration",
+          "jobKey": "windows-integration",
+          "checkRunId": 91198732292,
+          "status": "completed",
+          "conclusion": "skipped",
+          "startedAt": "2026-07-31T15:33:45Z",
+          "completedAt": "2026-07-31T15:33:44Z",
+          "runnerName": null,
+          "runnerToolProjection": null,
+          "steps": [],
+          "log": {
+            "authority": "read-only-sanitized-log-projection",
+            "readbackStatus": "not-applicable-skipped-job",
+            "markerCount": 0,
+            "failureCodes": [],
+            "failureObservations": [],
+            "policyTestTotal": null,
+            "policyTestPassed": null,
+            "rawLogsPersisted": false
+          }
+        },
+        {
+          "jobName": "Claude structural lifecycle / ${{ matrix.lane }}",
+          "jobKey": "claude-lifecycle",
+          "checkRunId": 91198732463,
+          "status": "completed",
+          "conclusion": "skipped",
+          "startedAt": "2026-07-31T15:33:45Z",
+          "completedAt": "2026-07-31T15:33:44Z",
+          "runnerName": null,
+          "runnerToolProjection": null,
+          "steps": [],
+          "log": {
+            "authority": "read-only-sanitized-log-projection",
+            "readbackStatus": "not-applicable-skipped-job",
+            "markerCount": 0,
+            "failureCodes": [],
+            "failureObservations": [],
+            "policyTestTotal": null,
+            "policyTestPassed": null,
+            "rawLogsPersisted": false
+          }
+        },
+        {
+          "jobName": "Non-blocking Codex canary / ${{ matrix.lane }}",
+          "jobKey": "next-canary",
+          "checkRunId": 91198732483,
+          "status": "completed",
+          "conclusion": "skipped",
+          "startedAt": "2026-07-31T15:33:45Z",
+          "completedAt": "2026-07-31T15:33:44Z",
+          "runnerName": null,
+          "runnerToolProjection": null,
+          "steps": [],
+          "log": {
+            "authority": "read-only-sanitized-log-projection",
+            "readbackStatus": "not-applicable-skipped-job",
+            "markerCount": 0,
+            "failureCodes": [],
+            "failureObservations": [],
+            "policyTestTotal": null,
+            "policyTestPassed": null,
+            "rawLogsPersisted": false
+          }
+        }
+      ],
+      "validatedFragments": [
+        {
+          "jobName": "CI",
+          "jobKey": "gate",
+          "checkRunId": 91198731832,
+          "conclusion": "failure",
+          "markerCount": 1,
+          "markerSha256": "8813a43e28df050ac7b3b6a089e1998f30b783c32cd54bb049b7cd513fdb5450",
+          "fragmentStatus": "validated-rest-bound",
+          "restBindingStatus": "validated",
+          "observedRegistrySha256": null,
+          "expectedRegistrySha256": null,
+          "validationErrorCodes": [],
+          "releaseTrustInput": false,
+          "sanitizedLogProjection": {
+            "authority": "read-only-sanitized-log-projection",
+            "imageOS": "win25-vs2026",
+            "imageVersion": "20260714.173.1",
+            "osCaption": "Microsoft Windows Server 2025 Datacenter",
+            "osVersion": "10.0.26100",
+            "osBuild": "26100",
+            "architecture": "X64",
+            "powershellVersion": "7.6.3",
+            "filesystem": "NTFS",
+            "node": "24.18.1",
+            "npm": "11.16.0",
+            "nodeExecutableSha256": "ac51903c4c111815d52280b1fdcc8da067cbb37e2fe1a765097b85c3292c8582",
+            "runnerVersion": "2.336.0",
+            "startedAt": "2026-07-31T15:33:57.7579972+00:00",
+            "finishedAt": "2026-07-31T15:34:09.6007735+00:00",
+            "wallTimeMs": 11843,
+            "rawExitCode": 1,
+            "observedStatus": "executed-fail",
+            "rawLogsPersisted": false,
+            "hostedGateInput": true
+          }
+        }
+      ],
+      "rejectedFragments": [
+        {
+          "jobName": "Dependency review",
+          "jobKey": "dependency-review",
+          "checkRunId": 91198526087,
+          "conclusion": "success",
+          "markerCount": 1,
+          "markerSha256": "5d7f57ad58da0370160fdaad4ac2c2431803baf7235bf6c481a808cd984379d6",
+          "fragmentStatus": "rejected-untrusted-fragment",
+          "restBindingStatus": "validated",
+          "observedRegistrySha256": "854bb2937f087090ebebf8d03990ff1ee441e18bbcb006743cb29939f61fcb3a",
+          "expectedRegistrySha256": "28781c049eaeebcfe189b360d3f77583843c50ce08cbc073748537e84e9e6aa8",
+          "validationErrorCodes": [
+            "P5E_RUNNER_EVIDENCE_IDENTITY"
+          ],
+          "releaseTrustInput": false,
+          "sanitizedLogProjection": {
+            "authority": "read-only-sanitized-log-projection",
+            "imageOS": "win25-vs2026",
+            "imageVersion": "20260728.188.1",
+            "osCaption": "Microsoft Windows Server 2025 Datacenter",
+            "osVersion": "10.0.26100",
+            "osBuild": "26100",
+            "architecture": "X64",
+            "powershellVersion": "7.6.4",
+            "filesystem": "NTFS",
+            "node": "24.18.1",
+            "npm": "11.16.0",
+            "nodeExecutableSha256": "ac51903c4c111815d52280b1fdcc8da067cbb37e2fe1a765097b85c3292c8582",
+            "runnerVersion": "2.336.0",
+            "startedAt": "2026-07-31T15:33:08.9061482+00:00",
+            "finishedAt": "2026-07-31T15:33:28.6664146+00:00",
+            "wallTimeMs": 19760,
+            "rawExitCode": 0,
+            "observedStatus": "executed-pass",
+            "rawLogsPersisted": false,
+            "hostedGateInput": false
+          }
+        }
+      ],
+      "artifacts": {
+        "authority": "run-artifacts-rest-readback",
+        "endpoint": "repos/wotjr1649/codex-conductor-cc/actions/runs/30643349422/artifacts",
+        "observedAt": "2026-08-01T00:05:36Z",
+        "readbackStatus": "resolved",
+        "observedCount": 0,
+        "entries": [],
+        "releaseTrustInput": false
+      }
+    },
+    {
+      "repository": "wotjr1649/codex-conductor-cc",
+      "pullRequestNumber": 2,
+      "runId": 30660084412,
+      "runNumber": 3,
+      "runAttempt": 1,
+      "rerunCount": 0,
+      "automaticRetryCount": null,
+      "event": "pull_request",
+      "runUrl": "https://github.com/wotjr1649/codex-conductor-cc/actions/runs/30660084412",
+      "sourceHeadSha": "9d2422c4cdf1156008f7dbc744f1ebc4171febe5",
+      "eventMergeSha": "7a84c7cfd45c9f8f8f74fb5ac2106dec8d0904f7",
+      "workflowSha": "7a84c7cfd45c9f8f8f74fb5ac2106dec8d0904f7",
+      "baseSha": "84515289913dfe8a7452754ad442d37873bdfd53",
+      "checkSuiteId": 83150548208,
+      "runStartedAt": "2026-07-31T19:41:53Z",
+      "runCompletedAt": "2026-07-31T19:43:22Z",
+      "conclusion": "failure",
+      "expectedLogicalJobCount": 12,
+      "observedRestJobCount": 10,
+      "placeholderJobCount": 3,
+      "collectionStatus": "incomplete-or-invalid",
+      "collectionIssues": [
+        {
+          "code": "P5E_COLLECT_JOB_SET",
+          "jobKey": null,
+          "stepName": null,
+          "count": 1
+        },
+        {
+          "code": "P5E_RUNNER_EVIDENCE_IDENTITY",
+          "jobKey": null,
+          "stepName": "Write sanitized runner evidence",
+          "count": 2
+        },
+        {
+          "code": "P5E_COLLECT_STEP",
+          "jobKey": null,
+          "stepName": "Write sanitized runner evidence",
+          "count": 4
+        }
+      ],
+      "jobObservations": [
+        {
+          "jobName": "Dependency review",
+          "jobKey": "dependency-review",
+          "checkRunId": 91253973440,
+          "status": "completed",
+          "conclusion": "success",
+          "startedAt": "2026-07-31T19:41:57Z",
+          "completedAt": "2026-07-31T19:42:35Z",
+          "runnerName": "GitHub Actions 1000002189",
+          "runnerToolProjection": {
+            "authority": "read-only-job-log-runner-tool-projection",
+            "requestedLabel": "windows-2025",
+            "runnerVersion": "2.336.0",
+            "imageOS": "win25-vs2026",
+            "imageVersion": "20260728.188.1",
+            "osCaption": "Microsoft Windows Server 2025 Datacenter",
+            "osVersion": "10.0.26100",
+            "osBuild": "26100",
+            "architecture": "X64",
+            "powershellVersion": "7.6.4",
+            "powershellObservationStatus": "observed-in-sanitized-marker",
+            "filesystem": "NTFS",
+            "filesystemObservationStatus": "observed-in-sanitized-marker",
+            "node": "24.18.1",
+            "npm": "11.16.0",
+            "nodeExecutableSha256": "ac51903c4c111815d52280b1fdcc8da067cbb37e2fe1a765097b85c3292c8582",
+            "rawLogsPersisted": false,
+            "hostedGateInput": false
+          },
+          "steps": [
+            {
+              "number": 1,
+              "name": "Set up job",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "number": 2,
+              "name": "Check out repository",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "number": 3,
+              "name": "Start profile clock",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "number": 4,
+              "name": "Set up Node.js",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "number": 5,
+              "name": "Verify exact Node identity",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "number": 6,
+              "name": "Review dependency changes",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "number": 7,
+              "name": "Verify clean evidence source",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "number": 8,
+              "name": "Write sanitized runner evidence",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "number": 15,
+              "name": "Post Set up Node.js",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "number": 16,
+              "name": "Post Check out repository",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "number": 17,
+              "name": "Complete job",
+              "status": "completed",
+              "conclusion": "success"
+            }
+          ],
+          "log": {
+            "authority": "read-only-sanitized-log-projection",
+            "readbackStatus": "resolved",
+            "markerCount": 1,
+            "failureCodes": [],
+            "failureObservations": [],
+            "policyTestTotal": null,
+            "policyTestPassed": null,
+            "rawLogsPersisted": false
+          }
+        },
+        {
+          "jobName": "Policy validation",
+          "jobKey": "policy-validation",
+          "checkRunId": 91253973529,
+          "status": "completed",
+          "conclusion": "failure",
+          "startedAt": "2026-07-31T19:41:59Z",
+          "completedAt": "2026-07-31T19:42:47Z",
+          "runnerName": "GitHub Actions 1000002190",
+          "runnerToolProjection": {
+            "authority": "read-only-job-log-runner-tool-projection",
+            "requestedLabel": "windows-2025",
+            "runnerVersion": "2.336.0",
+            "imageOS": "win25-vs2026",
+            "imageVersion": "20260714.173.1",
+            "osCaption": "Microsoft Windows Server 2025 Datacenter",
+            "osVersion": "10.0.26100",
+            "osBuild": "26100",
+            "architecture": "X64",
+            "powershellVersion": "7.6.3",
+            "powershellObservationStatus": "observed-in-sanitized-marker",
+            "filesystem": "NTFS",
+            "filesystemObservationStatus": "observed-in-sanitized-marker",
+            "node": "24.18.1",
+            "npm": "11.16.0",
+            "nodeExecutableSha256": "ac51903c4c111815d52280b1fdcc8da067cbb37e2fe1a765097b85c3292c8582",
+            "rawLogsPersisted": false,
+            "hostedGateInput": false
+          },
+          "steps": [
+            {
+              "number": 1,
+              "name": "Set up job",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "number": 2,
+              "name": "Check out repository",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "number": 3,
+              "name": "Start profile clock",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "number": 4,
+              "name": "Set up Node.js",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "number": 5,
+              "name": "Verify exact Node identity",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "number": 6,
+              "name": "Validate P3 baseline",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "number": 7,
+              "name": "Validate exact P4 handoff",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "number": 8,
+              "name": "Validate P5 profiles",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "number": 9,
+              "name": "Run policy tests",
+              "status": "completed",
+              "conclusion": "failure"
+            },
+            {
+              "number": 10,
+              "name": "Verify clean evidence source",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "number": 11,
+              "name": "Write sanitized runner evidence",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "number": 21,
+              "name": "Post Set up Node.js",
+              "status": "completed",
+              "conclusion": "skipped"
+            },
+            {
+              "number": 22,
+              "name": "Post Check out repository",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "number": 23,
+              "name": "Complete job",
+              "status": "completed",
+              "conclusion": "success"
+            }
+          ],
+          "log": {
+            "authority": "read-only-sanitized-log-projection",
+            "readbackStatus": "resolved",
+            "markerCount": 1,
+            "failureCodes": [
+              "P5E_NODE_IDENTITY"
+            ],
+            "failureObservations": [],
+            "policyTestTotal": 27,
+            "policyTestPassed": 26,
+            "rawLogsPersisted": false
+          }
+        },
+        {
+          "jobName": "CI",
+          "jobKey": "gate",
+          "checkRunId": 91254158347,
+          "status": "completed",
+          "conclusion": "failure",
+          "startedAt": "2026-07-31T19:42:51Z",
+          "completedAt": "2026-07-31T19:43:21Z",
+          "runnerName": "GitHub Actions 1000002191",
+          "runnerToolProjection": {
+            "authority": "read-only-job-log-runner-tool-projection",
+            "requestedLabel": "windows-2025",
+            "runnerVersion": "2.336.0",
+            "imageOS": "win25-vs2026",
+            "imageVersion": "20260728.188.1",
+            "osCaption": "Microsoft Windows Server 2025 Datacenter",
+            "osVersion": "10.0.26100",
+            "osBuild": "26100",
+            "architecture": "X64",
+            "powershellVersion": "7.6.4",
+            "powershellObservationStatus": "observed-in-sanitized-marker",
+            "filesystem": "NTFS",
+            "filesystemObservationStatus": "observed-in-sanitized-marker",
+            "node": "24.18.1",
+            "npm": "11.16.0",
+            "nodeExecutableSha256": "ac51903c4c111815d52280b1fdcc8da067cbb37e2fe1a765097b85c3292c8582",
+            "rawLogsPersisted": false,
+            "hostedGateInput": false
+          },
+          "steps": [
+            {
+              "number": 1,
+              "name": "Set up job",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "number": 2,
+              "name": "Check out repository",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "number": 3,
+              "name": "Start profile clock",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "number": 4,
+              "name": "Set up Node.js",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "number": 5,
+              "name": "Verify exact Node identity",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "number": 6,
+              "name": "Require every blocking profile",
+              "status": "completed",
+              "conclusion": "failure"
+            },
+            {
+              "number": 7,
+              "name": "Verify clean evidence source",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "number": 8,
+              "name": "Write sanitized terminal gate evidence",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "number": 15,
+              "name": "Post Set up Node.js",
+              "status": "completed",
+              "conclusion": "skipped"
+            },
+            {
+              "number": 16,
+              "name": "Post Check out repository",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "number": 17,
+              "name": "Complete job",
+              "status": "completed",
+              "conclusion": "success"
+            }
+          ],
+          "log": {
+            "authority": "read-only-sanitized-log-projection",
+            "readbackStatus": "resolved",
+            "markerCount": 1,
+            "failureCodes": [
+              "P5E_BLOCKING_PROFILE_RESULT"
+            ],
+            "failureObservations": [],
+            "policyTestTotal": null,
+            "policyTestPassed": null,
+            "rawLogsPersisted": false
+          }
+        },
+        {
+          "jobName": "Install and build",
+          "jobKey": "install-build",
+          "checkRunId": 91254158472,
+          "status": "completed",
+          "conclusion": "skipped",
+          "startedAt": "2026-07-31T19:42:48Z",
+          "completedAt": "2026-07-31T19:42:48Z",
+          "runnerName": null,
+          "runnerToolProjection": null,
+          "steps": [],
+          "log": {
+            "authority": "read-only-sanitized-log-projection",
+            "readbackStatus": "not-applicable-skipped-job",
+            "markerCount": 0,
+            "failureCodes": [],
+            "failureObservations": [],
+            "policyTestTotal": null,
+            "policyTestPassed": null,
+            "rawLogsPersisted": false
+          }
+        },
+        {
+          "jobName": "Security",
+          "jobKey": "security",
+          "checkRunId": 91254158599,
+          "status": "completed",
+          "conclusion": "skipped",
+          "startedAt": "2026-07-31T19:42:48Z",
+          "completedAt": "2026-07-31T19:42:48Z",
+          "runnerName": null,
+          "runnerToolProjection": null,
+          "steps": [],
+          "log": {
+            "authority": "read-only-sanitized-log-projection",
+            "readbackStatus": "not-applicable-skipped-job",
+            "markerCount": 0,
+            "failureCodes": [],
+            "failureObservations": [],
+            "policyTestTotal": null,
+            "policyTestPassed": null,
+            "rawLogsPersisted": false
+          }
+        },
+        {
+          "jobName": "Claude structural lifecycle / ${{ matrix.lane }}",
+          "jobKey": "claude-lifecycle",
+          "checkRunId": 91254158746,
+          "status": "completed",
+          "conclusion": "skipped",
+          "startedAt": "2026-07-31T19:42:48Z",
+          "completedAt": "2026-07-31T19:42:48Z",
+          "runnerName": null,
+          "runnerToolProjection": null,
+          "steps": [],
+          "log": {
+            "authority": "read-only-sanitized-log-projection",
+            "readbackStatus": "not-applicable-skipped-job",
+            "markerCount": 0,
+            "failureCodes": [],
+            "failureObservations": [],
+            "policyTestTotal": null,
+            "policyTestPassed": null,
+            "rawLogsPersisted": false
+          }
+        },
+        {
+          "jobName": "Windows integration",
+          "jobKey": "windows-integration",
+          "checkRunId": 91254158821,
+          "status": "completed",
+          "conclusion": "skipped",
+          "startedAt": "2026-07-31T19:42:48Z",
+          "completedAt": "2026-07-31T19:42:48Z",
+          "runnerName": null,
+          "runnerToolProjection": null,
+          "steps": [],
+          "log": {
+            "authority": "read-only-sanitized-log-projection",
+            "readbackStatus": "not-applicable-skipped-job",
+            "markerCount": 0,
+            "failureCodes": [],
+            "failureObservations": [],
+            "policyTestTotal": null,
+            "policyTestPassed": null,
+            "rawLogsPersisted": false
+          }
+        },
+        {
+          "jobName": "Non-blocking Codex canary / ${{ matrix.lane }}",
+          "jobKey": "next-canary",
+          "checkRunId": 91254158947,
+          "status": "completed",
+          "conclusion": "skipped",
+          "startedAt": "2026-07-31T19:42:48Z",
+          "completedAt": "2026-07-31T19:42:48Z",
+          "runnerName": null,
+          "runnerToolProjection": null,
+          "steps": [],
+          "log": {
+            "authority": "read-only-sanitized-log-projection",
+            "readbackStatus": "not-applicable-skipped-job",
+            "markerCount": 0,
+            "failureCodes": [],
+            "failureObservations": [],
+            "policyTestTotal": null,
+            "policyTestPassed": null,
+            "rawLogsPersisted": false
+          }
+        },
+        {
+          "jobName": "Unit tests",
+          "jobKey": "unit",
+          "checkRunId": 91254158974,
+          "status": "completed",
+          "conclusion": "skipped",
+          "startedAt": "2026-07-31T19:42:48Z",
+          "completedAt": "2026-07-31T19:42:48Z",
+          "runnerName": null,
+          "runnerToolProjection": null,
+          "steps": [],
+          "log": {
+            "authority": "read-only-sanitized-log-projection",
+            "readbackStatus": "not-applicable-skipped-job",
+            "markerCount": 0,
+            "failureCodes": [],
+            "failureObservations": [],
+            "policyTestTotal": null,
+            "policyTestPassed": null,
+            "rawLogsPersisted": false
+          }
+        },
+        {
+          "jobName": "Core contract / ${{ matrix.lane }}",
+          "jobKey": "core-contract",
+          "checkRunId": 91254159050,
+          "status": "completed",
+          "conclusion": "skipped",
+          "startedAt": "2026-07-31T19:42:48Z",
+          "completedAt": "2026-07-31T19:42:48Z",
+          "runnerName": null,
+          "runnerToolProjection": null,
+          "steps": [],
+          "log": {
+            "authority": "read-only-sanitized-log-projection",
+            "readbackStatus": "not-applicable-skipped-job",
+            "markerCount": 0,
+            "failureCodes": [],
+            "failureObservations": [],
+            "policyTestTotal": null,
+            "policyTestPassed": null,
+            "rawLogsPersisted": false
+          }
+        }
+      ],
+      "validatedFragments": [
+        {
+          "jobName": "CI",
+          "jobKey": "gate",
+          "checkRunId": 91254158347,
+          "conclusion": "failure",
+          "markerCount": 1,
+          "markerSha256": "506478994bf35af69f35746a4511f8b6b551e8a409ee0c0de78c5ecac10b7f28",
+          "fragmentStatus": "validated-rest-bound",
+          "restBindingStatus": "validated",
+          "observedRegistrySha256": null,
+          "expectedRegistrySha256": null,
+          "validationErrorCodes": [],
+          "releaseTrustInput": false,
+          "sanitizedLogProjection": {
+            "authority": "read-only-sanitized-log-projection",
+            "imageOS": "win25-vs2026",
+            "imageVersion": "20260728.188.1",
+            "osCaption": "Microsoft Windows Server 2025 Datacenter",
+            "osVersion": "10.0.26100",
+            "osBuild": "26100",
+            "architecture": "X64",
+            "powershellVersion": "7.6.4",
+            "filesystem": "NTFS",
+            "node": "24.18.1",
+            "npm": "11.16.0",
+            "nodeExecutableSha256": "ac51903c4c111815d52280b1fdcc8da067cbb37e2fe1a765097b85c3292c8582",
+            "runnerVersion": "2.336.0",
+            "startedAt": "2026-07-31T19:43:02.4047291+00:00",
+            "finishedAt": "2026-07-31T19:43:16.5340099+00:00",
+            "wallTimeMs": 14129,
+            "rawExitCode": 1,
+            "observedStatus": "executed-fail",
+            "rawLogsPersisted": false,
+            "hostedGateInput": true
+          }
+        }
+      ],
+      "rejectedFragments": [
+        {
+          "jobName": "Dependency review",
+          "jobKey": "dependency-review",
+          "checkRunId": 91253973440,
+          "conclusion": "success",
+          "markerCount": 1,
+          "markerSha256": "60c6a64ffdb6d645fddce8b4d20d7cea43d9f21872c10a785da226fbb1fae8ff",
+          "fragmentStatus": "rejected-untrusted-fragment",
+          "restBindingStatus": "validated",
+          "observedRegistrySha256": "854bb2937f087090ebebf8d03990ff1ee441e18bbcb006743cb29939f61fcb3a",
+          "expectedRegistrySha256": "28781c049eaeebcfe189b360d3f77583843c50ce08cbc073748537e84e9e6aa8",
+          "validationErrorCodes": [
+            "P5E_RUNNER_EVIDENCE_IDENTITY"
+          ],
+          "releaseTrustInput": false,
+          "sanitizedLogProjection": {
+            "authority": "read-only-sanitized-log-projection",
+            "imageOS": "win25-vs2026",
+            "imageVersion": "20260728.188.1",
+            "osCaption": "Microsoft Windows Server 2025 Datacenter",
+            "osVersion": "10.0.26100",
+            "osBuild": "26100",
+            "architecture": "X64",
+            "powershellVersion": "7.6.4",
+            "filesystem": "NTFS",
+            "node": "24.18.1",
+            "npm": "11.16.0",
+            "nodeExecutableSha256": "ac51903c4c111815d52280b1fdcc8da067cbb37e2fe1a765097b85c3292c8582",
+            "runnerVersion": "2.336.0",
+            "startedAt": "2026-07-31T19:42:10.3332473+00:00",
+            "finishedAt": "2026-07-31T19:42:32.0375404+00:00",
+            "wallTimeMs": 21704,
+            "rawExitCode": 0,
+            "observedStatus": "executed-pass",
+            "rawLogsPersisted": false,
+            "hostedGateInput": false
+          }
+        },
+        {
+          "jobName": "Policy validation",
+          "jobKey": "policy-validation",
+          "checkRunId": 91253973529,
+          "conclusion": "failure",
+          "markerCount": 1,
+          "markerSha256": "db9f0476c091dec2dd1a6fe0077423279274a36580284ecf0e121196cfe58897",
+          "fragmentStatus": "rejected-untrusted-fragment",
+          "restBindingStatus": "validated",
+          "observedRegistrySha256": "854bb2937f087090ebebf8d03990ff1ee441e18bbcb006743cb29939f61fcb3a",
+          "expectedRegistrySha256": "28781c049eaeebcfe189b360d3f77583843c50ce08cbc073748537e84e9e6aa8",
+          "validationErrorCodes": [
+            "P5E_RUNNER_EVIDENCE_IDENTITY"
+          ],
+          "releaseTrustInput": false,
+          "sanitizedLogProjection": {
+            "authority": "read-only-sanitized-log-projection",
+            "imageOS": "win25-vs2026",
+            "imageVersion": "20260714.173.1",
+            "osCaption": "Microsoft Windows Server 2025 Datacenter",
+            "osVersion": "10.0.26100",
+            "osBuild": "26100",
+            "architecture": "X64",
+            "powershellVersion": "7.6.3",
+            "filesystem": "NTFS",
+            "node": "24.18.1",
+            "npm": "11.16.0",
+            "nodeExecutableSha256": "ac51903c4c111815d52280b1fdcc8da067cbb37e2fe1a765097b85c3292c8582",
+            "runnerVersion": "2.336.0",
+            "startedAt": "2026-07-31T19:42:09.1630521+00:00",
+            "finishedAt": "2026-07-31T19:42:43.9815676+00:00",
+            "wallTimeMs": 34819,
+            "rawExitCode": 1,
+            "observedStatus": "executed-fail",
+            "rawLogsPersisted": false,
+            "hostedGateInput": false
+          }
+        }
+      ],
+      "artifacts": {
+        "authority": "run-artifacts-rest-readback",
+        "endpoint": "repos/wotjr1649/codex-conductor-cc/actions/runs/30660084412/artifacts",
+        "observedAt": "2026-08-01T00:05:36Z",
+        "readbackStatus": "resolved",
+        "observedCount": 0,
+        "entries": [],
+        "releaseTrustInput": false
+      }
+    }
+  ],
+  "prRefCacheObservation": {
+    "authority": "actions-cache-rest-readback",
+    "endpoint": "repos/wotjr1649/codex-conductor-cc/actions/caches?ref=refs/pull/2/merge",
+    "ref": "refs/pull/2/merge",
+    "mergeSha": "7a84c7cfd45c9f8f8f74fb5ac2106dec8d0904f7",
+    "observedAt": "2026-08-01T00:05:36Z",
+    "readbackStatus": "resolved",
+    "matchingRefCacheCount": 0,
+    "entries": [],
+    "inventorySha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "executionWindowAttribution": "not-observed",
+    "releaseTrustInput": false
+  }
 }
