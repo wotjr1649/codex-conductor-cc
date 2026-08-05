@@ -138,6 +138,33 @@ function psQuote(value) {
   return `'${String(value).replaceAll("'", "''")}'`;
 }
 
+function fixedProbeDiagnostic(result, fallback) {
+  return /\bP5E_[A-Z0-9_]+\b/.exec(`${result.stderr ?? ""}\n${result.stdout ?? ""}`)?.[0] ?? fallback;
+}
+
+test("P5-DIAGNOSTIC-001 subprocess diagnostics expose only fixed P5 tokens", () => {
+  const fallback = "P5E_TEST_MODULE_PROBE";
+
+  for (const token of [
+    "P5E_NODE_IDENTITY_RESOLUTION",
+    "P5E_NODE_IDENTITY_NPM_ADJACENCY",
+    "P5E_NODE_IDENTITY_NODE_VERSION",
+    "P5E_NODE_IDENTITY_NPM_VERSION",
+    "P5E_NODE_IDENTITY_ARCHITECTURE",
+    "P5E_NODE_IDENTITY_DIGEST",
+    "P5E_NODE_IDENTITY_INVOCATION"
+  ]) {
+    assert.equal(
+      fixedProbeDiagnostic({ stderr: `${token}: synthetic-private-path`, stdout: "" }, fallback),
+      token
+    );
+  }
+  assert.equal(
+    fixedProbeDiagnostic({ stderr: "synthetic-private-path", stdout: "" }, fallback),
+    fallback
+  );
+});
+
 test("P5-RED-001 versioned profile, scenario, schema, and evidence sources exist", () => {
   for (const relativePath of [
     "ci/matrix-profiles-v1.json",
@@ -838,8 +865,18 @@ test("P5-POWERSHELL-001 exact npm, clock, and local writer contracts execute", (
     .join(path.delimiter);
   const exactNodePrelude = [
     `$env:Path = ${psQuote(path.dirname(process.execPath))} + [IO.Path]::PathSeparator + $env:Path`,
-    "$resolvedNode = (Get-Command node -CommandType Application | Select-Object -First 1).Source",
-    `if (-not [string]::Equals([IO.Path]::GetFullPath($resolvedNode), [IO.Path]::GetFullPath(${psQuote(process.execPath)}), [StringComparison]::OrdinalIgnoreCase)) { throw 'P5E_TEST_NODE_PATH' }`
+    "try { $resolvedNode = (Get-Command node -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source } catch { throw 'P5E_NODE_IDENTITY_RESOLUTION' }",
+    `if (-not [string]::Equals([IO.Path]::GetFullPath($resolvedNode), [IO.Path]::GetFullPath(${psQuote(process.execPath)}), [StringComparison]::OrdinalIgnoreCase)) { throw 'P5E_NODE_IDENTITY_RESOLUTION' }`
+  ].join("; ");
+  const nodeIdentityDiagnosticPrelude = [
+    "$diagnosticNpm = Join-Path (Split-Path -Parent $resolvedNode) 'npm.cmd'",
+    "if (-not (Test-Path -LiteralPath $diagnosticNpm -PathType Leaf)) { throw 'P5E_NODE_IDENTITY_NPM_ADJACENCY' }",
+    "try { $diagnosticNodeVersion = (& $resolvedNode --version).Trim().TrimStart('v') } catch { throw 'P5E_NODE_IDENTITY_NODE_VERSION' }",
+    "try { $diagnosticNpmVersion = (& $diagnosticNpm --version).Trim() } catch { throw 'P5E_NODE_IDENTITY_NPM_VERSION' }",
+    "try { $diagnosticArchitecture = (& $resolvedNode -p 'process.arch').Trim() } catch { throw 'P5E_NODE_IDENTITY_ARCHITECTURE' }",
+    "if ($diagnosticNodeVersion -cne '24.18.1') { throw 'P5E_NODE_IDENTITY_NODE_VERSION' }",
+    "if ($diagnosticNpmVersion -cne '11.16.0') { throw 'P5E_NODE_IDENTITY_NPM_VERSION' }",
+    "if ($diagnosticArchitecture -cne 'x64') { throw 'P5E_NODE_IDENTITY_ARCHITECTURE' }"
   ].join("; ");
   {
     const shadowProbe = spawnSync(
@@ -869,6 +906,7 @@ test("P5-POWERSHELL-001 exact npm, clock, and local writer contracts execute", (
         "-Command",
         [
           exactNodePrelude,
+          nodeIdentityDiagnosticPrelude,
           `Import-Module ${psQuote(modulePath)} -Force`,
           "function global:npm { '99.99.99' }",
           `$p = Get-P5ExecutionProvenance -RepositoryRoot ${psQuote(root)} -OutputPath ${psQuote(outputPath)} -ExecutionClass local -ExpectedNodeVersion 24.18.1 -ExpectedNpmVersion 11.16.0 -ExpectedNodeSha256 ac51903c4c111815d52280b1fdcc8da067cbb37e2fe1a765097b85c3292c8582 -RequireNodeIdentity $true`,
@@ -884,7 +922,11 @@ test("P5-POWERSHELL-001 exact npm, clock, and local writer contracts execute", (
       ],
       { cwd: root, encoding: "utf8", env, shell: false, windowsHide: true }
     );
-    assert.equal(moduleProbe.status, 0, "P5E_TEST_MODULE_PROBE");
+    assert.equal(
+      moduleProbe.status,
+      0,
+      fixedProbeDiagnostic(moduleProbe, "P5E_TEST_MODULE_PROBE")
+    );
 
     const writerProbe = spawnSync(
       powershellPath,

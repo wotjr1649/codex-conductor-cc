@@ -102,9 +102,7 @@ if (
 ) {
     throw 'P5E_EVIDENCE_FIXTURE: verified fixture IDs must be a unique subset of the scenario registry'
 }
-$oracleRegistryDigest = (
-    Get-FileHash -Algorithm SHA256 -LiteralPath $scenarioRegistryPath
-).Hash.ToLowerInvariant()
+$oracleRegistryDigest = Get-P5FileSha256 -LiteralPath $scenarioRegistryPath
 $runtimeImplementedProperty = $profileRecord.PSObject.Properties['runtimeImplemented']
 $runtimeImplemented = if ($null -eq $runtimeImplementedProperty) {
     $true
@@ -215,7 +213,7 @@ if ($singleToolRequested) {
     if (-not (Test-Path -LiteralPath $resolvedTool -PathType Leaf)) {
         throw 'P5E_TOOL_MISSING: exact tool executable is missing'
     }
-    $toolDigest = (Get-FileHash -Algorithm SHA256 -LiteralPath $resolvedTool).Hash.ToLowerInvariant()
+    $toolDigest = Get-P5FileSha256 -LiteralPath $resolvedTool
     if ($toolDigest -ne $ExpectedToolSha256) {
         throw 'P5E_TOOL_DIGEST: exact tool executable digest differs'
     }
@@ -271,9 +269,7 @@ if ($toolSetRequested) {
         if (-not (Test-Path -LiteralPath $resolvedTool -PathType Leaf)) {
             throw "P5E_TOOL_MISSING: exact $toolId executable is missing"
         }
-        $toolDigest = (
-            Get-FileHash -Algorithm SHA256 -LiteralPath $resolvedTool
-        ).Hash.ToLowerInvariant()
+        $toolDigest = Get-P5FileSha256 -LiteralPath $resolvedTool
         if ($toolDigest -cne [string]$record.artifact.executableSha256) {
             throw "P5E_TOOL_DIGEST: exact $toolId executable digest differs"
         }

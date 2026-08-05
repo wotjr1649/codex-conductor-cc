@@ -5,6 +5,23 @@ function Get-P5NormalizedFullPath {
     return [IO.Path]::GetFullPath($LiteralPath)
 }
 
+function Get-P5FileSha256 {
+    param([Parameter(Mandatory = $true)][string]$LiteralPath)
+    $stream = $null
+    $sha256 = $null
+    try {
+        $stream = [IO.File]::OpenRead($LiteralPath)
+        $sha256 = [Security.Cryptography.SHA256]::Create()
+        return [BitConverter]::ToString(
+            $sha256.ComputeHash($stream)
+        ).Replace('-', '').ToLowerInvariant()
+    }
+    finally {
+        if ($null -ne $sha256) { $sha256.Dispose() }
+        if ($null -ne $stream) { $stream.Dispose() }
+    }
+}
+
 function Assert-P5NoReparsePath {
     param([Parameter(Mandatory = $true)][string]$LiteralPath)
     $cursorPath = Get-P5NormalizedFullPath -LiteralPath $LiteralPath
@@ -76,37 +93,50 @@ function Get-P5NodeIdentity {
     $nodeArchitecture = $null
     $nodeDigest = $null
     $status = 'unavailable'
+    $diagnosticToken = 'P5E_NODE_IDENTITY_INVOCATION'
     try {
+        $diagnosticToken = 'P5E_NODE_IDENTITY_RESOLUTION'
         $nodeCommand = Get-Command node -CommandType Application -ErrorAction Stop |
             Select-Object -First 1
         $nodePath = $nodeCommand.Source
         $npmPath = Join-Path (Split-Path -Parent $nodePath) 'npm.cmd'
+        $diagnosticToken = 'P5E_NODE_IDENTITY_NPM_ADJACENCY'
         if (-not (Test-Path -LiteralPath $npmPath -PathType Leaf)) {
-            throw 'npm.cmd is not adjacent to node.exe'
+            $status = 'mismatch'
+            throw $diagnosticToken
         }
+        $diagnosticToken = 'P5E_NODE_IDENTITY_NODE_VERSION'
         $nodeVersion = (& $nodePath --version).Trim().TrimStart('v')
+        if ($nodeVersion -cne $ExpectedNodeVersion) {
+            $status = 'mismatch'
+            throw $diagnosticToken
+        }
+        $diagnosticToken = 'P5E_NODE_IDENTITY_NPM_VERSION'
         $npmVersion = (& $npmPath --version).Trim()
+        if ($npmVersion -cne $ExpectedNpmVersion) {
+            $status = 'mismatch'
+            throw $diagnosticToken
+        }
+        $diagnosticToken = 'P5E_NODE_IDENTITY_ARCHITECTURE'
         $nodeArchitecture = (& $nodePath -p 'process.arch').Trim()
-        $nodeDigest = (
-            Get-FileHash -Algorithm SHA256 -LiteralPath $nodePath
-        ).Hash.ToLowerInvariant()
-        $status = if (
-            $nodeVersion -ceq $ExpectedNodeVersion -and
-            $npmVersion -ceq $ExpectedNpmVersion -and
-            $nodeArchitecture -ceq 'x64' -and
-            $nodeDigest -ceq $ExpectedNodeSha256
-        ) {
-            'verified-exact'
+        if ($nodeArchitecture -cne 'x64') {
+            $status = 'mismatch'
+            throw $diagnosticToken
         }
-        else {
-            'mismatch'
+        $diagnosticToken = 'P5E_NODE_IDENTITY_DIGEST'
+        $nodeDigest = Get-P5FileSha256 -LiteralPath $nodePath
+        if ($nodeDigest -cne $ExpectedNodeSha256) {
+            $status = 'mismatch'
+            throw $diagnosticToken
         }
+        $status = 'verified-exact'
+        $diagnosticToken = $null
     }
     catch {
-        $status = 'unavailable'
     }
     return [ordered]@{
         nodeIdentityStatus = $status
+        nodeIdentityDiagnostic = $diagnosticToken
         node = $nodeVersion
         npm = $npmVersion
         nodeArchitecture = $nodeArchitecture
@@ -147,7 +177,11 @@ function Get-P5ExecutionProvenance {
         -ExpectedNpmVersion $ExpectedNpmVersion `
         -ExpectedNodeSha256 $ExpectedNodeSha256
     if ($RequireNodeIdentity -and $nodeIdentity.nodeIdentityStatus -cne 'verified-exact') {
-        throw 'P5E_NODE_IDENTITY: exact Node/npm/x64 executable identity is required'
+        $diagnosticToken = [string]$nodeIdentity.nodeIdentityDiagnostic
+        if ($diagnosticToken -notmatch '^P5E_[A-Z0-9_]+$') {
+            $diagnosticToken = 'P5E_NODE_IDENTITY_INVOCATION'
+        }
+        throw $diagnosticToken
     }
 
     $os = Get-CimInstance Win32_OperatingSystem
@@ -403,6 +437,7 @@ function Write-P5SanitizedEvidence {
 }
 
 Export-ModuleMember -Function `
+    Get-P5FileSha256, `
     Get-P5ExecutionProvenance, `
     Get-P5AttemptEvidence, `
     Write-P5SanitizedEvidence
