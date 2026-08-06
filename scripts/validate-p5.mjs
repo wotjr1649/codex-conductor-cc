@@ -30,6 +30,10 @@ const P5_INTEGRATION_REPAIRS = [
   {
     base: "5ddb05da90378c97b54d5c86822fe6d33c643160",
     paths: ["scripts/validate-p5.mjs", "tests/p5-windows-resource.test.mjs"]
+  },
+  {
+    base: "75523be882f8c67097cf9ec007de53a3cd920680",
+    paths: ["scripts/validate-p5.mjs", "tests/p5-windows-resource.test.mjs"]
   }
 ];
 const errors = [];

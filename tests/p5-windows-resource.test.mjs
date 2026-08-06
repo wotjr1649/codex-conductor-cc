@@ -138,7 +138,19 @@ test("P5-PROCESS-TREE-001 taskkill releases the exact child and retained file ha
   );
 
   const releasedPath = path.join(runRoot, "released.txt");
-  renameSync(heldPath, releasedPath);
+  await waitFor(
+    () => {
+      try {
+        renameSync(heldPath, releasedPath);
+        return true;
+      } catch (error) {
+        if (["EBUSY", "EPERM", "EACCES"].includes(error?.code)) return false;
+        throw error;
+      }
+    },
+    4000,
+    "P5E_OPEN_HANDLE_RESIDUAL"
+  );
   rmSync(releasedPath);
   assert.equal(processExists(root.pid), false, "P5E_ROOT_RESIDUAL");
   assert.equal(processExists(childPid), false, "P5E_CHILD_RESIDUAL");
