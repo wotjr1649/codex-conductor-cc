@@ -22,6 +22,20 @@ import {
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const P4_FINAL = "84515289913dfe8a7452754ad442d37873bdfd53";
 const ACTUAL_P4_SOURCE = "843e679936daba71a6c4c2fdd55fcade01b46b73";
+const RECORDED_P4_SOURCE = "843e679a90d4ef6946af251d36f43d257f8a5a10";
+const P4_SOURCE_ERRATUM_SCHEMA =
+  "evidence/schemas/p5-p4-source-binding-erratum-v1.schema.json";
+const P4_SOURCE_ERRATUM =
+  "evidence/manifests/p5/p4-source-binding-erratum-20260807.json";
+const P4_SOURCE_ERRATUM_REPAIR_BASE = "b947ac4c8c6483812d93105a6046cedd0feb9643";
+const P4_SOURCE_ERRATUM_REPAIR_PATHS = [
+  P4_SOURCE_ERRATUM_SCHEMA,
+  P4_SOURCE_ERRATUM,
+  "scripts/validate-p5.mjs",
+  "tests/p5-matrix-profile.test.mjs"
+];
+const INTEGRATION_MAIN = "de6aa123bb1b6aacefeac2953df5c0817e3b93d2";
+const INTEGRATION_MAIN_PATHS = ["docs/FORK_AND_PORTING_STRATEGY.md"];
 const P5_INTEGRATION_REPAIRS = [
   {
     base: "ca9204646deb8c024cd76985092720ede2552028",
@@ -34,6 +48,10 @@ const P5_INTEGRATION_REPAIRS = [
   {
     base: "75523be882f8c67097cf9ec007de53a3cd920680",
     paths: ["scripts/validate-p5.mjs", "tests/p5-windows-resource.test.mjs"]
+  },
+  {
+    base: P4_SOURCE_ERRATUM_REPAIR_BASE,
+    paths: P4_SOURCE_ERRATUM_REPAIR_PATHS
   }
 ];
 const errors = [];
@@ -140,7 +158,9 @@ const requiredFiles = [
   "evidence/schemas/p5-runner-evidence-v2.schema.json",
   "evidence/schemas/p5-gate-evidence-v1.schema.json",
   "evidence/schemas/p5-hosted-harvest-v1.schema.json",
+  P4_SOURCE_ERRATUM_SCHEMA,
   "evidence/manifests/p5/p5-matrix-profile-bootstrap-20260731.json",
+  P4_SOURCE_ERRATUM,
   "evidence/ledgers/p5-attempts.json",
   "scripts/invoke-p4-validator-at-handoff.ps1",
   "scripts/run-p5-attempt-clock.ps1",
@@ -184,6 +204,8 @@ const schema = evidenceSchemaPath ? readJson(evidenceSchemaPath) : null;
 const runnerEvidenceSchema = readJson("evidence/schemas/p5-runner-evidence-v2.schema.json");
 const gateEvidenceSchema = readJson("evidence/schemas/p5-gate-evidence-v1.schema.json");
 const hostedHarvestSchema = readJson("evidence/schemas/p5-hosted-harvest-v1.schema.json");
+const sourceErratumSchema = readJson(P4_SOURCE_ERRATUM_SCHEMA);
+const sourceErratum = readJson(P4_SOURCE_ERRATUM);
 const ledger = readJson("evidence/ledgers/p5-attempts.json");
 const inventory = readJson("evidence/inventory/p5-prechange-20260731.json");
 const baselinePath = path.join(
@@ -258,6 +280,37 @@ if (
 if (evidence && schema) {
   errors.push(...validateJsonSchema(evidence, schema, "P5 evidence"));
   errors.push(...validateP5Evidence(evidence, profiles));
+}
+if (sourceErratum && sourceErratumSchema) {
+  errors.push(
+    ...validateJsonSchema(
+      sourceErratum,
+      sourceErratumSchema,
+      "P4 source-binding erratum"
+    )
+  );
+}
+if (
+  sourceErratum?.schemaVersion !== "p5-p4-source-binding-erratum-v1" ||
+  sourceErratum?.id !== "P5-P4-SOURCE-BINDING-ERRATUM-20260807" ||
+  sourceErratum?.subject?.p4FinalCommit !== P4_FINAL ||
+  sourceErratum?.subject?.recordedSourceCommit !== RECORDED_P4_SOURCE ||
+  sourceErratum?.subject?.actualSourceCommit !== ACTUAL_P4_SOURCE ||
+  sourceErratum?.correction?.actualSourceCommit !== ACTUAL_P4_SOURCE ||
+  sourceErratum?.correction?.relationship !== "first-parent-of-p4-final" ||
+  sourceErratum?.correction?.disposition !== "corrected-append-only" ||
+  sourceErratum?.correction?.immutableP4EvidenceRewritten !== false ||
+  sourceErratum?.verification?.recordedSourceResolvable !== false ||
+  sourceErratum?.verification?.actualSourceResolvable !== true ||
+  sourceErratum?.verification?.actualSourceIsFirstParent !== true ||
+  JSON.stringify(sourceErratum?.supersedesClaimsIn) !==
+    JSON.stringify([
+      "docs/baselines/2026-07-31-p4-contract-baseline.md",
+      "evidence/ledgers/p4-attempts.json",
+      "evidence/manifests/p4/p4-contract-baseline-20260731.json"
+    ])
+) {
+  errors.push("P5E_P4_SOURCE_ERRATUM");
 }
 if (ledger) errors.push(...validateAttemptLedger(ledger));
 if (
@@ -337,7 +390,29 @@ const exactBootstrap = isExactP5BootstrapCheckout(
   }))
 );
 const validationHeadSha = git(["rev-parse", validationHead]);
-const exactIntegrationRepair = P5_INTEGRATION_REPAIRS.some(
+const exactRepairCommit = (commit) =>
+  commitParents(commit).length === 1 &&
+  commitParents(commit)[0] === P4_SOURCE_ERRATUM_REPAIR_BASE &&
+  samePathSet(commitPaths(commit), P4_SOURCE_ERRATUM_REPAIR_PATHS);
+const attemptedMainSync =
+  headParents.length === 2 && headParents[1] === INTEGRATION_MAIN;
+const exactMainSync =
+  attemptedMainSync &&
+  uncommittedPaths.length === 0 &&
+  exactRepairCommit(headParents[0]) &&
+  samePathSet(
+    gitLines(["diff", "--name-only", `${headParents[0]}..${validationHead}`]),
+    INTEGRATION_MAIN_PATHS
+  ) &&
+  INTEGRATION_MAIN_PATHS.every(
+    (relativePath) =>
+      git(["rev-parse", `${validationHead}:${relativePath}`]) ===
+      git(["rev-parse", `${INTEGRATION_MAIN}:${relativePath}`])
+  );
+if (attemptedMainSync && !exactMainSync) {
+  errors.push("P5E_INTEGRATION_MAIN");
+}
+const exactIntegrationRepair = exactMainSync || P5_INTEGRATION_REPAIRS.some(
   ({ base, paths }) =>
     (validationHeadSha === base && samePathSet(uncommittedPaths, paths)) ||
     (uncommittedPaths.length === 0 &&
@@ -363,7 +438,7 @@ if (
 ) {
   errors.push("P5E_INVENTORY: exact prechange handoff and source-binding blocker required");
 }
-for (const authored of [inventory, ledger, evidence, profiles, scenarios]) {
+for (const authored of [inventory, ledger, evidence, sourceErratum, profiles, scenarios]) {
   if (authored) errors.push(...validateP5Privacy(authored, "authoredEvidence"));
 }
 
@@ -372,7 +447,7 @@ if (git(["rev-parse", `${P4_FINAL}^`]) !== ACTUAL_P4_SOURCE) {
 }
 const recordedType = spawnSync(
   "git",
-  ["cat-file", "-t", "843e679a90d4ef6946af251d36f43d257f8a5a10"],
+  ["cat-file", "-t", RECORDED_P4_SOURCE],
   { cwd: ROOT, encoding: "utf8", shell: false, windowsHide: true }
 );
 if (recordedType.status === 0) {
@@ -439,7 +514,10 @@ const changed = [
   ...uncommittedPaths
 ];
 for (const relativePath of new Set(changed)) {
-  if (!isP5AllowedPath(relativePath)) {
+  if (
+    !isP5AllowedPath(relativePath) &&
+    !(exactMainSync && INTEGRATION_MAIN_PATHS.includes(relativePath))
+  ) {
     errors.push(`P5E_SCOPE: path outside P5 allowlist: ${relativePath}`);
   }
 }

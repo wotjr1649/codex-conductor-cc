@@ -1020,7 +1020,7 @@ test("P5-INTEGRATION-HEAD-001 validates the pull-request head, not its synthetic
   const eventPath = path.join(probeRoot, "event.json");
   const repository = "wotjr1649/codex-conductor-cc";
   const baseSha = "de6aa123bb1b6aacefeac2953df5c0817e3b93d2";
-  const integrationBase = "ca9204646deb8c024cd76985092720ede2552028";
+  const integrationBase = "b947ac4c8c6483812d93105a6046cedd0feb9643";
   const git = (args) => spawnSync("git", args, {
     cwd: repoPath,
     encoding: "utf8",
@@ -1039,6 +1039,8 @@ test("P5-INTEGRATION-HEAD-001 validates the pull-request head, not its synthetic
   assert.equal(clone.status, 0, fixedProbeDiagnostic(clone, "P5E_TEST_GIT"));
   requireGit(["checkout", "--detach", integrationBase]);
   for (const relativePath of [
+    "evidence/schemas/p5-p4-source-binding-erratum-v1.schema.json",
+    "evidence/manifests/p5/p4-source-binding-erratum-20260807.json",
     "scripts/validate-p5.mjs",
     "tests/p5-matrix-profile.test.mjs"
   ]) {
@@ -1047,7 +1049,14 @@ test("P5-INTEGRATION-HEAD-001 validates the pull-request head, not its synthetic
       readFileSync(path.join(root, relativePath))
     );
   }
-  requireGit(["add", "scripts/validate-p5.mjs", "tests/p5-matrix-profile.test.mjs"]);
+  requireGit([
+    "add",
+    "--",
+    "evidence/schemas/p5-p4-source-binding-erratum-v1.schema.json",
+    "evidence/manifests/p5/p4-source-binding-erratum-20260807.json",
+    "scripts/validate-p5.mjs",
+    "tests/p5-matrix-profile.test.mjs"
+  ]);
   requireGit([
     "-c", "user.name=P5 Test",
     "-c", "user.email=p5-test@example.invalid",
@@ -1102,6 +1111,128 @@ test("P5-INTEGRATION-HEAD-001 validates the pull-request head, not its synthetic
   const spoofed = runValidator();
   assert.equal(spoofed.status, 1, fixedProbeDiagnostic(spoofed, "P5E_TEST_VALIDATOR"));
   assert.equal(fixedProbeDiagnostic(spoofed, "P5E_TEST_VALIDATOR"), "P5E_PR_HEAD");
+});
+
+test("P5-P4-ERRATUM-001 accepts only the append-only correction frontier and exact main sync", (t) => {
+  const schemaPath = "evidence/schemas/p5-p4-source-binding-erratum-v1.schema.json";
+  const erratumPath = "evidence/manifests/p5/p4-source-binding-erratum-20260807.json";
+  assert.equal(existsSync(path.join(root, schemaPath)), true, "P5E_TEST_ERRATUM_SCHEMA");
+  assert.equal(existsSync(path.join(root, erratumPath)), true, "P5E_TEST_ERRATUM_MANIFEST");
+
+  const erratum = readJson(erratumPath);
+  assert.deepEqual(
+    validateJsonSchema(erratum, readJson(schemaPath), "P4 source-binding erratum"),
+    []
+  );
+
+  const probeRoot = mkdtempSync(path.join(tmpdir(), "p5-p4-erratum-"));
+  t.after(() => rmSync(probeRoot, { recursive: true, force: true }));
+  const repoPath = path.join(probeRoot, "repo");
+  const git = (args) => spawnSync("git", args, {
+    cwd: repoPath,
+    encoding: "utf8",
+    shell: false
+  });
+  const requireGit = (args) => {
+    const result = git(args);
+    assert.equal(result.status, 0, fixedProbeDiagnostic(result, "P5E_TEST_GIT"));
+    return result.stdout.trim();
+  };
+  const runValidator = () => spawnSync(process.execPath, ["scripts/validate-p5.mjs"], {
+    cwd: repoPath,
+    encoding: "utf8",
+    shell: false,
+    env: { ...process.env, GITHUB_ACTIONS: "false" }
+  });
+
+  const clone = spawnSync("git", ["clone", "--shared", "--no-checkout", root, repoPath], {
+    encoding: "utf8",
+    shell: false
+  });
+  assert.equal(clone.status, 0, fixedProbeDiagnostic(clone, "P5E_TEST_GIT"));
+  requireGit(["checkout", "--detach", "b947ac4c8c6483812d93105a6046cedd0feb9643"]);
+  const repairPaths = [
+    schemaPath,
+    erratumPath,
+    "scripts/validate-p5.mjs",
+    "tests/p5-matrix-profile.test.mjs"
+  ];
+  for (const relativePath of repairPaths) {
+    writeFileSync(
+      path.join(repoPath, relativePath),
+      readFileSync(path.join(root, relativePath))
+    );
+  }
+  requireGit(["add", "--", ...repairPaths]);
+  requireGit([
+    "-c", "user.name=P5 Test",
+    "-c", "user.email=p5-test@example.invalid",
+    "-c", "commit.gpgsign=false",
+    "commit", "-m", "test: append P4 source-binding erratum"
+  ]);
+
+  const repaired = runValidator();
+  assert.equal(repaired.status, 0, fixedProbeDiagnostic(repaired, "P5E_TEST_ERRATUM"));
+
+  requireGit([
+    "-c", "user.name=P5 Test",
+    "-c", "user.email=p5-test@example.invalid",
+    "-c", "commit.gpgsign=false",
+    "merge", "--no-ff", "--no-edit", "de6aa123bb1b6aacefeac2953df5c0817e3b93d2"
+  ]);
+  const synchronized = runValidator();
+  assert.equal(
+    synchronized.status,
+    0,
+    fixedProbeDiagnostic(synchronized, "P5E_TEST_MAIN_SYNC")
+  );
+
+  const strategyPath = path.join(repoPath, "docs", "FORK_AND_PORTING_STRATEGY.md");
+  writeFileSync(strategyPath, "forged dirty merge resolution\n", "utf8");
+  const dirtyStrategy = runValidator();
+  assert.equal(
+    dirtyStrategy.status,
+    1,
+    fixedProbeDiagnostic(dirtyStrategy, "P5E_TEST_MAIN_SYNC")
+  );
+  assert.match(`${dirtyStrategy.stderr}\n${dirtyStrategy.stdout}`, /P5E_INTEGRATION_MAIN/);
+  requireGit(["restore", "--", "docs/FORK_AND_PORTING_STRATEGY.md"]);
+
+  const dirtyAllowedPath = path.join(repoPath, "evidence", "manifests", "p5", "dirty.json");
+  writeFileSync(dirtyAllowedPath, "{}\n", "utf8");
+  const dirtyAllowed = runValidator();
+  assert.equal(
+    dirtyAllowed.status,
+    1,
+    fixedProbeDiagnostic(dirtyAllowed, "P5E_TEST_MAIN_SYNC")
+  );
+  assert.match(`${dirtyAllowed.stderr}\n${dirtyAllowed.stdout}`, /P5E_INTEGRATION_MAIN/);
+  rmSync(dirtyAllowedPath);
+
+  const synchronizedCommit = requireGit(["rev-parse", "HEAD"]);
+  writeFileSync(
+    strategyPath,
+    "forged merge resolution\n",
+    "utf8"
+  );
+  requireGit(["add", "--", "docs/FORK_AND_PORTING_STRATEGY.md"]);
+  requireGit([
+    "-c", "user.name=P5 Test",
+    "-c", "user.email=p5-test@example.invalid",
+    "-c", "commit.gpgsign=false",
+    "commit", "--amend", "--no-edit"
+  ]);
+  const forgedSync = runValidator();
+  assert.equal(forgedSync.status, 1, fixedProbeDiagnostic(forgedSync, "P5E_TEST_MAIN_SYNC"));
+  assert.match(`${forgedSync.stderr}\n${forgedSync.stdout}`, /P5E_INTEGRATION_MAIN/);
+  requireGit(["reset", "--hard", synchronizedCommit]);
+
+  const forged = structuredClone(erratum);
+  forged.correction.actualSourceCommit = "0".repeat(40);
+  writeFileSync(path.join(repoPath, erratumPath), `${JSON.stringify(forged, null, 2)}\n`, "utf8");
+  const rejected = runValidator();
+  assert.equal(rejected.status, 1, fixedProbeDiagnostic(rejected, "P5E_TEST_ERRATUM"));
+  assert.match(`${rejected.stderr}\n${rejected.stdout}`, /P5E_P4_SOURCE_ERRATUM/);
 });
 
 test("P5-RED-001 versioned profile, scenario, schema, and evidence sources exist", () => {

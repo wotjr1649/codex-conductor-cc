@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "p5-p4-source-binding-erratum-v1",
+  "id": "P5-P4-SOURCE-BINDING-ERRATUM-20260807",
+  "subject": {
+    "p4FinalCommit": "84515289913dfe8a7452754ad442d37873bdfd53",
+    "recordedSourceCommit": "843e679a90d4ef6946af251d36f43d257f8a5a10",
+    "actualSourceCommit": "843e679936daba71a6c4c2fdd55fcade01b46b73"
+  },
+  "correction": {
+    "actualSourceCommit": "843e679936daba71a6c4c2fdd55fcade01b46b73",
+    "relationship": "first-parent-of-p4-final",
+    "disposition": "corrected-append-only",
+    "immutableP4EvidenceRewritten": false
+  },
+  "verification": {
+    "recordedSourceResolvable": false,
+    "actualSourceResolvable": true,
+    "actualSourceIsFirstParent": true
+  },
+  "supersedesClaimsIn": [
+    "docs/baselines/2026-07-31-p4-contract-baseline.md",
+    "evidence/ledgers/p4-attempts.json",
+    "evidence/manifests/p4/p4-contract-baseline-20260731.json"
+  ]
+}

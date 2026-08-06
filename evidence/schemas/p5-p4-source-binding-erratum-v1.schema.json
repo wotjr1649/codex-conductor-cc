@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wotjr1649.github.io/codex-conductor-cc/schemas/p5-p4-source-binding-erratum-v1.schema.json",
+  "title": "P5 append-only P4 source-binding erratum",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "id",
+    "subject",
+    "correction",
+    "verification",
+    "supersedesClaimsIn"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "p5-p4-source-binding-erratum-v1" },
+    "id": { "const": "P5-P4-SOURCE-BINDING-ERRATUM-20260807" },
+    "subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["p4FinalCommit", "recordedSourceCommit", "actualSourceCommit"],
+      "properties": {
+        "p4FinalCommit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "recordedSourceCommit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "actualSourceCommit": { "type": "string", "pattern": "^[0-9a-f]{40}$" }
+      }
+    },
+    "correction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["actualSourceCommit", "relationship", "disposition", "immutableP4EvidenceRewritten"],
+      "properties": {
+        "actualSourceCommit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "relationship": { "const": "first-parent-of-p4-final" },
+        "disposition": { "const": "corrected-append-only" },
+        "immutableP4EvidenceRewritten": { "const": false }
+      }
+    },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["recordedSourceResolvable", "actualSourceResolvable", "actualSourceIsFirstParent"],
+      "properties": {
+        "recordedSourceResolvable": { "const": false },
+        "actualSourceResolvable": { "const": true },
+        "actualSourceIsFirstParent": { "const": true }
+      }
+    },
+    "supersedesClaimsIn": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": { "type": "string", "minLength": 1 }
+    }
+  }
+}
