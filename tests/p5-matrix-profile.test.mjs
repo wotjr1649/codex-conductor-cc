@@ -91,6 +91,12 @@ const exactBootstrapFixture = {
   ],
   uncommittedPaths: []
 };
+const exactSourceFixPaths = [
+  ".github/workflows/pull-request-ci.yml",
+  "evidence/schemas/p5-evidence-v3.schema.json",
+  "scripts/lib/p5-validation.mjs",
+  "tests/p5-matrix-profile.test.mjs"
+];
 
 function hostedProvenance(jobKey, checkRunId) {
   return {
@@ -211,6 +217,120 @@ const P5_TEST_GATE_STEPS = [
   [15, "Post Set up Node.js", "skipped"],
   [16, "Post Check out repository", "success"],
   [17, "Complete job", "success"]
+];
+const P5_TEST_UNIT_STEPS = [
+  [1, "Set up job", "success"],
+  [2, "Check out repository", "success"],
+  [3, "Start profile clock", "success"],
+  [4, "Set up Node.js", "success"],
+  [5, "Verify exact Node identity", "success"],
+  [6, "Run unit partition", "success"],
+  [7, "Verify clean evidence source", "success"],
+  [8, "Write sanitized runner evidence", "success"],
+  [15, "Post Set up Node.js", "success"],
+  [16, "Post Check out repository", "success"],
+  [17, "Complete job", "success"]
+];
+const P5_TEST_SECURITY_STEPS = [
+  [1, "Set up job", "success"],
+  [2, "Check out repository", "success"],
+  [3, "Start profile clock", "success"],
+  [4, "Set up Node.js", "success"],
+  [5, "Verify exact Node identity", "success"],
+  [6, "Acquire exact local security tools", "success"],
+  [7, "Lint workflow", "success"],
+  [8, "Audit workflow security", "success"],
+  [9, "Scan dependency lockfile", "success"],
+  [10, "Scan repository for secrets", "success"],
+  [11, "Verify clean evidence source", "success"],
+  [12, "Write sanitized runner evidence", "success"],
+  [23, "Post Set up Node.js", "success"],
+  [24, "Post Check out repository", "success"],
+  [25, "Complete job", "success"]
+];
+const P5_TEST_CANARY_STEPS = [
+  [1, "Set up job", "success"],
+  [2, "Check out repository", "success"],
+  [3, "Start profile clock", "success"],
+  [4, "Set up Node.js", "success"],
+  [5, "Verify exact Node identity", "success"],
+  [6, "Probe exact next Codex", "success"],
+  [7, "Verify clean evidence source", "success"],
+  [8, "Write sanitized canary evidence", "success"],
+  [15, "Post Set up Node.js", "success"],
+  [16, "Post Check out repository", "success"],
+  [17, "Complete job", "success"]
+];
+const P5_TEST_CORE_CURRENT_STEPS = [
+  [1, "Set up job", "success"],
+  [2, "Check out repository", "success"],
+  [3, "Start profile clock", "success"],
+  [4, "Set up Node.js", "success"],
+  [5, "Verify exact Node identity", "success"],
+  [6, "Acquire exact Codex lane", "success"],
+  [7, "Run P4 targeted contract once", "failure"],
+  [8, "Run direct and broker lifecycle", "skipped"],
+  [9, "Verify clean evidence source", "success"],
+  [10, "Write sanitized runner evidence", "success"],
+  [19, "Post Set up Node.js", "skipped"],
+  [20, "Post Check out repository", "success"],
+  [21, "Complete job", "success"]
+];
+const P5_TEST_CORE_PREVIOUS_STEPS = P5_TEST_CORE_CURRENT_STEPS.map(
+  ([number, name, conclusion]) => [
+    number,
+    name,
+    number === 7 ? "skipped" : number === 8 || number === 19 ? "success" : conclusion
+  ]
+);
+const P5_TEST_CLAUDE_STEPS = [
+  [1, "Set up job", "success"],
+  [2, "Check out repository", "success"],
+  [3, "Start profile clock", "success"],
+  [4, "Set up Node.js", "success"],
+  [5, "Verify exact Node identity", "success"],
+  [6, "Isolate Claude configuration", "success"],
+  [7, "Acquire exact Claude lane", "success"],
+  [8, "Run strict unauthenticated structural lifecycle", "success"],
+  [9, "Verify clean evidence source", "success"],
+  [10, "Write sanitized runner evidence", "success"],
+  [19, "Post Set up Node.js", "success"],
+  [20, "Post Check out repository", "success"],
+  [21, "Complete job", "success"]
+];
+const P5_TEST_WINDOWS_STEPS = [
+  [1, "Set up job", "success"],
+  [2, "Check out repository", "success"],
+  [3, "Start profile clock", "success"],
+  [4, "Set up Node.js", "success"],
+  [5, "Verify exact Node identity", "success"],
+  [6, "Isolate Windows run root", "success"],
+  [7, "Run Windows integration partition and resource oracle", "failure"],
+  [8, "Verify clean evidence source", "success"],
+  [9, "Write sanitized runner and resource evidence", "success"],
+  [17, "Post Set up Node.js", "skipped"],
+  [18, "Post Check out repository", "success"],
+  [19, "Complete job", "success"]
+];
+const P5_TEST_BUILD_STEPS = [
+  [1, "Set up job", "success"],
+  [2, "Check out repository", "success"],
+  [3, "Start profile clock", "success"],
+  [4, "Set up Node.js", "success"],
+  [5, "Verify exact Node identity", "success"],
+  [6, "Validate P3 baseline before install", "success"],
+  [7, "Validate exact P4 handoff before install", "success"],
+  [8, "Validate P5 profiles before install", "success"],
+  [9, "Install dependencies", "success"],
+  [10, "Verify lockfile remained exact", "success"],
+  [11, "Acquire exact build Codex", "success"],
+  [12, "Build with exact Codex", "success"],
+  [13, "Verify generated tree remained exact", "success"],
+  [14, "Verify clean evidence source", "success"],
+  [15, "Write sanitized runner evidence", "success"],
+  [29, "Post Set up Node.js", "success"],
+  [30, "Post Check out repository", "success"],
+  [31, "Complete job", "success"]
 ];
 
 function p5TestJobTools(imageVersion = "20260728.188.1") {
@@ -460,6 +580,68 @@ const p5Run6Observation = {
   artifacts: p5TestArtifacts(31060819525, "2026-08-06T00:56:38Z")
 };
 
+const p5Run7Rows = [
+  ["Policy validation", "policy-validation", 92495169295, "success", "2026-08-06T01:35:05Z", "2026-08-06T01:36:36Z", "GitHub Actions 1000002401", P5_TEST_POLICY_STEPS.map(([number, name]) => [number, name, "success"]), null, "00061e4a38217bbde0e791937dc538c66fc6826dd1ce58a311e3e8001e201014", "2026-08-06T10:35:20.3401573+09:00", "2026-08-06T10:36:32.4283663+09:00", 72088, 0, "executed-pass", true, true, "20260803.193.1"],
+  ["Dependency review", "dependency-review", 92495169314, "success", "2026-08-06T01:35:05Z", "2026-08-06T01:35:32Z", "GitHub Actions 1000002402", P5_TEST_DEPENDENCY_STEPS, null, "c2434360f6d3e33bbdcd641e2d72597a7cbe15a4fd955966256499d34ebc421e", "2026-08-06T10:35:15.8594999+09:00", "2026-08-06T10:35:28.2048797+09:00", 12345, 0, "executed-pass", true, true, "20260728.188.1"],
+  ["Unit tests", "unit", 92495406713, "success", "2026-08-06T01:36:39Z", "2026-08-06T01:37:43Z", "GitHub Actions 1000002403", P5_TEST_UNIT_STEPS, null, "9b55f356d5da3bd491bf735938b4971ad2924cd8b216b845e5e76cc680bf8139", "2026-08-06T10:36:51.5858384+09:00", "2026-08-06T10:37:39.0356379+09:00", 47450, 0, "executed-pass", true, true, "20260728.188.1"],
+  ["Security", "security", 92495406724, "success", "2026-08-06T01:36:39Z", "2026-08-06T01:37:13Z", "GitHub Actions 1000002408", P5_TEST_SECURITY_STEPS, null, "8b0c1ecec87363949be090b19e9265271e5469e87e4f07ac1e3b664dba01eae7", "2026-08-06T10:36:49.9764928+09:00", "2026-08-06T10:37:09.5004518+09:00", 19524, 0, "executed-pass", true, true, "20260728.188.1"],
+  ["Non-blocking Codex canary / next", "next-canary", 92495406736, "success", "2026-08-06T01:36:38Z", "2026-08-06T01:37:34Z", "GitHub Actions 1000002410", P5_TEST_CANARY_STEPS, null, "1c75585503801d85f57b18d2bcd6479920ad5ff4a165835e958eb60a242eed6a", "2026-08-06T10:36:48.9494574+09:00", "2026-08-06T10:37:30.2721467+09:00", 41323, 0, "non-blocking-canary", false, true, "20260728.188.1"],
+  ["Core contract / current", "core-contract", 92495406744, "failure", "2026-08-06T01:36:38Z", "2026-08-06T01:37:26Z", "GitHub Actions 1000002406", P5_TEST_CORE_CURRENT_STEPS, "P5E_BLOCKING_PROFILE_RESULT", "9f73f93b98d81f2551f65d1139ec4d2613f8f2c07abede84c6457b3a4b315f6e", "2026-08-06T10:36:49.6122768+09:00", "2026-08-06T10:37:22.1049273+09:00", 32493, 1, "executed-fail", false, true, "20260728.188.1"],
+  ["Core contract / previous", "core-contract", 92495406748, "success", "2026-08-06T01:36:41Z", "2026-08-06T01:37:26Z", "GitHub Actions 1000002405", P5_TEST_CORE_PREVIOUS_STEPS, null, "59f3919426f3e0cd4412d72f1e06e4c138a44241d55ebebcac2e1eb3e594d999", "2026-08-06T10:36:54.0325501+09:00", "2026-08-06T10:37:22.2750489+09:00", 28242, 0, "executed-pass", true, true, "20260728.188.1"],
+  ["Claude structural lifecycle / current", "claude-lifecycle", 92495406750, "success", "2026-08-06T01:36:39Z", "2026-08-06T01:37:17Z", "GitHub Actions 1000002404", P5_TEST_CLAUDE_STEPS, null, "b092a75996b94f074f25385a8c037f56375275fa2ac2468daffe734aae94bf5c", "2026-08-06T10:36:50.0946371+09:00", "2026-08-06T10:37:13.0947782+09:00", 23000, 0, "executed-pass", true, true, "20260728.188.1"],
+  ["Claude structural lifecycle / minimum", "claude-lifecycle", 92495406767, "success", "2026-08-06T01:36:38Z", "2026-08-06T01:37:22Z", "GitHub Actions 1000002407", P5_TEST_CLAUDE_STEPS, null, "b31f7e80f957d5b2a89db3839e80a6193c6a05259fe5a2358a1149628a5dbd62", "2026-08-06T10:36:48.181507+09:00", "2026-08-06T10:37:18.6271007+09:00", 30446, 0, "executed-pass", true, true, "20260803.193.1"],
+  ["Windows integration", "windows-integration", 92495406775, "failure", "2026-08-06T01:36:40Z", "2026-08-06T01:40:09Z", "GitHub Actions 1000002411", P5_TEST_WINDOWS_STEPS, "P5E_BLOCKING_PROFILE_RESULT", "969ce9a1760dd7626c5cfd324140c374838029e32fa0e3d0f45126dc63ca4de7", "2026-08-06T10:36:51.6531022+09:00", "2026-08-06T10:40:05.1808507+09:00", 193528, 1, "executed-fail", false, true, "20260728.188.1"],
+  ["Install and build", "install-build", 92495406798, "success", "2026-08-06T01:36:38Z", "2026-08-06T01:37:39Z", "GitHub Actions 1000002409", P5_TEST_BUILD_STEPS, null, "fdba04f2b9d737b7b2a7b3bbb6dec65d96419aaf148edda8e251781e6588488e", "2026-08-06T10:36:48.6580156+09:00", "2026-08-06T10:37:36.1761328+09:00", 47518, 0, "executed-pass", true, true, "20260728.188.1"],
+  ["CI", "gate", 92495925463, "failure", "2026-08-06T01:40:11Z", "2026-08-06T01:40:54Z", "GitHub Actions 1000002412", P5_TEST_GATE_STEPS, "P5E_BLOCKING_PROFILE_RESULT", "b68c7a89fb13b318bfb91483c75bfcfa4e735af5809d04cbf0ccb7afa417d05a", "2026-08-06T10:40:23.8952722+09:00", "2026-08-06T10:40:51.2027183+09:00", 27307, 1, "executed-fail", true, false, "20260803.193.1"]
+];
+
+const p5Run7Observation = {
+  repository: "wotjr1649/codex-conductor-cc",
+  pullRequestNumber: 2,
+  runId: 31063153197,
+  runNumber: 7,
+  runAttempt: 1,
+  rerunCount: 0,
+  automaticRetryCount: null,
+  event: "pull_request",
+  runUrl: "https://github.com/wotjr1649/codex-conductor-cc/actions/runs/31063153197",
+  sourceHeadSha: "080bebe13c8f565ee94954e622fe698aff0ee963",
+  eventMergeSha: "971295b9e32e8352fd9611945eea42391c8d27b2",
+  workflowSha: "971295b9e32e8352fd9611945eea42391c8d27b2",
+  baseSha: "84515289913dfe8a7452754ad442d37873bdfd53",
+  checkSuiteId: 84257641368,
+  runStartedAt: "2026-08-06T01:35:02Z",
+  runCompletedAt: "2026-08-06T01:40:55Z",
+  conclusion: "failure",
+  expectedLogicalJobCount: 12,
+  observedRestJobCount: 12,
+  placeholderJobCount: 0,
+  collectionStatus: "validated",
+  collectionIssues: [],
+  jobObservations: p5Run7Rows.map((row) => p5TestJob([
+    ...row.slice(0, 9),
+    1,
+    row[17]
+  ])),
+  validatedFragments: p5Run7Rows.map((row) => p5TestFragment({
+    jobName: row[0],
+    jobKey: row[1],
+    checkRunId: row[2],
+    conclusion: row[3],
+    markerSha256: row[9],
+    startedAt: row[10],
+    finishedAt: row[11],
+    wallTimeMs: row[12],
+    rawExitCode: row[13],
+    observedStatus: row[14],
+    hostedGateInput: row[15],
+    registryBound: row[16],
+    imageVersion: row[17]
+  })),
+  rejectedFragments: [],
+  artifacts: p5TestArtifacts(31063153197, "2026-08-06T02:27:59.407Z")
+};
+
 const P5_TEST_FINAL_JOBS = [
   ["Policy validation", "policy-validation"],
   ["Install and build", "install-build"],
@@ -512,7 +694,7 @@ function p5SyntheticClosureObservation(sourceCommit) {
     repository: "wotjr1649/codex-conductor-cc",
     pullRequestNumber: 2,
     runId: 39999999999,
-    runNumber: 7,
+    runNumber: 8,
     runAttempt: 1,
     rerunCount: 0,
     automaticRetryCount: null,
@@ -553,6 +735,7 @@ function p5ClosureFixture() {
     structuredClone(p5Run4Observation),
     structuredClone(p5Run5Observation),
     structuredClone(p5Run6Observation),
+    structuredClone(p5Run7Observation),
     finalObservation
   ];
   for (const result of closure.profileResults) {
@@ -596,12 +779,14 @@ test("P5-EVIDENCE-V3-DIGEST-001 remediation observations stay canonical", () => 
     [
       p5ObservationDigest(p5Run4Observation),
       p5ObservationDigest(p5Run5Observation),
-      p5ObservationDigest(p5Run6Observation)
+      p5ObservationDigest(p5Run6Observation),
+      p5ObservationDigest(p5Run7Observation)
     ],
     [
       "226dbb7a4d9b8bf2727b42d688af1ac608edca9f7ba5ae81f70b580caf944fa1",
       "8c7a6955d040431e6e9c3ee0341cc67dddc3d25cb3bd38b0bef13514c1c6e7ec",
-      "82433eea5afe5fa3a72eb91edc07118a4c9abb7a1eba449bded7d99a4c68697d"
+      "82433eea5afe5fa3a72eb91edc07118a4c9abb7a1eba449bded7d99a4c68697d",
+      "927d7cd3006751e1c05b28827f6f075fedb03be6ebe823cbc838881b7d431d36"
     ]
   );
 });
@@ -672,6 +857,29 @@ test("P5-SOURCE-BOOTSTRAP-001 accepts only the exact one-time frontier", async (
     assert.equal(isExactP5BootstrapFrontier(observed), false);
   }
 
+  const exactSourceFixFixture = {
+    ...structuredClone(exactCorrectionFixture),
+    headParents: ["080bebe13c8f565ee94954e622fe698aff0ee963"],
+    policyPaths: structuredClone(exactSourceFixPaths)
+  };
+  assert.equal(isExactP5BootstrapFrontier(exactSourceFixFixture), true);
+  for (const mutate of [
+    (value) => { value.headParents = ["0".repeat(40)]; },
+    (value) => { value.policyPaths.pop(); },
+    (value) => { value.policyPaths.push("scripts/unreviewed.mjs"); }
+  ]) {
+    const observed = structuredClone(exactSourceFixFixture);
+    mutate(observed);
+    assert.equal(isExactP5BootstrapFrontier(observed), false);
+  }
+  assert.equal(
+    isExactP5BootstrapCheckout(
+      ["080bebe13c8f565ee94954e622fe698aff0ee963"],
+      [exactSourceFixFixture, exactCorrectionFixture]
+    ),
+    true
+  );
+
   const mergeCheckout = structuredClone(exactBootstrapFixture);
   mergeCheckout.headParents = [
     "84515289913dfe8a7452754ad442d37873bdfd53",
@@ -688,6 +896,19 @@ test("P5-SOURCE-BOOTSTRAP-001 accepts only the exact one-time frontier", async (
       exactCorrectionFixture,
       exactBootstrapFixture
     ]),
+    true
+  );
+  const sourceFixMergeCheckout = structuredClone(exactSourceFixFixture);
+  sourceFixMergeCheckout.headParents = [
+    "84515289913dfe8a7452754ad442d37873bdfd53",
+    "1".repeat(40)
+  ];
+  sourceFixMergeCheckout.policyPaths = [".github/workflows/pull-request-ci.yml"];
+  assert.equal(
+    isExactP5BootstrapCheckout(
+      sourceFixMergeCheckout.headParents,
+      [sourceFixMergeCheckout, baseParent, exactSourceFixFixture]
+    ),
     true
   );
   assert.equal(
@@ -759,7 +980,7 @@ test("P5-RED-001 versioned profile, scenario, schema, and evidence sources exist
   }
   const v3Schema = p5EvidenceSchemas.get("p5-evidence-v3");
   assert.equal(v3Schema.properties.hostedObservations.minItems, 2);
-  assert.equal(v3Schema.properties.hostedObservations.maxItems, 6);
+  assert.equal(v3Schema.properties.hostedObservations.maxItems, 7);
   assert.deepEqual(
     v3Schema.$defs.hostedObservationV3.properties.conclusion.enum,
     ["failure", "success"]
@@ -1581,6 +1802,41 @@ test("P5-POWERSHELL-001 exact npm, clock, and local writer contracts execute", (
 });
 
 test("P5-WORKFLOW-NEGATIVE-001 gate, cache, timeout, and early Node identity fail closed", () => {
+  const missingCoreTemp = workflow.replace(
+    [
+      "      - name: Bind canonical core temp",
+      "        shell: pwsh",
+      "        env:",
+      "          P5_MATRIX_LANE: ${{ matrix.lane }}",
+      "        run: |",
+      "          $coreTemp = Join-Path $env:RUNNER_TEMP \"p5-core-$env:P5_MATRIX_LANE\"",
+      "          New-Item -ItemType Directory -Path $coreTemp | Out-Null",
+      "          Add-Content -LiteralPath $env:GITHUB_ENV -Value \"TEMP=$coreTemp\"",
+      "          Add-Content -LiteralPath $env:GITHUB_ENV -Value \"TMP=$coreTemp\"",
+      ""
+    ].join("\n"),
+    ""
+  );
+  assert.ok(
+    validateP5Workflow(missingCoreTemp, toolchain.actions, profiles).some(
+      (entry) => entry.includes("P5E_CORE_TEMP")
+    )
+  );
+  const missingWindowsDependencies = workflow.replace(
+    [
+      "      - name: Install Windows test dependencies",
+      "        run: npm ci --ignore-scripts",
+      "",
+      ""
+    ].join("\n"),
+    ""
+  );
+  assert.notEqual(missingWindowsDependencies, workflow);
+  assert.ok(
+    validateP5Workflow(missingWindowsDependencies, toolchain.actions, profiles).some(
+      (entry) => entry.includes("P5E_WINDOWS_DEPENDENCY_INSTALL")
+    )
+  );
   const weakGate = workflow.replace(
     "DEPENDENCY_RESULT: ${{ needs.dependency-review.result }}",
     "DEPENDENCY_RESULT: success"
@@ -2094,13 +2350,13 @@ test("P5-EVIDENCE-001 local, hosted, not-run, canary, and blocked truth stays di
   );
 });
 
-test("P5-EVIDENCE-V3-CLOSURE-001 accepts only the exact six-run closure", () => {
+test("P5-EVIDENCE-V3-CLOSURE-001 accepts only the exact seven-run closure", () => {
   const closure = p5ClosureFixture();
   const schema = p5EvidenceSchemas.get("p5-evidence-v3");
   assert.deepEqual(validateJsonSchema(closure, schema, "P5 evidence"), []);
   assert.deepEqual(validateP5Evidence(closure, profiles), []);
 
-  for (const count of [3, 4, 5]) {
+  for (const count of [3, 4, 5, 6]) {
     const partial = structuredClone(closure);
     partial.hostedObservations.length = count;
     assert.ok(
@@ -2131,18 +2387,18 @@ test("P5-EVIDENCE-V3-CLOSURE-001 accepts only the exact six-run closure", () => 
       value.hostedObservations[3].rerunCount = 1;
     }, "P5E_HOSTED_V3_BINDING"],
     ["conclusion", (value) => {
-      value.hostedObservations[5].conclusion = "failure";
+      value.hostedObservations[6].conclusion = "failure";
     }, "P5E_HOSTED_V3_BINDING"],
     ["job-set", (value) => {
-      value.hostedObservations[5].jobObservations.pop();
+      value.hostedObservations[6].jobObservations.pop();
     }, "P5E_HOSTED_V3_BINDING"],
     ["canary-promotion", (value) => {
-      value.hostedObservations[5].validatedFragments
+      value.hostedObservations[6].validatedFragments
         .find(({ jobKey }) => jobKey === "next-canary")
         .sanitizedLogProjection.hostedGateInput = true;
     }, "P5E_HOSTED_V3_TRUST_BOUNDARY"],
     ["artifact-readback", (value) => {
-      value.hostedObservations[5].artifacts.readbackStatus = "pending";
+      value.hostedObservations[6].artifacts.readbackStatus = "pending";
     }, "P5E_HOSTED_V3_BINDING"],
     ["cache-merge", (value) => {
       value.prRefCacheObservation.mergeSha = "0".repeat(40);

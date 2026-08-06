@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/wotjr1649/codex-conductor-cc/evidence/schemas/p5-evidence-v3.schema.json",
-  "title": "P5 matrix profile bootstrap historical and six-run hosted provenance evidence",
+  "title": "P5 matrix profile bootstrap historical and seven-run hosted provenance evidence",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -327,7 +327,7 @@
     "hostedObservations": {
       "type": "array",
       "minItems": 2,
-      "maxItems": 6,
+      "maxItems": 7,
       "items": {
         "$ref": "#/$defs/hostedObservationV3"
       }

@@ -304,6 +304,16 @@ jobs:
         shell: pwsh
         run: ./scripts/run-p5-node-identity.ps1
 
+      - name: Bind canonical core temp
+        shell: pwsh
+        env:
+          P5_MATRIX_LANE: ${{ matrix.lane }}
+        run: |
+          $coreTemp = Join-Path $env:RUNNER_TEMP "p5-core-$env:P5_MATRIX_LANE"
+          New-Item -ItemType Directory -Path $coreTemp | Out-Null
+          Add-Content -LiteralPath $env:GITHUB_ENV -Value "TEMP=$coreTemp"
+          Add-Content -LiteralPath $env:GITHUB_ENV -Value "TMP=$coreTemp"
+
       - name: Acquire exact Codex lane
         shell: pwsh
         env:
@@ -404,6 +414,9 @@ jobs:
       - name: Verify exact Node identity
         shell: pwsh
         run: ./scripts/run-p5-node-identity.ps1
+
+      - name: Install Windows test dependencies
+        run: npm ci --ignore-scripts
 
       - name: Isolate Windows run root
         shell: pwsh

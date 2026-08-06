@@ -16,7 +16,7 @@ const SECRET = new RegExp(
     "[A-Za-z0-9_]{20,}|-----BEGIN [A-Z ]+PRIVATE KEY-----|Bearer\\s+[A-Za-z0-9._~-]{20,})"
 );
 const EXPECTED_P5_WORKFLOW_SHA256 =
-  "07422db5aff2d9709444e9b6493f95021bdaf415a5febbeda71138fff368a02e";
+  "0bdeaf4eb007f853fe5e9caad3dc7a4e6a458e2c0504c17f55f48fe634b18461";
 const EXPECTED_PROFILE_IDS = [
   "policy-validation",
   "install-build",
@@ -71,6 +71,7 @@ export const P5_BOOTSTRAP_FRONTIER = Object.freeze({
   evidenceRebindCommit: "5475e3e2bccc9af6e10079da5d355b4dab88b3e5",
   windowsFixCommit: "748d6181e30f642930bc13f4f9a718a1f366dd27",
   policyCommit: "4190a2ba59637dcdbe3f32be0edc019483496620",
+  mergeSourceCommit: "080bebe13c8f565ee94954e622fe698aff0ee963",
   evidenceRebindPaths: Object.freeze([
     "docs/baselines/2026-07-31-p5-matrix-profile-bootstrap.md",
     "evidence/ledgers/p5-attempts.json",
@@ -85,6 +86,12 @@ export const P5_BOOTSTRAP_FRONTIER = Object.freeze({
     "evidence/schemas/p5-evidence-v3.schema.json",
     "scripts/lib/p5-validation.mjs",
     "scripts/validate-p5.mjs",
+    "tests/p5-matrix-profile.test.mjs"
+  ]),
+  sourceFixPaths: Object.freeze([
+    ".github/workflows/pull-request-ci.yml",
+    "evidence/schemas/p5-evidence-v3.schema.json",
+    "scripts/lib/p5-validation.mjs",
     "tests/p5-matrix-profile.test.mjs"
   ])
 });
@@ -115,6 +122,11 @@ export function isExactP5BootstrapFrontier(observed) {
       P5_BOOTSTRAP_FRONTIER.policyPaths
     ) &&
     exactPathSet(observed?.policyPaths, P5_BOOTSTRAP_FRONTIER.policyPaths);
+  const exactSourceFix =
+    isDeepStrictEqual(observed?.headParents, [
+      P5_BOOTSTRAP_FRONTIER.mergeSourceCommit
+    ]) &&
+    exactPathSet(observed?.policyPaths, P5_BOOTSTRAP_FRONTIER.sourceFixPaths);
   return (
     observed?.boundSource === P5_BOOTSTRAP_FRONTIER.boundSource &&
     isDeepStrictEqual(observed?.evidenceRebindParents, [
@@ -128,7 +140,7 @@ export function isExactP5BootstrapFrontier(observed) {
       P5_BOOTSTRAP_FRONTIER.evidenceRebindPaths
     ) &&
     exactPathSet(observed?.windowsFixPaths, P5_BOOTSTRAP_FRONTIER.windowsFixPaths) &&
-    (directPolicy || exactCorrection) &&
+    (directPolicy || exactCorrection || exactSourceFix) &&
     isDeepStrictEqual(observed?.uncommittedPaths, [])
   );
 }
@@ -935,6 +947,33 @@ export function validateP5Workflow(workflow, admittedActions, profileRegistry) {
     }
   }
   const core = jobs.get("core-contract") ?? "";
+  const coreTempSteps = extractNamedSteps(core, "Bind canonical core temp");
+  const exactCoreTemp = [
+    "      - name: Bind canonical core temp",
+    "        shell: pwsh",
+    "        env:",
+    "          P5_MATRIX_LANE: ${{ matrix.lane }}",
+    "        run: |",
+    "          $coreTemp = Join-Path $env:RUNNER_TEMP \"p5-core-$env:P5_MATRIX_LANE\"",
+    "          New-Item -ItemType Directory -Path $coreTemp | Out-Null",
+    "          Add-Content -LiteralPath $env:GITHUB_ENV -Value \"TEMP=$coreTemp\"",
+    "          Add-Content -LiteralPath $env:GITHUB_ENV -Value \"TMP=$coreTemp\""
+  ].join("\n");
+  const coreIdentityIndex = core.indexOf(
+    extractNamedSteps(core, "Verify exact Node identity")[0] ?? "\u0000"
+  );
+  const coreTempIndex = core.indexOf(coreTempSteps[0] ?? "\u0000");
+  const coreAcquireIndex = core.indexOf(
+    extractNamedSteps(core, "Acquire exact Codex lane")[0] ?? "\u0000"
+  );
+  if (
+    coreTempSteps.length !== 1 ||
+    coreTempSteps[0].trimEnd() !== exactCoreTemp ||
+    coreTempIndex < coreIdentityIndex ||
+    coreTempIndex > coreAcquireIndex
+  ) {
+    errors.push("P5E_CORE_TEMP: exact canonical runner temp must bind the core job");
+  }
   const coreRows = extractMatrixIncludeRows(core);
   const codexTools = profileRegistry?.tools?.codex ?? [];
   const currentCodex = codexTools.find(({ lane }) => lane === "current") ?? {};
@@ -975,6 +1014,32 @@ export function validateP5Workflow(workflow, admittedActions, profileRegistry) {
     errors.push("P5E_CORE_MATRIX_CONTRACT: exact current/previous contract execution is incomplete");
   }
   const windows = jobs.get("windows-integration") ?? "";
+  const windowsDependencySteps = extractNamedSteps(
+    windows,
+    "Install Windows test dependencies"
+  );
+  const exactWindowsDependencies = [
+    "      - name: Install Windows test dependencies",
+    "        run: npm ci --ignore-scripts"
+  ].join("\n");
+  const windowsIdentityIndex = windows.indexOf(
+    extractNamedSteps(windows, "Verify exact Node identity")[0] ?? "\u0000"
+  );
+  const windowsDependencyIndex = windows.indexOf(windowsDependencySteps[0] ?? "\u0000");
+  const windowsTestIndex = windows.indexOf(
+    extractNamedSteps(
+      windows,
+      "Run Windows integration partition and resource oracle"
+    )[0] ?? "\u0000"
+  );
+  if (
+    windowsDependencySteps.length !== 1 ||
+    windowsDependencySteps[0].trimEnd() !== exactWindowsDependencies ||
+    windowsDependencyIndex < windowsIdentityIndex ||
+    windowsDependencyIndex > windowsTestIndex
+  ) {
+    errors.push("P5E_WINDOWS_DEPENDENCY_INSTALL: exact lockfile dependencies must precede Windows tests");
+  }
   for (const name of [
     "broker-endpoint",
     "generate-app-server-types",
@@ -2700,6 +2765,12 @@ const P5_V3_REMEDIATION_RUNS = [
     runNumber: 6,
     sourceHeadSha: "4190a2ba59637dcdbe3f32be0edc019483496620",
     digest: "82433eea5afe5fa3a72eb91edc07118a4c9abb7a1eba449bded7d99a4c68697d"
+  },
+  {
+    runId: 31063153197,
+    runNumber: 7,
+    sourceHeadSha: "080bebe13c8f565ee94954e622fe698aff0ee963",
+    digest: "927d7cd3006751e1c05b28827f6f075fedb03be6ebe823cbc838881b7d431d36"
   }
 ];
 
@@ -2717,7 +2788,7 @@ export function validateP5Evidence(manifest, profileRegistry) {
   const hostedV3Historical =
     hostedV3 && manifest?.hostedObservations?.length === 2;
   const hostedV3Closure =
-    hostedV3 && manifest?.hostedObservations?.length === 6;
+    hostedV3 && manifest?.hostedObservations?.length === 7;
   const hostedObserved = hostedFailureV2 || hostedV3;
   if (!localOnly && !hostedObserved) {
     errors.push(
@@ -3081,7 +3152,7 @@ export function validateP5Evidence(manifest, profileRegistry) {
           );
         }
       );
-      const finalObservation = observations[5];
+      const finalObservation = observations[6];
       const finalJobs = Array.isArray(finalObservation?.jobObservations)
         ? finalObservation.jobObservations
         : [];
@@ -3110,7 +3181,7 @@ export function validateP5Evidence(manifest, profileRegistry) {
             job?.log?.rawLogsPersisted === false
         );
       const finalBindingValid =
-        finalObservation?.runNumber === 7 &&
+        finalObservation?.runNumber === 8 &&
         finalObservation?.runAttempt === 1 &&
         finalObservation?.rerunCount === 0 &&
         finalObservation?.automaticRetryCount === null &&
@@ -3131,10 +3202,10 @@ export function validateP5Evidence(manifest, profileRegistry) {
         finalObservation?.artifacts?.entries?.length === 0 &&
         finalObservation?.artifacts?.releaseTrustInput === false &&
         new Set(observations.map((observation) => observation?.runId)).size ===
-          6 &&
+          7 &&
         isDeepStrictEqual(
           observations.map((observation) => observation?.runNumber),
-          [2, 3, 4, 5, 6, 7]
+          [2, 3, 4, 5, 6, 7, 8]
         );
 
       if (!historicalPrefixValid || !remediationRunsValid || !finalBindingValid) {
@@ -3187,7 +3258,7 @@ export function validateP5Evidence(manifest, profileRegistry) {
       }
     } else {
       errors.push(
-        "P5E_HOSTED_V3_BINDING: only the exact two-run history or six-run closure is accepted"
+        "P5E_HOSTED_V3_BINDING: only the exact two-run history or seven-run closure is accepted"
       );
     }
 
