@@ -1,0 +1,368 @@
+{
+  "schemaVersion": "p5-matrix-profiles-v1",
+  "reviewPolicy": {
+    "reviewedAt": "2026-07-31",
+    "expiresAt": "2026-08-31",
+    "owner": "wotjr1649",
+    "revalidateBeforeHostedExecution": true,
+    "driftTriggers": [
+      "node-24-security-release",
+      "codex-stable-or-prerelease-change",
+      "claude-current-or-installer-change",
+      "runner-label-or-image-lifecycle-change",
+      "action-tag-or-commit-change",
+      "artifact-checksum-or-signing-identity-change",
+      "repository-actions-or-protection-setting-change"
+    ]
+  },
+  "support": {
+    "operatingSystem": "windows",
+    "architecture": "x64",
+    "nodeRange": ">=24.0.0",
+    "exactBlockingNode": "24.18.1",
+    "runnerLabel": "windows-2025",
+    "runnerClass": "github-hosted-ephemeral-windows-server",
+    "unsupported": [
+      "linux",
+      "macos",
+      "windows-arm64",
+      "windows-ia32",
+      "node-below-24"
+    ]
+  },
+  "workflowPolicy": {
+    "path": ".github/workflows/pull-request-ci.yml",
+    "trigger": "pull_request",
+    "permissions": {
+      "contents": "read"
+    },
+    "concurrencyGroup": "${{ github.workflow }}-${{ github.ref }}",
+    "cancelInProgress": true,
+    "cancelledAttemptIsPassing": false,
+    "automaticRetryCount": 0,
+    "cacheEnabled": false,
+    "repositoryAuthoredArtifactUploadEnabled": false,
+    "dependencyReviewLargeSummaryArtifact": {
+      "possible": true,
+      "thresholdBytes": 1048576,
+      "retentionDays": 1,
+      "releaseTrustInput": false
+    },
+    "prArtifactsAreReleaseTrustInputs": false,
+    "authenticatedClaudeEnabled": false,
+    "oidcEnabled": false
+  },
+  "actions": [
+    {
+      "id": "actions/checkout",
+      "version": "v6.0.2",
+      "commit": "de0fac2e4500dabe0009e67214ff5f5447ce83dd",
+      "disposition": "accepted-existing"
+    },
+    {
+      "id": "actions/setup-node",
+      "version": "v6.3.0",
+      "commit": "53b83947a5a98c8d113130e565377fae1a50d02f",
+      "packageManagerCache": false,
+      "disposition": "accepted-existing"
+    },
+    {
+      "id": "actions/dependency-review-action",
+      "version": "v5.0.0",
+      "commit": "a1d282b36b6f3519aa1f3fc636f609c47dddb294",
+      "disposition": "accepted"
+    }
+  ],
+  "tools": {
+    "node": {
+      "version": "24.18.1",
+      "npmVersion": "11.16.0",
+      "archiveSha256": "ec56b84a7551893ab2324ebdfdc4ab974a63b4781162600b68a1293cc3e53765",
+      "executableSha256": "ac51903c4c111815d52280b1fdcc8da067cbb37e2fe1a765097b85c3292c8582",
+      "releaseDate": "2026-07-29",
+      "tag": "v24.18.1",
+      "commit": "9623d9ad85d37d2f0610ec4a82b48182cf2c6061",
+      "disposition": "accepted"
+    },
+    "codex": [
+      {
+        "lane": "current",
+        "version": "0.146.0",
+        "executableSha256": "bc343ba420dc2e2e9f59e6fc5e5bf0aae1cd8c771fc319665241fc9c0271fddb",
+        "tag": "rust-v0.146.0",
+        "commit": "e363b08c9175ac1cbe5893615dd2cb9ddf95043b",
+        "disposition": "accepted-p4-admission"
+      },
+      {
+        "lane": "previous",
+        "version": "0.145.0",
+        "executableSha256": "83751f15cb6a0a7b97df67752c001e3fe1c20e18ffbfec3ff63567296205eb6c",
+        "tag": "rust-v0.145.0",
+        "commit": "25af12f7e61572b0bc18ddb1008be543b91519b0",
+        "disposition": "accepted-p4-admission"
+      },
+      {
+        "lane": "next",
+        "version": "0.147.0-alpha.2",
+        "url": "https://releases.openai.com/codex/releases/0.147.0-alpha.2/codex-x86_64-pc-windows-msvc.exe",
+        "executableSha256": "40e8f5b6cf031d74912f01a6c67c6896397743fe00ac059903f59a916dd23c68",
+        "tag": "rust-v0.147.0-alpha.2",
+        "commit": "1d12a16dd9bcbd37bda22a71a1ae8ac2a49f0aba",
+        "disposition": "deferred-non-blocking-canary-only"
+      }
+    ],
+    "claude": [
+      {
+        "lane": "minimum",
+        "version": "2.1.196",
+        "executableSha256": "180d7b279455e8b89d4353a5146447be2f80b80fb0db14bdc6dd9cb98c0aef09",
+        "tag": "v2.1.196",
+        "commit": "c80896ca84bd5f45cfe2cd4c1ae91b5d4ba4280b",
+        "disposition": "accepted-project-minimum"
+      },
+      {
+        "lane": "current",
+        "version": "2.1.220",
+        "executableSha256": "af5bf1f1b2aadffc768eccd787084c6fdf9ba81624cbe96c1c6d9ac1a1550231",
+        "tag": "v2.1.220",
+        "commit": "7ef6eec9d9ba84ea6f233f26c45f1df5c5991843",
+        "disposition": "accepted-current-snapshot"
+      }
+    ]
+  },
+  "profiles": [
+    {
+      "id": "policy-validation",
+      "workflowJob": "policy-validation",
+      "blocking": true,
+      "timeoutMinutes": 10,
+      "matrix": null,
+      "definitionStatus": "defined",
+      "allowedEvidenceStatuses": [
+        "local-pass",
+        "hosted-pass",
+        "not-run"
+      ]
+    },
+    {
+      "id": "install-build",
+      "workflowJob": "install-build",
+      "blocking": true,
+      "timeoutMinutes": 30,
+      "matrix": null,
+      "definitionStatus": "defined",
+      "allowedEvidenceStatuses": [
+        "local-pass",
+        "hosted-pass",
+        "not-run"
+      ]
+    },
+    {
+      "id": "unit",
+      "workflowJob": "unit",
+      "blocking": true,
+      "timeoutMinutes": 30,
+      "matrix": null,
+      "definitionStatus": "defined",
+      "allowedEvidenceStatuses": [
+        "local-pass",
+        "hosted-pass",
+        "not-run"
+      ]
+    },
+    {
+      "id": "core-contract",
+      "workflowJob": "core-contract",
+      "blocking": true,
+      "timeoutMinutes": 60,
+      "matrix": {
+        "axis": "codexLane",
+        "values": [
+          "current",
+          "previous"
+        ],
+        "failFast": false,
+        "maxParallel": 2,
+        "cartesianProduct": false
+      },
+      "definitionStatus": "defined",
+      "allowedEvidenceStatuses": [
+        "local-pass",
+        "hosted-pass",
+        "not-run"
+      ]
+    },
+    {
+      "id": "windows-integration",
+      "workflowJob": "windows-integration",
+      "blocking": true,
+      "timeoutMinutes": 45,
+      "matrix": null,
+      "definitionStatus": "defined",
+      "resourceOracle": {
+        "scope": "run-owned process tree and file handle",
+        "processTreeMethod": "taskkill-with-exact-pid-and-pid-readback",
+        "openHandleMethod": "run-owned-file-rename-delete-after-tree-exit",
+        "nativeJobObjectClaim": false
+      },
+      "allowedEvidenceStatuses": [
+        "local-pass",
+        "hosted-pass",
+        "not-run"
+      ]
+    },
+    {
+      "id": "claude-lifecycle",
+      "workflowJob": "claude-lifecycle",
+      "blocking": true,
+      "timeoutMinutes": 30,
+      "matrix": {
+        "axis": "claudeLane",
+        "values": [
+          "minimum",
+          "current"
+        ],
+        "failFast": false,
+        "maxParallel": 2,
+        "cartesianProduct": false
+      },
+      "authenticatedInference": false,
+      "isolatedConfig": true,
+      "updatesDisabled": true,
+      "definitionStatus": "defined",
+      "allowedEvidenceStatuses": [
+        "local-pass",
+        "hosted-pass",
+        "not-run"
+      ]
+    },
+    {
+      "id": "security",
+      "workflowJob": "security",
+      "blocking": true,
+      "timeoutMinutes": 30,
+      "matrix": null,
+      "definitionStatus": "defined",
+      "allowedEvidenceStatuses": [
+        "local-pass",
+        "hosted-pass",
+        "not-run"
+      ]
+    },
+    {
+      "id": "dependency-review",
+      "workflowJob": "dependency-review",
+      "blocking": true,
+      "timeoutMinutes": 10,
+      "matrix": null,
+      "definitionStatus": "defined",
+      "allowedEvidenceStatuses": [
+        "hosted-pass",
+        "not-run"
+      ]
+    },
+    {
+      "id": "next-canary",
+      "workflowJob": "next-canary",
+      "blocking": false,
+      "timeoutMinutes": 15,
+      "matrix": {
+        "axis": "codexLane",
+        "values": [
+          "next"
+        ],
+        "failFast": false,
+        "maxParallel": 1,
+        "cartesianProduct": false
+      },
+      "continueOnError": true,
+      "definitionStatus": "non-blocking-canary",
+      "allowedEvidenceStatuses": [
+        "non-blocking-canary",
+        "not-run"
+      ]
+    },
+    {
+      "id": "windows-c0",
+      "workflowJob": null,
+      "blocking": false,
+      "timeoutMinutes": null,
+      "matrix": {
+        "targets": [
+          "supported-server-capability",
+          "disposable-windows-11-x64"
+        ],
+        "cartesianProduct": false
+      },
+      "runtimeImplemented": false,
+      "nativeArtifactDigest": null,
+      "priorEvidenceClass": "architecture-feasibility",
+      "priorEvidenceMaySatisfyRuntime": false,
+      "deferredPhase": "v0.2",
+      "definitionStatus": "blocked-with-evidence",
+      "allowedEvidenceStatuses": [
+        "blocked-with-evidence"
+      ]
+    },
+    {
+      "id": "state-d1",
+      "workflowJob": null,
+      "blocking": false,
+      "timeoutMinutes": null,
+      "matrix": null,
+      "runtimeImplemented": false,
+      "shippingBinding": null,
+      "ddlDigest": null,
+      "migrationDigest": null,
+      "priorEvidenceClass": "architecture-feasibility",
+      "priorEvidenceMaySatisfyRuntime": false,
+      "deferredPhase": "v0.2",
+      "definitionStatus": "blocked-with-evidence",
+      "allowedEvidenceStatuses": [
+        "blocked-with-evidence"
+      ]
+    }
+  ],
+  "baselineBlockers": [
+    {
+      "id": "P5-BLOCK-P4-SOURCE-BINDING",
+      "recordedCommit": "843e679a90d4ef6946af251d36f43d257f8a5a10",
+      "actualCommit": "843e679936daba71a6c4c2fdd55fcade01b46b73",
+      "recordedCommitResolvable": false,
+      "status": "blocked-with-evidence",
+      "correctionScope": "separate P4 evidence repair; P5 does not rewrite P4 evidence"
+    }
+  ],
+  "provenance": [
+    {
+      "id": "github-runner-images",
+      "url": "https://github.com/actions/runner-images",
+      "disposition": "accepted-runtime-readback-required"
+    },
+    {
+      "id": "github-workflow-syntax",
+      "url": "https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax",
+      "disposition": "accepted"
+    },
+    {
+      "id": "node-24.18.1",
+      "url": "https://nodejs.org/en/blog/release/v24.18.1",
+      "disposition": "accepted"
+    },
+    {
+      "id": "openai-codex-releases",
+      "url": "https://github.com/openai/codex/releases",
+      "disposition": "accepted-version-specific"
+    },
+    {
+      "id": "openai-app-server",
+      "url": "https://developers.openai.com/codex/app-server/",
+      "disposition": "accepted-version-specific-generation"
+    },
+    {
+      "id": "anthropic-claude-setup",
+      "url": "https://code.claude.com/docs/en/setup",
+      "disposition": "accepted"
+    }
+  ]
+}

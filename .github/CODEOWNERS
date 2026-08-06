@@ -1,4 +1,4 @@
-# P3 security-sensitive surfaces. Repository settings must separately require
+# P3/P5 security-sensitive surfaces. Repository settings must separately require
 # CODEOWNERS review before this file has enforcement effect.
 /.gitattributes @wotjr1649
 /.gitleaks.toml @wotjr1649
@@ -8,6 +8,12 @@
 /docs/security/ @wotjr1649
 /toolchain.json @wotjr1649
 /security/ @wotjr1649
+/ci/ @wotjr1649
 /scripts/install-p3-tool.ps1 @wotjr1649
 /scripts/lib/p3-validation.mjs @wotjr1649
+/scripts/invoke-p4-validator-at-handoff.ps1 @wotjr1649
+/scripts/run-p5-* @wotjr1649
+/scripts/validate-p5.mjs @wotjr1649
+/scripts/write-p5-runner-evidence.ps1 @wotjr1649
+/scripts/lib/p5-* @wotjr1649
 /evidence/ @wotjr1649

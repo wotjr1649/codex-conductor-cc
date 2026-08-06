@@ -1,0 +1,245 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/wotjr1649/codex-conductor-cc/evidence/schemas/p5-runner-evidence-v2.schema.json",
+  "title": "P5 hosted profile-lane runner evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "evidenceKind",
+    "profile",
+    "lane",
+    "blocking",
+    "requirementIds",
+    "scenarioId",
+    "scenarioFixtureIds",
+    "verifiedFixtureIds",
+    "oracle",
+    "runtimeEnforced",
+    "deferredPhase",
+    "provenance",
+    "tools",
+    "attempt",
+    "artifact",
+    "cache",
+    "privacy"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "p5-runner-evidence-v2" },
+    "evidenceKind": { "const": "profile-lane" },
+    "profile": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+    "lane": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+    "blocking": { "type": "boolean" },
+    "requirementIds": { "$ref": "#/$defs/stringSet" },
+    "scenarioId": { "type": "string", "pattern": "^[A-Z0-9-]+$" },
+    "scenarioFixtureIds": { "$ref": "#/$defs/stringSet" },
+    "verifiedFixtureIds": { "$ref": "#/$defs/stringSet" },
+    "oracle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["registrySha256", "aggregateExpected", "expected", "observedStatus"],
+      "properties": {
+        "registrySha256": { "$ref": "#/$defs/sha64" },
+        "aggregateExpected": { "type": "string", "minLength": 1 },
+        "expected": { "type": "string", "minLength": 1 },
+        "observedStatus": { "$ref": "#/$defs/observedStatus" }
+      }
+    },
+    "runtimeEnforced": { "type": "boolean" },
+    "deferredPhase": { "type": ["string", "null"] },
+    "provenance": { "$ref": "#/$defs/provenance" },
+    "tools": { "$ref": "#/$defs/tools" },
+    "attempt": { "$ref": "#/$defs/attempt" },
+    "artifact": { "$ref": "#/$defs/artifact" },
+    "cache": { "$ref": "#/$defs/cache" },
+    "privacy": { "$ref": "#/$defs/privacy" }
+  },
+  "$defs": {
+    "stringSet": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "sha40": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "sha64": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "positiveInteger": { "type": "integer", "minimum": 1 },
+    "observedStatus": { "enum": ["executed-pass", "executed-fail", "non-blocking-canary"] },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repository",
+        "workflow",
+        "pullRequest",
+        "sourceHeadSha",
+        "eventMergeSha",
+        "actualCheckoutSha",
+        "executionClass",
+        "run",
+        "runner"
+      ],
+      "properties": {
+        "repository": { "type": "string", "minLength": 1 },
+        "workflow": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name", "ref", "sha"],
+          "properties": {
+            "name": { "type": "string", "minLength": 1 },
+            "ref": { "type": "string", "minLength": 1 },
+            "sha": { "$ref": "#/$defs/sha40" }
+          }
+        },
+        "pullRequest": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["number", "baseRepository", "baseRef", "baseSha", "headRepository", "headRef", "headSha"],
+          "properties": {
+            "number": { "$ref": "#/$defs/positiveInteger" },
+            "baseRepository": { "type": "string", "minLength": 1 },
+            "baseRef": { "type": "string", "minLength": 1 },
+            "baseSha": { "$ref": "#/$defs/sha40" },
+            "headRepository": { "type": "string", "minLength": 1 },
+            "headRef": { "type": "string", "minLength": 1 },
+            "headSha": { "$ref": "#/$defs/sha40" }
+          }
+        },
+        "sourceHeadSha": { "$ref": "#/$defs/sha40" },
+        "eventMergeSha": { "$ref": "#/$defs/sha40" },
+        "actualCheckoutSha": { "$ref": "#/$defs/sha40" },
+        "executionClass": { "const": "hosted" },
+        "run": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "attempt", "yamlJobKey", "checkRunId"],
+          "properties": {
+            "id": { "$ref": "#/$defs/positiveInteger" },
+            "attempt": { "$ref": "#/$defs/positiveInteger" },
+            "yamlJobKey": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+            "checkRunId": { "$ref": "#/$defs/positiveInteger" }
+          }
+        },
+        "runner": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["requestedLabel", "environment", "os", "architecture", "imageOS", "imageVersion", "osCaption", "osVersion", "osBuild", "osArchitecture", "productType", "powershellVersion", "filesystem", "storageClass"],
+          "properties": {
+            "requestedLabel": { "const": "windows-2025" },
+            "environment": { "const": "github-hosted" },
+            "os": { "const": "Windows" },
+            "architecture": { "const": "X64" },
+            "imageOS": { "type": "string", "minLength": 1 },
+            "imageVersion": { "type": "string", "minLength": 1 },
+            "osCaption": { "type": "string", "pattern": "Windows Server 2025" },
+            "osVersion": { "type": "string", "minLength": 1 },
+            "osBuild": { "type": "string", "minLength": 1 },
+            "osArchitecture": { "type": "string", "minLength": 1 },
+            "productType": { "const": 3 },
+            "powershellVersion": { "type": "string", "minLength": 1 },
+            "filesystem": { "const": "NTFS" },
+            "storageClass": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["value", "basis"],
+              "properties": {
+                "value": { "const": "github-hosted-ephemeral-runner-temp" },
+                "basis": { "const": "runner-environment-and-documented-hosted-semantics" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "tools": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["nodeIdentityStatus", "node", "npm", "nodeArchitecture", "nodeExecutableSha256", "selected"],
+      "properties": {
+        "nodeIdentityStatus": { "enum": ["verified-exact", "mismatch", "unavailable"] },
+        "node": { "type": ["string", "null"] },
+        "npm": { "type": ["string", "null"] },
+        "nodeArchitecture": { "type": ["string", "null"] },
+        "nodeExecutableSha256": { "type": ["string", "null"], "pattern": "^[0-9a-f]{64}$" },
+        "selected": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "version", "executableSha256", "verification"],
+            "properties": {
+              "id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+              "version": { "type": "string", "minLength": 1 },
+              "executableSha256": { "$ref": "#/$defs/sha64" },
+              "verification": { "enum": ["version-digest-authenticode", "toolchain-version-and-executable-digest"] },
+              "authenticodeStatus": { "const": "valid" },
+              "signerOrganization": { "type": "string", "minLength": 1 },
+              "runtimeSignatureStatus": { "enum": ["not-required", "valid-exact"] },
+              "admissionSignatureKind": { "type": "string", "minLength": 1 },
+              "admissionSignatureVerified": { "type": "boolean" }
+            }
+          }
+        }
+      }
+    },
+    "attempt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["trial", "runAttempt", "jobAttempt", "restJobId", "workflowRerunCount", "automaticRetryCount", "timeout", "authority", "restConsolidationStatus", "rawExitCode", "rawExitCodeSource", "startedAt", "startedAtSource", "finishedAt", "wallTimeMs", "observedStatus", "resourceOracleStatus"],
+      "properties": {
+        "trial": { "$ref": "#/$defs/positiveInteger" },
+        "runAttempt": { "$ref": "#/$defs/positiveInteger" },
+        "jobAttempt": { "type": "null" },
+        "restJobId": { "type": "null" },
+        "workflowRerunCount": { "type": "null" },
+        "automaticRetryCount": { "type": "null" },
+        "timeout": { "type": "null" },
+        "authority": { "const": "runner-self-observed-partial" },
+        "restConsolidationStatus": { "const": "pending-post-run-attempt-jobs" },
+        "rawExitCode": { "type": "integer" },
+        "rawExitCodeSource": { "enum": ["direct-process", "github-job-status-normalized"] },
+        "startedAt": { "type": "string", "format": "date-time" },
+        "startedAtSource": { "enum": ["profile-clock", "finalizer-fallback"] },
+        "finishedAt": { "type": "string", "format": "date-time" },
+        "wallTimeMs": { "type": "integer", "minimum": 0 },
+        "observedStatus": { "$ref": "#/$defs/observedStatus" },
+        "resourceOracleStatus": { "enum": ["executed-pass", "executed-fail", "not-applicable", "not-run"] }
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repositoryAuthoredUpload", "actionOwnedConditionalUploadPossible", "observedUpload", "digest", "retentionDays", "readbackStatus", "releaseTrustInput"],
+      "properties": {
+        "repositoryAuthoredUpload": { "const": false },
+        "actionOwnedConditionalUploadPossible": { "type": "boolean" },
+        "observedUpload": { "type": ["boolean", "null"] },
+        "digest": { "type": ["string", "null"], "pattern": "^[0-9a-f]{64}$" },
+        "retentionDays": { "type": ["integer", "null"], "minimum": 1 },
+        "readbackStatus": { "enum": ["pending-rest-readback", "not-applicable"] },
+        "releaseTrustInput": { "const": false }
+      }
+    },
+    "cache": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repositoryAuthoredCacheEnabled", "readbackStatus", "releaseTrustInput"],
+      "properties": {
+        "repositoryAuthoredCacheEnabled": { "const": false },
+        "readbackStatus": { "enum": ["pending-rest-readback", "not-applicable"] },
+        "releaseTrustInput": { "const": false }
+      }
+    },
+    "privacy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["privatePathsPersisted", "secretsPersisted", "rawEnvironmentPersisted", "rawPromptOrPayloadPersisted", "rawStdoutOrStderrPersisted", "redactionStatus"],
+      "properties": {
+        "privatePathsPersisted": { "const": false },
+        "secretsPersisted": { "const": false },
+        "rawEnvironmentPersisted": { "const": false },
+        "rawPromptOrPayloadPersisted": { "const": false },
+        "rawStdoutOrStderrPersisted": { "const": false },
+        "redactionStatus": { "const": "executed-pass" }
+      }
+    }
+  }
+}

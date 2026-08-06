@@ -1,0 +1,323 @@
+{
+  "schemaVersion": "p5-prechange-inventory-v1",
+  "observedAt": "2026-07-31T06:24:18Z",
+  "source": {
+    "handoffCommit": "84515289913dfe8a7452754ad442d37873bdfd53",
+    "actualP4SourceCommit": "843e679936daba71a6c4c2fdd55fcade01b46b73",
+    "recordedP4SourceCommit": "843e679a90d4ef6946af251d36f43d257f8a5a10",
+    "recordedP4SourceResolvable": false,
+    "sourceBindingDisposition": "blocked-with-evidence",
+    "p3FinalCommit": "34559b5a55fbc3b171e3f472080729795632b74f",
+    "upstreamBaseCommit": "db52e28f4d9ded852ab3942cea316258ae4ef346",
+    "branch": "codex/p5-matrix-profile-bootstrap",
+    "protectedDigest": "b24fec394e331f6b550dfdb614be07ec19955c9f95288951afbcac4e4c8d0473",
+    "generatedProtocolSha256": "c4d141174754e04ef1cd1b904cd800d05e3174a772f86f0fc9c3f4d30ec3daf5",
+    "generatedSchemaDigest": "e504c5f04a3157a41a481bfc20cc77b8af58e4c750dcb47ad4453899779d4834",
+    "toolchainSha256": "a6033a05ebecd4ff5bca3a5924ff06e55a2e2de9b41541da2c050642102dbb5d",
+    "securityPolicySha256": "f4353ad5c207396f6c6c314aa522e16b556db81f2b0f18bb10741d5f4d8a9957",
+    "p4SnapshotSha256": "820456f8bdc229db1076604cafbddfd75974310e2fe0936136f6748dc8d21749"
+  },
+  "workflow": {
+    "path": ".github/workflows/pull-request-ci.yml",
+    "sha256": "fb058de3d7776243a102dce2b6606cc9d3cfcb05f1537f15b6482a9142d8f82d",
+    "trigger": [
+      "pull_request"
+    ],
+    "permissions": {
+      "contents": "read"
+    },
+    "concurrency": {
+      "group": "p3-pr-${{ github.event.pull_request.number }}",
+      "cancelInProgress": true,
+      "evidenceMeaning": "a cancelled run is not a passing attempt"
+    },
+    "jobs": [
+      {
+        "id": "ci",
+        "runnerLabel": "windows-2025",
+        "timeoutMinutes": 20,
+        "order": [
+          "checkout",
+          "setup-node",
+          "validate-p3",
+          "npm-ci",
+          "acquire-codex-regression",
+          "full-test-suite",
+          "build",
+          "acquire-security-tools",
+          "actionlint",
+          "zizmor",
+          "osv-scanner",
+          "gitleaks"
+        ]
+      },
+      {
+        "id": "dependency-review",
+        "runnerLabel": "windows-2025",
+        "timeoutMinutes": 10,
+        "order": [
+          "dependency-review"
+        ]
+      }
+    ],
+    "actionPins": [
+      {
+        "id": "actions/checkout",
+        "version": "v6.0.2",
+        "commit": "de0fac2e4500dabe0009e67214ff5f5447ce83dd",
+        "persistCredentials": false
+      },
+      {
+        "id": "actions/setup-node",
+        "version": "v6.3.0",
+        "commit": "53b83947a5a98c8d113130e565377fae1a50d02f"
+      },
+      {
+        "id": "actions/dependency-review-action",
+        "version": "v5.0.0",
+        "commit": "a1d282b36b6f3519aa1f3fc636f609c47dddb294"
+      }
+    ],
+    "node": {
+      "version": "24.18.1",
+      "npm": "11.16.0",
+      "architecture": "x64"
+    },
+    "ambientDependencies": {
+      "node": "provided by exact setup-node step",
+      "npm": "bundled with exact Node archive",
+      "codex": "run-owned installer output appended to GITHUB_PATH",
+      "claude": "not acquired",
+      "securityTools": "run-owned installer outputs appended to GITHUB_PATH",
+      "globalMutableToolRequired": false
+    },
+    "validatorsBeforeNpmCi": [
+      "scripts/validate-p3.mjs"
+    ],
+    "missingBeforeChange": [
+      "P4 validator invocation",
+      "P5 validator and explicit scenario/profile mapping",
+      "install/build/unit/contract job separation",
+      "current/previous Codex matrix controls",
+      "minimum/current Claude structural lane",
+      "runner metadata writer",
+      "open-handle and orphan postcondition readback",
+      "non-blocking exact canary",
+      "hosted/local/not-run/blocked evidence states"
+    ],
+    "artifacts": [],
+    "caches": [],
+    "secretsReferenced": false,
+    "writePermissions": false,
+    "oidcPermission": false
+  },
+  "toolIdentities": {
+    "node": {
+      "version": "24.18.1",
+      "archiveSha256": "ec56b84a7551893ab2324ebdfdc4ab974a63b4781162600b68a1293cc3e53765"
+    },
+    "npm": {
+      "version": "11.16.0",
+      "source": "bundled-only"
+    },
+    "codex": [
+      {
+        "lane": "build",
+        "version": "0.146.0",
+        "executableSha256": "bc343ba420dc2e2e9f59e6fc5e5bf0aae1cd8c771fc319665241fc9c0271fddb"
+      },
+      {
+        "lane": "current",
+        "version": "0.146.0",
+        "executableSha256": "bc343ba420dc2e2e9f59e6fc5e5bf0aae1cd8c771fc319665241fc9c0271fddb"
+      },
+      {
+        "lane": "previous",
+        "version": "0.145.0",
+        "executableSha256": "83751f15cb6a0a7b97df67752c001e3fe1c20e18ffbfec3ff63567296205eb6c"
+      }
+    ],
+    "claude": [
+      {
+        "lane": "minimum",
+        "version": "2.1.196",
+        "executableSha256": "180d7b279455e8b89d4353a5146447be2f80b80fb0db14bdc6dd9cb98c0aef09"
+      },
+      {
+        "lane": "current",
+        "version": "2.1.220",
+        "executableSha256": "af5bf1f1b2aadffc768eccd787084c6fdf9ba81624cbe96c1c6d9ac1a1550231"
+      }
+    ]
+  },
+  "tests": {
+    "currentProfile": "ci",
+    "files": [
+      {
+        "path": "tests/broker-endpoint.test.mjs",
+        "scenarioClass": "windows-named-pipe",
+        "requirementIds": [
+          "B5",
+          "C5",
+          "X5"
+        ]
+      },
+      {
+        "path": "tests/bump-version.test.mjs",
+        "scenarioClass": "unit",
+        "requirementIds": [
+          "X12"
+        ]
+      },
+      {
+        "path": "tests/commands.test.mjs",
+        "scenarioClass": "unit",
+        "requirementIds": [
+          "X2"
+        ]
+      },
+      {
+        "path": "tests/downstream-identity.test.mjs",
+        "scenarioClass": "unit",
+        "requirementIds": [
+          "X12"
+        ]
+      },
+      {
+        "path": "tests/generate-app-server-types.test.mjs",
+        "scenarioClass": "unit-transaction",
+        "requirementIds": [
+          "X1",
+          "X8"
+        ]
+      },
+      {
+        "path": "tests/git.test.mjs",
+        "scenarioClass": "unit-path",
+        "requirementIds": [
+          "C2",
+          "X9"
+        ]
+      },
+      {
+        "path": "tests/p3-security-baseline.test.mjs",
+        "scenarioClass": "policy-validation",
+        "requirementIds": [
+          "X5",
+          "X7",
+          "X9",
+          "X15"
+        ]
+      },
+      {
+        "path": "tests/p4-contract-baseline.test.mjs",
+        "scenarioClass": "core-contract",
+        "requirementIds": [
+          "X1",
+          "X2",
+          "X3",
+          "X5",
+          "X8"
+        ]
+      },
+      {
+        "path": "tests/platform-policy.test.mjs",
+        "scenarioClass": "unit",
+        "requirementIds": [
+          "C1",
+          "X5"
+        ]
+      },
+      {
+        "path": "tests/process.test.mjs",
+        "scenarioClass": "windows-process-tree",
+        "requirementIds": [
+          "B5",
+          "C4",
+          "C5"
+        ]
+      },
+      {
+        "path": "tests/render.test.mjs",
+        "scenarioClass": "unit",
+        "requirementIds": [
+          "X9"
+        ]
+      },
+      {
+        "path": "tests/runtime.test.mjs",
+        "scenarioClass": "windows-runtime-integration",
+        "requirementIds": [
+          "B5",
+          "C2",
+          "C4",
+          "C5",
+          "X2",
+          "X8",
+          "X9"
+        ]
+      },
+      {
+        "path": "tests/state.test.mjs",
+        "scenarioClass": "unit",
+        "requirementIds": [
+          "X4",
+          "X10"
+        ]
+      }
+    ],
+    "coverageReadback": {
+      "namedPipe": [
+        "tests/broker-endpoint.test.mjs",
+        "tests/runtime.test.mjs"
+      ],
+      "processTreeAndCancellation": [
+        "tests/process.test.mjs",
+        "tests/runtime.test.mjs",
+        "tests/p4-contract-baseline.test.mjs"
+      ],
+      "transactionOrphanMarkers": [
+        "tests/generate-app-server-types.test.mjs"
+      ],
+      "independentOsOpenHandleOracle": false,
+      "independentOwnedProcessOrphanOracle": false,
+      "nativeJobObjectContainment": false,
+      "sqliteD1Runtime": false
+    }
+  },
+  "runnerEvidence": {
+    "collectedBeforeChange": false,
+    "labelInWorkflow": "windows-2025",
+    "exactImageVersionObserved": null,
+    "osBuildObserved": null,
+    "architectureObserved": null,
+    "filesystemObserved": null,
+    "truthStatus": "not-run"
+  },
+  "remoteReadOnly": {
+    "queriedAt": "2026-07-31T06:18:00Z",
+    "repository": "wotjr1649/codex-conductor-cc",
+    "defaultBranch": "main",
+    "branchProtection": {
+      "requiredStatusChecks": [
+        "CI"
+      ],
+      "strict": true,
+      "requiredConversationResolution": true,
+      "forcePushAllowed": false,
+      "deletionAllowed": false,
+      "requiredApprovingReviewCount": 0,
+      "codeOwnerReviewsRequired": false,
+      "enforceAdmins": false
+    },
+    "repositoryRulesets": [],
+    "settingsMutated": false
+  },
+  "privacy": {
+    "privatePathsPersisted": false,
+    "rawEnvironmentPersisted": false,
+    "rawPromptOrPayloadPersisted": false,
+    "secretNamesOrValuesPersisted": false,
+    "rawLiveOutputPersisted": false
+  }
+}

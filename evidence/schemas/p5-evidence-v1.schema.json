@@ -1,0 +1,521 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/wotjr1649/codex-conductor-cc/evidence/schemas/p5-evidence-v1.schema.json",
+  "title": "P5 matrix profile bootstrap evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schemaVersion",
+    "evidenceId",
+    "phase",
+    "overallStatus",
+    "localBootstrapStatus",
+    "hostedGateStatus",
+    "source",
+    "environment",
+    "profileResults",
+    "authenticatedClaude",
+    "hostedRunner",
+    "localChecks",
+    "immutableReadback",
+    "p4SourceBinding",
+    "privacy",
+    "remoteExecution",
+    "review",
+    "attemptLedger"
+  ],
+  "properties": {
+    "$schema": {
+      "const": "../../schemas/p5-evidence-v1.schema.json"
+    },
+    "schemaVersion": {
+      "const": "p5-evidence-v1"
+    },
+    "evidenceId": {
+      "const": "p5-matrix-profile-bootstrap-20260731"
+    },
+    "phase": {
+      "const": "P5"
+    },
+    "overallStatus": {
+      "enum": [
+        "partial",
+        "local-complete",
+        "hosted-complete",
+        "blocked"
+      ]
+    },
+    "localBootstrapStatus": {
+      "enum": [
+        "executed-pass",
+        "executed-fail",
+        "blocked-with-evidence"
+      ]
+    },
+    "hostedGateStatus": {
+      "enum": [
+        "not-run",
+        "hosted-pass",
+        "blocked-with-evidence"
+      ]
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "handoffCommit",
+        "sourceCommit",
+        "branch",
+        "upstreamBase"
+      ],
+      "properties": {
+        "handoffCommit": {
+          "pattern": "^[0-9a-f]{40}$",
+          "type": "string"
+        },
+        "sourceCommit": {
+          "pattern": "^[0-9a-f]{40}$",
+          "type": "string"
+        },
+        "branch": {
+          "const": "codex/p5-matrix-profile-bootstrap"
+        },
+        "upstreamBase": {
+          "pattern": "^[0-9a-f]{40}$",
+          "type": "string"
+        }
+      }
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "os",
+        "architecture",
+        "node",
+        "npm",
+        "filesystem",
+        "environmentClass",
+        "privatePathsPersisted"
+      ],
+      "properties": {
+        "os": {
+          "const": "windows"
+        },
+        "architecture": {
+          "const": "x64"
+        },
+        "node": {
+          "const": "24.18.1"
+        },
+        "npm": {
+          "const": "11.16.0"
+        },
+        "filesystem": {
+          "const": "NTFS"
+        },
+        "environmentClass": {
+          "const": "local-windows-x64-ntfs-run-owned"
+        },
+        "privatePathsPersisted": {
+          "const": false
+        }
+      }
+    },
+    "profileResults": {
+      "type": "array",
+      "minItems": 11,
+      "maxItems": 11,
+      "items": {
+        "$ref": "#/$defs/profileResult"
+      }
+    },
+    "authenticatedClaude": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "executionStatus",
+        "authorized",
+        "secretUsed",
+        "paidInferenceUsed"
+      ],
+      "properties": {
+        "executionStatus": {
+          "const": "not-run"
+        },
+        "authorized": {
+          "const": false
+        },
+        "secretUsed": {
+          "const": false
+        },
+        "paidInferenceUsed": {
+          "const": false
+        }
+      }
+    },
+    "hostedRunner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requestedLabel",
+        "imageVersion",
+        "osBuild",
+        "architecture",
+        "filesystem",
+        "executionStatus"
+      ],
+      "properties": {
+        "requestedLabel": {
+          "const": "windows-2025"
+        },
+        "imageVersion": {
+          "const": null
+        },
+        "osBuild": {
+          "const": null
+        },
+        "architecture": {
+          "const": null
+        },
+        "filesystem": {
+          "const": null
+        },
+        "executionStatus": {
+          "const": "not-run"
+        }
+      }
+    },
+    "localChecks": {
+      "type": "array",
+      "minItems": 20,
+      "items": {
+        "$ref": "#/$defs/localCheck"
+      }
+    },
+    "immutableReadback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protectedDigest",
+        "generatedProtocolSha256",
+        "generatedSchemaDigest",
+        "toolchainSha256",
+        "securityPolicySha256",
+        "p4SnapshotSha256",
+        "p4ContractTree",
+        "status"
+      ],
+      "properties": {
+        "protectedDigest": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "generatedProtocolSha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "generatedSchemaDigest": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "toolchainSha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "securityPolicySha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "p4SnapshotSha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "p4ContractTree": {
+          "pattern": "^[0-9a-f]{40}$",
+          "type": "string"
+        },
+        "status": {
+          "const": "executed-pass"
+        }
+      }
+    },
+    "p4SourceBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "recordedCommit",
+        "actualCommit",
+        "recordedCommitResolvable",
+        "status",
+        "p5CorrectionApplied"
+      ],
+      "properties": {
+        "recordedCommit": {
+          "pattern": "^[0-9a-f]{40}$",
+          "type": "string"
+        },
+        "actualCommit": {
+          "pattern": "^[0-9a-f]{40}$",
+          "type": "string"
+        },
+        "recordedCommitResolvable": {
+          "const": false
+        },
+        "status": {
+          "const": "blocked-with-evidence"
+        },
+        "p5CorrectionApplied": {
+          "const": false
+        }
+      }
+    },
+    "privacy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "privatePathsPersisted",
+        "secretsPersisted",
+        "rawEnvironmentPersisted",
+        "rawPromptOrPayloadPersisted",
+        "rawStdoutOrStderrPersisted",
+        "binaryArchivesPersisted",
+        "redactionStatus"
+      ],
+      "properties": {
+        "privatePathsPersisted": {
+          "const": false
+        },
+        "secretsPersisted": {
+          "const": false
+        },
+        "rawEnvironmentPersisted": {
+          "const": false
+        },
+        "rawPromptOrPayloadPersisted": {
+          "const": false
+        },
+        "rawStdoutOrStderrPersisted": {
+          "const": false
+        },
+        "binaryArchivesPersisted": {
+          "const": false
+        },
+        "redactionStatus": {
+          "const": "executed-pass"
+        }
+      }
+    },
+    "remoteExecution": {
+      "const": "not-run"
+    },
+    "review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "findingCount",
+        "acceptedCount",
+        "rejectedCount",
+        "deferredCount",
+        "summary"
+      ],
+      "properties": {
+        "status": {
+          "const": "executed-pass"
+        },
+        "findingCount": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "acceptedCount": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "rejectedCount": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "deferredCount": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "summary": {
+          "minLength": 1,
+          "type": "string"
+        }
+      }
+    },
+    "attemptLedger": {
+      "const": "evidence/ledgers/p5-attempts.json"
+    }
+  },
+  "$defs": {
+    "profileResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "profileId",
+        "blocking",
+        "localStatus",
+        "hostedStatus",
+        "disposition",
+        "runtimeImplemented",
+        "deferredPhase",
+        "evidenceIds"
+      ],
+      "properties": {
+        "profileId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "blocking": {
+          "type": "boolean"
+        },
+        "localStatus": {
+          "enum": [
+            "defined",
+            "local-pass",
+            "hosted-pass",
+            "non-blocking-canary",
+            "not-run",
+            "blocked-with-evidence",
+            "not-applicable"
+          ]
+        },
+        "hostedStatus": {
+          "enum": [
+            "defined",
+            "local-pass",
+            "hosted-pass",
+            "non-blocking-canary",
+            "not-run",
+            "blocked-with-evidence",
+            "not-applicable"
+          ]
+        },
+        "disposition": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "runtimeImplemented": {
+          "type": "boolean"
+        },
+        "deferredPhase": {
+          "enum": [
+            null,
+            "v0.2"
+          ]
+        },
+        "evidenceIds": {
+          "type": "array",
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          }
+        }
+      }
+    },
+    "localCheck": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "requirementIds",
+        "fixtureIds",
+        "trial",
+        "retryCount",
+        "timeout",
+        "rawExitCode",
+        "startedAt",
+        "finishedAt",
+        "wallTimeMs",
+        "executionStatus",
+        "expected",
+        "observed",
+        "artifactSha256",
+        "runtimeEnforced",
+        "deferredPhase"
+      ],
+      "properties": {
+        "id": {
+          "pattern": "^p5-[a-z0-9-]+$",
+          "type": "string"
+        },
+        "requirementIds": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "fixtureIds": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "trial": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "retryCount": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "timeout": {
+          "type": "boolean"
+        },
+        "rawExitCode": {
+          "type": "integer"
+        },
+        "startedAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "finishedAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "wallTimeMs": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "executionStatus": {
+          "enum": [
+            "executed-pass",
+            "executed-fail",
+            "not-run",
+            "blocked-with-evidence"
+          ]
+        },
+        "expected": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "observed": {
+          "minLength": 1,
+          "type": "string"
+        },
+          "artifactSha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "type": ["string", "null"]
+          },
+        "runtimeEnforced": {
+          "type": "boolean"
+        },
+        "deferredPhase": {
+          "enum": [
+            null,
+            "v0.2",
+            "P6"
+          ]
+        }
+      }
+    }
+  }
+}

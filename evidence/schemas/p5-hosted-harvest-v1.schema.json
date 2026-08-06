@@ -1,0 +1,243 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/wotjr1649/codex-conductor-cc/evidence/schemas/p5-hosted-harvest-v1.schema.json",
+  "title": "P5 attempt-scoped hosted evidence harvest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion", "repository", "run", "sourceHeadSha", "eventMergeSha",
+    "workflowSha", "pullRequest", "validationSource", "trustReadback", "extraction", "collectionStatus",
+    "collectionErrors", "jobs"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "p5-hosted-harvest-v1" },
+    "repository": { "type": "string", "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$" },
+    "run": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "attempt"],
+      "properties": {
+        "id": { "$ref": "#/$defs/positiveInteger" },
+        "attempt": { "$ref": "#/$defs/positiveInteger" }
+      }
+    },
+    "sourceHeadSha": { "$ref": "#/$defs/sha40" },
+    "eventMergeSha": { "$ref": "#/$defs/sha40" },
+    "workflowSha": { "$ref": "#/$defs/sha40" },
+    "pullRequest": { "$ref": "#/$defs/pullRequest" },
+    "trustReadback": { "$ref": "#/$defs/trustReadback" },
+    "validationSource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sourceHeadSha", "authority", "files"],
+      "properties": {
+        "sourceHeadSha": { "$ref": "#/$defs/sha40" },
+        "authority": { "const": "source-commit-git-objects-and-matched-executable" },
+        "files": {
+          "type": "array",
+          "minItems": 10,
+          "maxItems": 10,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["path", "sha256"],
+            "properties": {
+              "path": { "type": "string", "minLength": 1 },
+              "sha256": { "$ref": "#/$defs/sha64" }
+            }
+          }
+        }
+      }
+    },
+    "extraction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["command", "scope", "rawLogsPersisted", "markerPrefix", "markerCardinality"],
+      "properties": {
+        "command": { "const": "gh run view --job --log" },
+        "scope": { "type": "string", "minLength": 1 },
+        "rawLogsPersisted": { "const": false },
+        "markerPrefix": { "const": "P5_SANITIZED_EVIDENCE_JSON=" },
+        "markerCardinality": { "const": "exactly-one-per-successful-evidence-step" }
+      }
+    },
+    "collectionStatus": { "enum": ["validated", "incomplete-or-invalid"] },
+    "collectionErrors": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "jobs": {
+      "type": "array",
+      "maxItems": 12,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["rest", "consolidatedAttempt", "fragmentStatus", "markerCount", "markerSha256", "fragmentSha256", "validationErrors", "fragment"],
+        "properties": {
+          "rest": { "$ref": "#/$defs/restJob" },
+          "consolidatedAttempt": { "$ref": "#/$defs/consolidatedAttempt" },
+          "fragmentStatus": { "enum": ["missing-runtime-fragment", "rejected-untrusted-fragment", "validated-rest-bound"] },
+          "markerCount": { "type": "integer", "minimum": 0 },
+          "markerSha256": { "type": ["string", "null"], "pattern": "^[0-9a-f]{64}$" },
+          "fragmentSha256": { "type": ["string", "null"], "pattern": "^[0-9a-f]{64}$" },
+          "validationErrors": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+          "fragment": { "type": ["object", "null"] }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "sha40": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "sha64": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "positiveInteger": { "type": "integer", "minimum": 1 },
+    "pullRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["number", "baseRepository", "baseRef", "baseSha", "headRepository", "headRef", "headSha"],
+      "properties": {
+        "number": { "$ref": "#/$defs/positiveInteger" },
+        "baseRepository": { "type": "string", "minLength": 1 },
+        "baseRef": { "type": "string", "minLength": 1 },
+        "baseSha": { "$ref": "#/$defs/sha40" },
+        "headRepository": { "type": "string", "minLength": 1 },
+        "headRef": { "type": "string", "minLength": 1 },
+        "headSha": { "$ref": "#/$defs/sha40" }
+      }
+    },
+    "trustReadback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifact", "cache"],
+      "properties": {
+        "artifact": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["authority", "endpoint", "repositoryAuthoredUpload", "actionOwnedConditionalUploadPossible", "observedUpload", "attemptAttribution", "otherAttemptArtifactCount", "artifacts", "readbackStatus", "releaseTrustInput"],
+          "properties": {
+            "authority": { "const": "run-artifacts-rest-plus-reviewed-workflow" },
+            "endpoint": { "type": "string", "minLength": 1 },
+            "repositoryAuthoredUpload": { "const": false },
+            "actionOwnedConditionalUploadPossible": { "const": true },
+            "observedUpload": { "type": "boolean" },
+            "attemptAttribution": { "enum": ["exact-first-attempt-time-window", "exact-empty-current-attempt-window", "unavailable-run-scoped-after-rerun"] },
+            "otherAttemptArtifactCount": { "type": "integer", "minimum": 0 },
+            "artifacts": {
+              "type": "array",
+              "maxItems": 100,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["id", "name", "sizeBytes", "digest", "expired", "createdAt", "updatedAt", "expiresAt", "retentionDays", "url"],
+                "properties": {
+                  "id": { "$ref": "#/$defs/positiveInteger" },
+                  "name": { "type": "string", "minLength": 1 },
+                  "sizeBytes": { "type": "integer", "minimum": 0 },
+                  "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+                  "expired": { "type": "boolean" },
+                  "createdAt": { "type": "string", "format": "date-time" },
+                  "updatedAt": { "type": "string", "format": "date-time" },
+                  "expiresAt": { "type": "string", "format": "date-time" },
+                  "retentionDays": { "const": 1 },
+                  "url": { "type": "string", "minLength": 1 }
+                }
+              }
+            },
+            "readbackStatus": { "enum": ["resolved", "incomplete-or-invalid"] },
+            "releaseTrustInput": { "const": false }
+          }
+        },
+        "cache": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["authority", "ref", "repositoryAuthoredCacheEnabled", "packageManagerCacheEnabled", "matchingRefCacheCount", "entries", "inventorySha256", "readbackStatus", "releaseTrustInput"],
+          "properties": {
+            "authority": { "const": "pr-ref-cache-rest-plus-reviewed-workflow" },
+            "ref": { "type": "string", "pattern": "^refs/pull/[1-9][0-9]*/merge$" },
+            "repositoryAuthoredCacheEnabled": { "const": false },
+            "packageManagerCacheEnabled": { "const": false },
+            "matchingRefCacheCount": { "type": "integer", "minimum": 0 },
+            "entries": {
+              "type": "array",
+              "maxItems": 100,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["id", "keySha256", "sizeBytes", "createdAt", "lastAccessedAt"],
+                "properties": {
+                  "id": { "$ref": "#/$defs/positiveInteger" },
+                  "keySha256": { "$ref": "#/$defs/sha64" },
+                  "sizeBytes": { "type": "integer", "minimum": 0 },
+                  "createdAt": { "type": "string", "format": "date-time" },
+                  "lastAccessedAt": { "type": "string", "format": "date-time" }
+                }
+              }
+            },
+            "inventorySha256": { "$ref": "#/$defs/sha64" },
+            "readbackStatus": { "enum": ["resolved", "incomplete-or-invalid"] },
+            "releaseTrustInput": { "const": false }
+          }
+        }
+      }
+    },
+    "dateTimeOrNull": { "type": ["string", "null"], "format": "date-time" },
+    "conclusion": { "enum": ["success", "failure", "neutral", "cancelled", "skipped", "timed_out", "action_required", "stale", "startup_failure", null] },
+    "restStep": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["number", "name", "status", "conclusion", "startedAt", "completedAt"],
+      "properties": {
+        "number": { "type": "integer", "minimum": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "status": { "enum": ["queued", "in_progress", "completed"] },
+        "conclusion": { "$ref": "#/$defs/conclusion" },
+        "startedAt": { "$ref": "#/$defs/dateTimeOrNull" },
+        "completedAt": { "$ref": "#/$defs/dateTimeOrNull" }
+      }
+    },
+    "restJob": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "runId", "runAttempt", "name", "status", "conclusion", "startedAt", "completedAt", "url", "runUrl", "htmlUrl", "checkRunUrl", "headSha", "workflowName", "labels", "integrityStep", "evidenceStep"],
+      "properties": {
+        "id": { "$ref": "#/$defs/positiveInteger" },
+        "runId": { "$ref": "#/$defs/positiveInteger" },
+        "runAttempt": { "$ref": "#/$defs/positiveInteger" },
+        "name": { "type": "string", "minLength": 1 },
+        "status": { "enum": ["queued", "in_progress", "completed"] },
+        "conclusion": { "$ref": "#/$defs/conclusion" },
+        "startedAt": { "$ref": "#/$defs/dateTimeOrNull" },
+        "completedAt": { "$ref": "#/$defs/dateTimeOrNull" },
+        "url": { "type": "string", "minLength": 1 },
+        "runUrl": { "type": "string", "minLength": 1 },
+        "htmlUrl": { "type": "string", "minLength": 1 },
+        "checkRunUrl": { "type": "string", "minLength": 1 },
+        "headSha": { "$ref": "#/$defs/sha40" },
+        "workflowName": { "const": "Pull Request CI" },
+        "labels": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+        "integrityStep": { "$ref": "#/$defs/restStep" },
+        "evidenceStep": { "$ref": "#/$defs/restStep" }
+      }
+    },
+    "consolidatedAttempt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["authority", "runAttempt", "restJobId", "workflowRerunCount", "jobAttempt", "jobAttemptStatus", "automaticRetryCount", "automaticRetryStatus", "timeout", "restConclusion", "restStartedAt", "restCompletedAt", "restWallTimeMs", "rawExitCode", "rawExitCodeSource", "runnerObservedStatus", "fragmentAuthority"],
+      "properties": {
+        "authority": { "const": "attempt-scoped-rest-plus-validated-runner-fragment" },
+        "runAttempt": { "$ref": "#/$defs/positiveInteger" },
+        "restJobId": { "$ref": "#/$defs/positiveInteger" },
+        "workflowRerunCount": { "type": "integer", "minimum": 0 },
+        "jobAttempt": { "type": "null" },
+        "jobAttemptStatus": { "const": "not-exposed-by-attempt-jobs-api" },
+        "automaticRetryCount": { "type": "null" },
+        "automaticRetryStatus": { "const": "not-exposed-by-attempt-jobs-api" },
+        "timeout": { "type": ["boolean", "null"] },
+        "restConclusion": { "$ref": "#/$defs/conclusion" },
+        "restStartedAt": { "$ref": "#/$defs/dateTimeOrNull" },
+        "restCompletedAt": { "$ref": "#/$defs/dateTimeOrNull" },
+        "restWallTimeMs": { "type": ["integer", "null"], "minimum": 0 },
+        "rawExitCode": { "type": ["integer", "null"] },
+        "rawExitCodeSource": { "enum": ["github-job-status-normalized", null] },
+        "runnerObservedStatus": { "enum": ["executed-pass", "executed-fail", "non-blocking-canary", null] },
+        "fragmentAuthority": { "enum": ["validated-rest-bound", "unavailable"] }
+      }
+    }
+  }
+}

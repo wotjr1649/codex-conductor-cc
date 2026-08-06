@@ -1,0 +1,1350 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/wotjr1649/codex-conductor-cc/evidence/schemas/p5-evidence-v3.schema.json",
+  "title": "P5 matrix profile bootstrap historical and eight-run hosted provenance evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schemaVersion",
+    "evidenceId",
+    "phase",
+    "overallStatus",
+    "localBootstrapStatus",
+    "hostedGateStatus",
+    "source",
+    "environment",
+    "profileResults",
+    "authenticatedClaude",
+    "localChecks",
+    "immutableReadback",
+    "p4SourceBinding",
+    "privacy",
+    "remoteExecution",
+    "review",
+    "attemptLedger",
+    "hostedObservations",
+    "prRefCacheObservation"
+  ],
+  "properties": {
+    "$schema": {
+      "const": "../../schemas/p5-evidence-v3.schema.json"
+    },
+    "schemaVersion": {
+      "const": "p5-evidence-v3"
+    },
+    "evidenceId": {
+      "const": "p5-matrix-profile-bootstrap-20260731"
+    },
+    "phase": {
+      "const": "P5"
+    },
+    "overallStatus": {
+      "enum": [
+        "partial",
+        "local-complete",
+        "hosted-complete",
+        "blocked"
+      ]
+    },
+    "localBootstrapStatus": {
+      "enum": [
+        "executed-pass",
+        "executed-fail",
+        "blocked-with-evidence"
+      ]
+    },
+    "hostedGateStatus": {
+      "enum": [
+        "not-run",
+        "hosted-pass",
+        "executed-fail",
+        "blocked-with-evidence"
+      ]
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "handoffCommit",
+        "sourceCommit",
+        "branch",
+        "upstreamBase"
+      ],
+      "properties": {
+        "handoffCommit": {
+          "pattern": "^[0-9a-f]{40}$",
+          "type": "string"
+        },
+        "sourceCommit": {
+          "pattern": "^[0-9a-f]{40}$",
+          "type": "string"
+        },
+        "branch": {
+          "const": "codex/p5-matrix-profile-bootstrap"
+        },
+        "upstreamBase": {
+          "pattern": "^[0-9a-f]{40}$",
+          "type": "string"
+        }
+      }
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "os",
+        "architecture",
+        "node",
+        "npm",
+        "filesystem",
+        "environmentClass",
+        "privatePathsPersisted"
+      ],
+      "properties": {
+        "os": {
+          "const": "windows"
+        },
+        "architecture": {
+          "const": "x64"
+        },
+        "node": {
+          "const": "24.18.1"
+        },
+        "npm": {
+          "const": "11.16.0"
+        },
+        "filesystem": {
+          "const": "NTFS"
+        },
+        "environmentClass": {
+          "const": "local-windows-x64-ntfs-run-owned"
+        },
+        "privatePathsPersisted": {
+          "const": false
+        }
+      }
+    },
+    "profileResults": {
+      "type": "array",
+      "minItems": 11,
+      "maxItems": 11,
+      "items": {
+        "$ref": "#/$defs/profileResult"
+      }
+    },
+    "authenticatedClaude": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "executionStatus",
+        "authorized",
+        "secretUsed",
+        "paidInferenceUsed"
+      ],
+      "properties": {
+        "executionStatus": {
+          "const": "not-run"
+        },
+        "authorized": {
+          "const": false
+        },
+        "secretUsed": {
+          "const": false
+        },
+        "paidInferenceUsed": {
+          "const": false
+        }
+      }
+    },
+    "localChecks": {
+      "type": "array",
+      "minItems": 20,
+      "items": {
+        "$ref": "#/$defs/localCheck"
+      }
+    },
+    "immutableReadback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protectedDigest",
+        "generatedProtocolSha256",
+        "generatedSchemaDigest",
+        "toolchainSha256",
+        "securityPolicySha256",
+        "p4SnapshotSha256",
+        "p4ContractTree",
+        "status"
+      ],
+      "properties": {
+        "protectedDigest": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "generatedProtocolSha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "generatedSchemaDigest": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "toolchainSha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "securityPolicySha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "p4SnapshotSha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "p4ContractTree": {
+          "pattern": "^[0-9a-f]{40}$",
+          "type": "string"
+        },
+        "status": {
+          "const": "executed-pass"
+        }
+      }
+    },
+    "p4SourceBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "recordedCommit",
+        "actualCommit",
+        "recordedCommitResolvable",
+        "status",
+        "p5CorrectionApplied"
+      ],
+      "properties": {
+        "recordedCommit": {
+          "pattern": "^[0-9a-f]{40}$",
+          "type": "string"
+        },
+        "actualCommit": {
+          "pattern": "^[0-9a-f]{40}$",
+          "type": "string"
+        },
+        "recordedCommitResolvable": {
+          "const": false
+        },
+        "status": {
+          "const": "blocked-with-evidence"
+        },
+        "p5CorrectionApplied": {
+          "const": false
+        }
+      }
+    },
+    "privacy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "privatePathsPersisted",
+        "secretsPersisted",
+        "rawEnvironmentPersisted",
+        "rawPromptOrPayloadPersisted",
+        "rawStdoutOrStderrPersisted",
+        "binaryArchivesPersisted",
+        "redactionStatus"
+      ],
+      "properties": {
+        "privatePathsPersisted": {
+          "const": false
+        },
+        "secretsPersisted": {
+          "const": false
+        },
+        "rawEnvironmentPersisted": {
+          "const": false
+        },
+        "rawPromptOrPayloadPersisted": {
+          "const": false
+        },
+        "rawStdoutOrStderrPersisted": {
+          "const": false
+        },
+        "binaryArchivesPersisted": {
+          "const": false
+        },
+        "redactionStatus": {
+          "const": "executed-pass"
+        }
+      }
+    },
+    "remoteExecution": {
+      "enum": [
+        "not-run",
+        "executed-fail",
+        "executed-pass"
+      ]
+    },
+    "review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "findingCount",
+        "acceptedCount",
+        "rejectedCount",
+        "deferredCount",
+        "summary"
+      ],
+      "properties": {
+        "status": {
+          "const": "executed-pass"
+        },
+        "findingCount": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "acceptedCount": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "rejectedCount": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "deferredCount": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "summary": {
+          "minLength": 1,
+          "type": "string"
+        }
+      }
+    },
+    "attemptLedger": {
+      "const": "evidence/ledgers/p5-attempts.json"
+    },
+    "hostedObservations": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 8,
+      "items": {
+        "$ref": "#/$defs/hostedObservationV3"
+      }
+    },
+    "prRefCacheObservation": {
+      "$ref": "#/$defs/prRefCacheObservation"
+    }
+  },
+  "$defs": {
+    "profileResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "profileId",
+        "blocking",
+        "localStatus",
+        "hostedStatus",
+        "disposition",
+        "runtimeImplemented",
+        "deferredPhase",
+        "evidenceIds"
+      ],
+      "properties": {
+        "profileId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "blocking": {
+          "type": "boolean"
+        },
+        "localStatus": {
+          "enum": [
+            "defined",
+            "local-pass",
+            "hosted-pass",
+            "non-blocking-canary",
+            "not-run",
+            "blocked-with-evidence",
+            "not-applicable"
+          ]
+        },
+        "hostedStatus": {
+          "enum": [
+            "defined",
+            "local-pass",
+            "hosted-pass",
+            "non-blocking-canary",
+            "not-run",
+            "blocked-with-evidence",
+            "not-applicable",
+            "executed-fail",
+            "skipped"
+          ]
+        },
+        "disposition": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "runtimeImplemented": {
+          "type": "boolean"
+        },
+        "deferredPhase": {
+          "enum": [
+            null,
+            "v0.2"
+          ]
+        },
+        "evidenceIds": {
+          "type": "array",
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          }
+        }
+      }
+    },
+    "localCheck": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "requirementIds",
+        "fixtureIds",
+        "trial",
+        "retryCount",
+        "timeout",
+        "rawExitCode",
+        "startedAt",
+        "finishedAt",
+        "wallTimeMs",
+        "executionStatus",
+        "expected",
+        "observed",
+        "artifactSha256",
+        "runtimeEnforced",
+        "deferredPhase"
+      ],
+      "properties": {
+        "id": {
+          "pattern": "^p5-[a-z0-9-]+$",
+          "type": "string"
+        },
+        "requirementIds": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "fixtureIds": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "trial": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "retryCount": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "timeout": {
+          "type": "boolean"
+        },
+        "rawExitCode": {
+          "type": "integer"
+        },
+        "startedAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "finishedAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "wallTimeMs": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "executionStatus": {
+          "enum": [
+            "executed-pass",
+            "executed-fail",
+            "not-run",
+            "blocked-with-evidence"
+          ]
+        },
+        "expected": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "observed": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "artifactSha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "runtimeEnforced": {
+          "type": "boolean"
+        },
+        "deferredPhase": {
+          "enum": [
+            null,
+            "v0.2",
+            "P6"
+          ]
+        }
+      }
+    },
+    "hostedStepObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "number",
+        "name",
+        "status",
+        "conclusion"
+      ],
+      "properties": {
+        "number": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "const": "completed"
+        },
+        "conclusion": {
+          "enum": [
+            "success",
+            "failure",
+            "skipped"
+          ]
+        }
+      }
+    },
+    "hostedLogObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "authority",
+        "readbackStatus",
+        "markerCount",
+        "failureCodes",
+        "failureObservations",
+        "policyTestTotal",
+        "policyTestPassed",
+        "rawLogsPersisted"
+      ],
+      "properties": {
+        "authority": {
+          "const": "read-only-sanitized-log-projection"
+        },
+        "readbackStatus": {
+          "enum": [
+            "resolved",
+            "not-applicable-skipped-job"
+          ]
+        },
+        "markerCount": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        "failureCodes": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 1,
+          "items": {
+            "type": "string",
+            "pattern": "^P5E_[A-Z0-9_]+$"
+          }
+        },
+        "failureObservations": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 2,
+          "items": {
+            "enum": [
+              "policy-assertion-falsy",
+              "runner-evidence-null-fixture-ids"
+            ]
+          }
+        },
+        "policyTestTotal": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "policyTestPassed": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "rawLogsPersisted": {
+          "const": false
+        }
+      }
+    },
+    "hostedJobObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "jobName",
+        "jobKey",
+        "checkRunId",
+        "status",
+        "conclusion",
+        "startedAt",
+        "completedAt",
+        "runnerName",
+        "runnerToolProjection",
+        "steps",
+        "log"
+      ],
+      "properties": {
+        "jobName": {
+          "type": "string",
+          "minLength": 1
+        },
+        "jobKey": {
+          "type": "string",
+          "minLength": 1
+        },
+        "checkRunId": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "status": {
+          "const": "completed"
+        },
+        "conclusion": {
+          "enum": [
+            "success",
+            "failure",
+            "skipped"
+          ]
+        },
+        "startedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "completedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "runnerName": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "runnerToolProjection": {
+          "$ref": "#/$defs/jobRunnerToolProjection"
+        },
+        "steps": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 24,
+          "items": {
+            "$ref": "#/$defs/hostedStepObservation"
+          }
+        },
+        "log": {
+          "$ref": "#/$defs/hostedLogObservation"
+        }
+      }
+    },
+    "collectionIssue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "jobKey",
+        "stepName",
+        "count"
+      ],
+      "properties": {
+        "code": {
+          "enum": [
+            "P5E_COLLECT_JOB_SET",
+            "P5E_COLLECT_STEP",
+            "P5E_RUNNER_EVIDENCE_IDENTITY"
+          ]
+        },
+        "jobKey": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "stepName": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "count": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "jobRunnerToolProjection": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "required": [
+        "authority",
+        "requestedLabel",
+        "runnerVersion",
+        "imageOS",
+        "imageVersion",
+        "osCaption",
+        "osVersion",
+        "osBuild",
+        "architecture",
+        "powershellVersion",
+        "powershellObservationStatus",
+        "filesystem",
+        "filesystemObservationStatus",
+        "node",
+        "npm",
+        "nodeExecutableSha256",
+        "rawLogsPersisted",
+        "hostedGateInput"
+      ],
+      "properties": {
+        "authority": {
+          "const": "read-only-job-log-runner-tool-projection"
+        },
+        "requestedLabel": {
+          "const": "windows-2025"
+        },
+        "runnerVersion": {
+          "const": "2.336.0"
+        },
+        "imageOS": {
+          "const": "win25-vs2026"
+        },
+        "imageVersion": {
+          "type": "string",
+          "pattern": "^20[0-9]{6}\\.[0-9]+\\.[0-9]+$"
+        },
+        "osCaption": {
+          "const": "Microsoft Windows Server 2025 Datacenter"
+        },
+        "osVersion": {
+          "const": "10.0.26100"
+        },
+        "osBuild": {
+          "const": "26100"
+        },
+        "architecture": {
+          "const": "X64"
+        },
+        "powershellVersion": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^7\\.[0-9]+\\.[0-9]+$"
+        },
+        "powershellObservationStatus": {
+          "enum": [
+            "observed-in-sanitized-marker",
+            "not-observed"
+          ]
+        },
+        "filesystem": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "NTFS",
+            null
+          ]
+        },
+        "filesystemObservationStatus": {
+          "enum": [
+            "observed-in-sanitized-marker",
+            "not-observed"
+          ]
+        },
+        "node": {
+          "const": "24.18.1"
+        },
+        "npm": {
+          "const": "11.16.0"
+        },
+        "nodeExecutableSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "rawLogsPersisted": {
+          "const": false
+        },
+        "hostedGateInput": {
+          "const": false
+        }
+      }
+    },
+    "sanitizedLogProjection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "authority",
+        "imageOS",
+        "imageVersion",
+        "osCaption",
+        "osVersion",
+        "osBuild",
+        "architecture",
+        "powershellVersion",
+        "filesystem",
+        "node",
+        "npm",
+        "nodeExecutableSha256",
+        "runnerVersion",
+        "startedAt",
+        "finishedAt",
+        "wallTimeMs",
+        "rawExitCode",
+        "observedStatus",
+        "rawLogsPersisted",
+        "hostedGateInput"
+      ],
+      "properties": {
+        "authority": {
+          "const": "read-only-sanitized-log-projection"
+        },
+        "imageOS": {
+          "type": "string",
+          "minLength": 1
+        },
+        "imageVersion": {
+          "type": "string",
+          "pattern": "^20[0-9]{6}\\.[0-9]+\\.[0-9]+$"
+        },
+        "osCaption": {
+          "const": "Microsoft Windows Server 2025 Datacenter"
+        },
+        "osVersion": {
+          "const": "10.0.26100"
+        },
+        "osBuild": {
+          "const": "26100"
+        },
+        "architecture": {
+          "const": "X64"
+        },
+        "powershellVersion": {
+          "type": "string",
+          "pattern": "^7\\.[0-9]+\\.[0-9]+$"
+        },
+        "filesystem": {
+          "const": "NTFS"
+        },
+        "node": {
+          "const": "24.18.1"
+        },
+        "npm": {
+          "const": "11.16.0"
+        },
+        "nodeExecutableSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "runnerVersion": {
+          "const": "2.336.0"
+        },
+        "startedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "finishedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "wallTimeMs": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "rawExitCode": {
+          "enum": [
+            0,
+            1
+          ]
+        },
+        "observedStatus": {
+          "enum": [
+            "executed-pass",
+            "executed-fail",
+            "non-blocking-canary"
+          ]
+        },
+        "rawLogsPersisted": {
+          "const": false
+        },
+        "hostedGateInput": {
+          "type": "boolean"
+        }
+      }
+    },
+    "hostedFragmentV3": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "jobName",
+        "jobKey",
+        "checkRunId",
+        "conclusion",
+        "markerCount",
+        "markerSha256",
+        "fragmentStatus",
+        "restBindingStatus",
+        "observedRegistrySha256",
+        "expectedRegistrySha256",
+        "validationErrorCodes",
+        "releaseTrustInput",
+        "sanitizedLogProjection"
+      ],
+      "properties": {
+        "jobName": {
+          "enum": [
+            "Policy validation",
+            "Install and build",
+            "Unit tests",
+            "Core contract / current",
+            "Core contract / previous",
+            "Windows integration",
+            "Claude structural lifecycle / minimum",
+            "Claude structural lifecycle / current",
+            "Security",
+            "Dependency review",
+            "Non-blocking Codex canary / next",
+            "CI"
+          ]
+        },
+        "jobKey": {
+          "enum": [
+            "policy-validation",
+            "install-build",
+            "unit",
+            "core-contract",
+            "windows-integration",
+            "claude-lifecycle",
+            "security",
+            "dependency-review",
+            "next-canary",
+            "gate"
+          ]
+        },
+        "checkRunId": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "conclusion": {
+          "enum": [
+            "success",
+            "failure"
+          ]
+        },
+        "markerCount": {
+          "const": 1
+        },
+        "markerSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "fragmentStatus": {
+          "enum": [
+            "validated-rest-bound",
+            "rejected-untrusted-fragment"
+          ]
+        },
+        "restBindingStatus": {
+          "const": "validated"
+        },
+        "observedRegistrySha256": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "expectedRegistrySha256": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "validationErrorCodes": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 1,
+          "items": {
+            "const": "P5E_RUNNER_EVIDENCE_IDENTITY"
+          }
+        },
+        "releaseTrustInput": {
+          "const": false
+        },
+        "sanitizedLogProjection": {
+          "$ref": "#/$defs/sanitizedLogProjection"
+        }
+      }
+    },
+    "runArtifactObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "authority",
+        "endpoint",
+        "observedAt",
+        "readbackStatus",
+        "observedCount",
+        "entries",
+        "releaseTrustInput"
+      ],
+      "properties": {
+        "authority": {
+          "const": "run-artifacts-rest-readback"
+        },
+        "endpoint": {
+          "type": "string",
+          "pattern": "^repos/wotjr1649/codex-conductor-cc/actions/runs/[0-9]+/artifacts$"
+        },
+        "observedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "readbackStatus": {
+          "const": "resolved"
+        },
+        "observedCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "entries": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 100,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "name",
+              "sizeInBytes",
+              "expired",
+              "createdAt",
+              "expiresAt"
+            ],
+            "properties": {
+              "id": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "sizeInBytes": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "expired": {
+                "type": "boolean"
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "expiresAt": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          }
+        },
+        "releaseTrustInput": {
+          "const": false
+        }
+      }
+    },
+    "hostedObservationV3": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repository",
+        "pullRequestNumber",
+        "runId",
+        "runNumber",
+        "runAttempt",
+        "rerunCount",
+        "automaticRetryCount",
+        "event",
+        "runUrl",
+        "sourceHeadSha",
+        "eventMergeSha",
+        "workflowSha",
+        "baseSha",
+        "checkSuiteId",
+        "runStartedAt",
+        "runCompletedAt",
+        "conclusion",
+        "expectedLogicalJobCount",
+        "observedRestJobCount",
+        "placeholderJobCount",
+        "collectionStatus",
+        "collectionIssues",
+        "jobObservations",
+        "validatedFragments",
+        "rejectedFragments",
+        "artifacts"
+      ],
+      "properties": {
+        "repository": {
+          "const": "wotjr1649/codex-conductor-cc"
+        },
+        "pullRequestNumber": {
+          "const": 2
+        },
+        "runId": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "runNumber": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "runAttempt": {
+          "const": 1
+        },
+        "rerunCount": {
+          "const": 0
+        },
+        "automaticRetryCount": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "event": {
+          "const": "pull_request"
+        },
+        "runUrl": {
+          "type": "string",
+          "pattern": "^https://github.com/wotjr1649/codex-conductor-cc/actions/runs/[0-9]+$"
+        },
+        "sourceHeadSha": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "eventMergeSha": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "workflowSha": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "baseSha": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "checkSuiteId": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "runStartedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "runCompletedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "conclusion": {
+          "enum": [
+            "failure",
+            "success"
+          ]
+        },
+        "expectedLogicalJobCount": {
+          "const": 12
+        },
+        "observedRestJobCount": {
+          "enum": [
+            10,
+            12
+          ]
+        },
+        "placeholderJobCount": {
+          "enum": [
+            0,
+            3
+          ]
+        },
+        "collectionStatus": {
+          "enum": [
+            "incomplete-or-invalid",
+            "validated"
+          ]
+        },
+        "collectionIssues": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 3,
+          "items": {
+            "$ref": "#/$defs/collectionIssue"
+          }
+        },
+        "jobObservations": {
+          "type": "array",
+          "minItems": 10,
+          "maxItems": 12,
+          "items": {
+            "$ref": "#/$defs/hostedJobObservation"
+          }
+        },
+        "validatedFragments": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 12,
+          "items": {
+            "$ref": "#/$defs/hostedFragmentV3"
+          }
+        },
+        "rejectedFragments": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 2,
+          "items": {
+            "$ref": "#/$defs/hostedFragmentV3"
+          }
+        },
+        "artifacts": {
+          "$ref": "#/$defs/runArtifactObservation"
+        }
+      }
+    },
+    "prRefCacheObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "authority",
+        "endpoint",
+        "ref",
+        "mergeSha",
+        "observedAt",
+        "readbackStatus",
+        "matchingRefCacheCount",
+        "entries",
+        "inventorySha256",
+        "executionWindowAttribution",
+        "releaseTrustInput"
+      ],
+      "properties": {
+        "authority": {
+          "const": "actions-cache-rest-readback"
+        },
+        "endpoint": {
+          "const": "repos/wotjr1649/codex-conductor-cc/actions/caches?ref=refs/pull/2/merge"
+        },
+        "ref": {
+          "const": "refs/pull/2/merge"
+        },
+        "mergeSha": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "observedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "readbackStatus": {
+          "const": "resolved"
+        },
+        "matchingRefCacheCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "entries": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 100,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "keySha256",
+              "sizeInBytes",
+              "createdAt",
+              "lastAccessedAt"
+            ],
+            "properties": {
+              "id": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "keySha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "sizeInBytes": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "lastAccessedAt": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          }
+        },
+        "inventorySha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "executionWindowAttribution": {
+          "const": "not-observed"
+        },
+        "releaseTrustInput": {
+          "const": false
+        }
+      }
+    }
+  }
+}
