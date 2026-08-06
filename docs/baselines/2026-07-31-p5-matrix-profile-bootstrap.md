@@ -1,18 +1,19 @@
 # P5 Windows x64 matrix/profile bootstrap
 
 Date: 2026-07-31
-Source commit: `4ad56ea41a479cae0950bce817760455d5fb87fc`
+Source commit: `0ff55c973540ff95028a7c9419e5fa5d81939b03`
 Handoff commit: `84515289913dfe8a7452754ad442d37873bdfd53`
 Platform: Windows x64, exact Node.js 24.18.1 and npm 11.16.0
 
 ## Outcome
 
-P5 defines a job-scoped pull-request workflow and validates its supported
-profiles locally. The local bootstrap is `executed-pass`. Two authorized
-natural GitHub-hosted pull-request attempts ran at heads `4eeeb17` and
-`9d2422c`; both failed policy validation and terminal CI. The hosted gate is
-therefore `executed-fail`, overall P5 is `blocked`, and P6 is no-go. This
-baseline is not a hosted CI pass and is not release evidence.
+P5 is `hosted-complete`. The exact local bootstrap is `executed-pass`, and the
+ordered hosted record retains natural run numbers 2 through 9 without a rerun.
+Runs 2 through 7 remain failures. Runs 8 and 9, both attempt 1, passed every
+blocking job and terminal `CI`. Final run 9 bound source
+`0ff55c973540ff95028a7c9419e5fa5d81939b03` to merge/workflow commit
+`52c1dff2ff324f32d899adbf97f5ca448a8c130e`. P6 was not initiated and is
+outside this closure.
 
 The immutable P4 evidence separately retains a `blocked-with-evidence` source
 binding defect because it records a source commit that does not resolve. The
@@ -28,12 +29,18 @@ workflow/ref concurrency group, cancellation, job timeouts, and the mutable
 dependency-review action has a sanitized runner-evidence step. The evidence
 writer records the actual hosted image/build/filesystem only after a real run;
 the superseded v1 local-only bootstrap kept those fields null. The immutable
-v2 schema remains unchanged. V3 binds both failed attempts, exact physical
-jobs and steps, sanitized log projections, run-scoped artifact metadata, and
-one current run-unattributed PR-ref cache snapshot. Blocking-job finalizers run
+v2 schema remains unchanged. V3 binds the exact eight-run sequence 2 through
+9, physical jobs and steps, sanitized log projections, run-scoped artifact
+metadata, and one current run-unattributed PR-ref cache snapshot. Blocking-job finalizers run
 after any non-cancelled outcome, distinguish a direct process exit from a
 GitHub job-status normalization, and cannot turn a blocked or unimplemented
 profile into an executed pass.
+
+Core contract jobs bind `TEMP` and `TMP` to a run-owned child of
+`RUNNER_TEMP` before acquiring Codex, which prevents short/long Windows user
+path spellings from changing the P4 transcript oracle. Windows integration
+installs the exact lockfile with `npm ci --ignore-scripts` before tests so the
+committed TypeScript validator is available without running package scripts.
 
 The blocking profiles are:
 
@@ -60,23 +67,20 @@ P4 total remains 167 tests with zero skip:
 - P4 targeted contract: 40; and
 - Windows integration: 86.
 
-P5 adds 17 semantic/profile and independent Windows resource tests. The
+P5 adds 20 semantic/profile tests and one independent Windows resource test,
+for 188 total tests. The
 resource oracle starts an exact owned root and child PID, proves an exclusive
 file handle blocks rename, calls the exact `taskkill /PID <root> /T /F`
 executable through a five-second bounded process, reads back that both PIDs are
 gone, then proves rename/delete succeeds. This is not a native Job Object C0
 claim.
 
-The last wholly green exact-Node full regression passed 184/184 with zero
-failure, cancel, or skip before the final collector-only provenance delta.
-At source `57e5b8881009fe799602aa4dab2c22db79d2473a`, the final P5 and independent
-Windows resource partition passed 17/17. Two subsequent full reruns each passed
-183/184, and two isolated runs reproduced the sole inherited Windows
-broker-cancel race: the turn interrupt completed and its worker tree exited
-before `taskkill /T` read back already-ended descendants as exit 1. The P5
-diff does not touch the fixture, broker, cancel, or process implementation;
-the same race is retained in earlier P4 and P5 ledgers. All four new failures
-remain ordered in the attempt ledger and are not rewritten as passes.
+At source `0ff55c973540ff95028a7c9419e5fa5d81939b03`, the exact
+Node 24.18.1/npm 11.16.0 serial suite passed 188/188 with zero failure,
+cancellation, or skip. The canonical Core job simulation passed the unchanged
+P4 contract 40/40, and the Windows job simulation passed 87/87 after the exact
+dependency install. Earlier broker-cancel race observations remain ordered in
+the attempt ledger and are not rewritten as passes.
 
 ## Exact tools
 
@@ -95,6 +99,29 @@ deferred those upgrades and P5 found no compatibility or security requirement
 that justified changing the immutable toolchain.
 
 ## Local observations
+
+Predecessor closure source `97ecd4d684cff1f42ea3fe9cdea4b141ae9ed45a` passed the
+exact P3 and P5 validators, detached P4 handoff validation, P5 20/20,
+canonical-temp P4 40/40, Windows integration 87/87, the serial full suite
+188/188, five PowerShell parser checks, exact clean install and build, and all
+four admitted security tools. Actionlint and offline pedantic strict zizmor
+reported no workflow finding, OSV reported no issue in three lockfile
+packages, and gitleaks reported no leak.
+
+Closure source `0ff55c973540ff95028a7c9419e5fa5d81939b03` first produced
+meaningful RED at P5 17/20 for the seven-item schema ceiling, seven-run
+closure binding, and source frontier. After the exact three-file correction,
+P5 passed 20/20, P5 plus Windows passed 21/21, the generated build was clean,
+the serial full suite passed 188/188, and post-commit P5 validation passed.
+
+The first local source shape tried to normalize the P4 test itself; the P5
+immutability and scope guards rejected it, so the P4 file and scenario digest
+were restored byte-for-byte. A subsequent job-level `runner.temp` binding was
+rejected by actionlint because that context is unavailable there. The accepted
+workflow reuses the existing bounded PowerShell/GITHUB_ENV pattern with
+`RUNNER_TEMP`. These failures remain ordered in the attempt ledger. Any older
+paragraph below that calls a prior source “final” is a retained historical
+observation, superseded by this closure update.
 
 Exact local checks passed for clean install, P3 validation, detached P4
 validation, targeted P4 tests, generated schema reproduction, TypeScript build,
@@ -194,6 +221,42 @@ No failed or cancelled attempt was rewritten as a pass.
 
 ## Hosted observations
 
+The v3 closure contains exactly eight ordered observations with run numbers
+`[2, 3, 4, 5, 6, 7, 8, 9]`, all attempt 1 with zero rerun. Runs 2 through 6
+failed policy/bootstrap admission and terminal CI at their exact recorded
+heads. Run 7 admitted the matrix, then Core current failed on alias versus
+canonical temporary-path spelling, Windows integration failed because the
+TypeScript dependency was not installed, and terminal CI failed. The other
+run-7 blocking allocations passed; the exact next-Codex result remained
+non-blocking. Runs 8 and 9 passed all twelve jobs.
+
+Natural run `31067303488`, number 8 and attempt 1, used source
+`97ecd4d684cff1f42ea3fe9cdea4b141ae9ed45a` and merge/workflow SHA
+`762fd212130c57dc5e709f6b3d9eb8362a536c51`. The twelve-job set was Policy,
+Install/build, Unit, Core current, Core previous, Windows integration, Claude
+minimum, Claude current, Security, Dependency review, next-Codex canary, and
+terminal CI. All twelve REST jobs concluded success; all blocking projections
+were `executed-pass`, the canary was `non-blocking-canary`, and terminal CI
+passed. Twelve unique sanitized markers bind the source, merge, workflow,
+job/check-run, exact Node identity, clocks, and privacy fields. The first
+collector pass validated seven directly and conservatively reported its known
+matrix marker-window limitation for five; marker-only memory filtering then
+validated those five without persisting raw logs.
+
+Read-only metadata observed zero run-8 artifacts and zero matching
+`refs/pull/2/merge` caches at `2026-08-06T03:16:32.935Z`; neither was
+downloaded or deleted.
+
+Natural run `31069904369`, number 9 and attempt 1, used source
+`0ff55c973540ff95028a7c9419e5fa5d81939b03`, merge/workflow SHA
+`52c1dff2ff324f32d899adbf97f5ca448a8c130e`, and check suite
+`84275777507`. All twelve REST jobs concluded success. The collector validated
+seven sanitized markers directly; marker-only memory filtering validated the
+five matrix markers without persisting raw logs. Read-only metadata observed
+zero run-9 artifacts and zero matching PR-ref caches at
+`2026-08-06T04:13:51.931Z`; neither was downloaded or deleted. The paragraphs
+below retain the exact earlier run-2/3 history and trust-boundary rationale.
+
 Draft pull request 2 binds P5 to exact P4 base
 `84515289913dfe8a7452754ad442d37873bdfd53`. No rerun, dispatch, cancel,
 settings change, ready/merge, tag/release, or P6 action occurred.
@@ -267,29 +330,26 @@ settings.
 
 ## Explicit gaps
 
-The following remain false, skipped, or not run:
+The following remain false, skipped, not run, or outside this closure:
 
-- hosted install/build, unit, Core current/previous, Windows integration,
-  Claude minimum/current, and security success;
-- aggregate required `CI` success;
+- repair of the inherited P4 evidence source-binding defect;
 - authenticated Claude lifecycle or paid inference;
-- execution of the non-blocking next-Codex canary;
 - disposable Windows 11 x64 runner evidence;
-- a compiled native Windows capability artifact and C0 digest; and
-- a shipping SQLite binding, DDL, migration, and D1 runtime.
+- a compiled native Windows capability artifact and C0 digest;
+- a shipping SQLite binding, DDL, migration, and D1 runtime;
+- merge, release, tag, deployment, and P6 work; and
+- the evidence-only successor run, which cannot be self-recorded by the commit
+  that triggers it and must be observed separately.
 
 Windows C0 and SQLite D1 remain `blocked-with-evidence` and deferred to v0.2.
 
 ## Hosted handoff
 
-Any next remote action requires separate authorization. The portability repair,
-v3 provenance-model source, and evidence-only rebind are local-only. No new
-push or pull-request run has been performed after head `9d2422c`.
-If authorized later, observe every blocking job and the terminal `CI` context. Record each
-runner's actual image version, OS build, x64 architecture, NTFS filesystem,
-exact tool identities, attempt number, timeout, raw exit code, and resource
-postconditions using the sanitized writer. A cancelled run, a canary pass, a
-YAML definition, or a local pass must not satisfy a hosted blocking profile.
-The requested `windows-2025` label denotes a GitHub-hosted Windows Server 2025
-x64 image, not Windows 11; Windows 11 remains an explicit disposable-runner
-gap.
+The closure commit is evidence-only: this baseline, the P5 attempt ledger, and
+the P5 v3 manifest. Its bound source remains
+`0ff55c973540ff95028a7c9419e5fa5d81939b03`; it does not claim its own
+successor. After the authorized non-force push, observe only the natural
+pull-request synchronize run at attempt 1. It must preserve the same source
+binding while validating the evidence-only frontier and every blocking job,
+including terminal `CI`. Do not rerun, dispatch, cancel, merge, change settings,
+tag, release, deploy, begin P6, migrate the Node anchor, or repair P4 evidence.
