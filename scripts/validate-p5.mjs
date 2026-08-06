@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 import { validateJsonSchema } from "./lib/p4-schema-validator.mjs";
 import {
   P5_BOOTSTRAP_FRONTIER,
-  isExactP5BootstrapFrontier,
+  isExactP5BootstrapCheckout,
   validateAttemptLedger,
   validateP5Evidence,
   validateP5Privacy,
@@ -246,16 +246,25 @@ const uncommittedPaths = [
   ...gitLines(["diff", "--name-only", "--cached"]),
   ...gitLines(["ls-files", "--others", "--exclude-standard"])
 ];
-const exactBootstrap = isExactP5BootstrapFrontier({
+const bootstrapContext = {
   boundSource,
   evidenceRebindParents: commitParents(P5_BOOTSTRAP_FRONTIER.evidenceRebindCommit),
   windowsFixParents: commitParents(P5_BOOTSTRAP_FRONTIER.windowsFixCommit),
-  headParents: commitParents("HEAD"),
   evidenceRebindPaths: commitPaths(P5_BOOTSTRAP_FRONTIER.evidenceRebindCommit),
   windowsFixPaths: commitPaths(P5_BOOTSTRAP_FRONTIER.windowsFixCommit),
-  policyPaths: commitPaths("HEAD"),
+  policyCommitParents: commitParents(P5_BOOTSTRAP_FRONTIER.policyCommit),
+  policyCommitPaths: commitPaths(P5_BOOTSTRAP_FRONTIER.policyCommit),
   uncommittedPaths
-});
+};
+const headParents = commitParents("HEAD");
+const exactBootstrap = isExactP5BootstrapCheckout(
+  headParents,
+  ["HEAD", ...headParents].map((candidate) => ({
+    ...bootstrapContext,
+    headParents: commitParents(candidate),
+    policyPaths: commitPaths(candidate)
+  }))
+);
 const postSourcePaths = [
   ...gitLines(["diff", "--name-only", `${boundSource}..HEAD`]),
   ...uncommittedPaths

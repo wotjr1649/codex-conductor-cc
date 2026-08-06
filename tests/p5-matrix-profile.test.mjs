@@ -213,13 +213,13 @@ const P5_TEST_GATE_STEPS = [
   [17, "Complete job", "success"]
 ];
 
-function p5TestJobTools() {
+function p5TestJobTools(imageVersion = "20260728.188.1") {
   return {
     authority: "read-only-job-log-runner-tool-projection",
     requestedLabel: "windows-2025",
     runnerVersion: "2.336.0",
     imageOS: "win25-vs2026",
-    imageVersion: "20260728.188.1",
+    imageVersion,
     osCaption: "Microsoft Windows Server 2025 Datacenter",
     osVersion: "10.0.26100",
     osBuild: "26100",
@@ -246,7 +246,8 @@ function p5TestJob([
   runnerName,
   steps = [],
   failureCode = null,
-  markerCount = 0
+  markerCount = 0,
+  imageVersion = "20260728.188.1"
 ]) {
   const skipped = conclusion === "skipped";
   return {
@@ -258,7 +259,7 @@ function p5TestJob([
     startedAt,
     completedAt,
     runnerName,
-    runnerToolProjection: skipped ? null : p5TestJobTools(),
+    runnerToolProjection: skipped ? null : p5TestJobTools(imageVersion),
     steps: steps.map(([number, name, stepConclusion]) => ({
       number,
       name,
@@ -290,7 +291,8 @@ function p5TestFragment({
   rawExitCode,
   observedStatus,
   hostedGateInput,
-  registryBound = true
+  registryBound = true,
+  imageVersion = "20260728.188.1"
 }) {
   return {
     jobName,
@@ -308,7 +310,7 @@ function p5TestFragment({
     sanitizedLogProjection: {
       authority: "read-only-sanitized-log-projection",
       imageOS: "win25-vs2026",
-      imageVersion: "20260728.188.1",
+      imageVersion,
       osCaption: "Microsoft Windows Server 2025 Datacenter",
       osVersion: "10.0.26100",
       osBuild: "26100",
@@ -426,6 +428,38 @@ const p5Run5Observation = {
   artifacts: p5TestArtifacts(31027289099, "2026-08-06T00:31:53Z")
 };
 
+const p5Run6Observation = {
+  ...p5Run5Observation,
+  runId: 31060819525,
+  runNumber: 6,
+  runUrl: "https://github.com/wotjr1649/codex-conductor-cc/actions/runs/31060819525",
+  sourceHeadSha: "4190a2ba59637dcdbe3f32be0edc019483496620",
+  eventMergeSha: "82cedd70775b3a3ee857bc57595ce822612cc467",
+  workflowSha: "82cedd70775b3a3ee857bc57595ce822612cc467",
+  checkSuiteId: 84251433132,
+  runStartedAt: "2026-08-06T00:47:40Z",
+  runCompletedAt: "2026-08-06T00:49:38Z",
+  jobObservations: [
+    p5TestJob(["Policy validation", "policy-validation", 92488210860, "failure", "2026-08-06T00:47:42Z", "2026-08-06T00:48:29Z", "GitHub Actions 1000002399", P5_TEST_POLICY_STEPS.map((step) => step[0] === 8 ? [8, step[1], "failure"] : step[0] === 9 ? [9, step[1], "skipped"] : step), "P5E_POST_SOURCE_CHANGE", 1]),
+    p5TestJob(["Dependency review", "dependency-review", 92488210883, "success", "2026-08-06T00:47:42Z", "2026-08-06T00:48:13Z", "GitHub Actions 1000002398", P5_TEST_DEPENDENCY_STEPS, null, 1, "20260803.193.1"]),
+    p5TestJob(["CI", "gate", 92488340496, "failure", "2026-08-06T00:48:33Z", "2026-08-06T00:49:37Z", "GitHub Actions 1000002400", P5_TEST_GATE_STEPS, "P5E_BLOCKING_PROFILE_RESULT", 1, "20260803.193.1"]),
+    p5TestJob(["Security", "security", 92488340646, "skipped", "2026-08-06T00:48:29Z", "2026-08-06T00:48:29Z", null]),
+    p5TestJob(["Install and build", "install-build", 92488340699, "skipped", "2026-08-06T00:48:29Z", "2026-08-06T00:48:29Z", null]),
+    p5TestJob(["Windows integration", "windows-integration", 92488340707, "skipped", "2026-08-06T00:48:29Z", "2026-08-06T00:48:29Z", null]),
+    p5TestJob(["Unit tests", "unit", 92488340788, "skipped", "2026-08-06T00:48:29Z", "2026-08-06T00:48:29Z", null]),
+    p5TestJob(["Non-blocking Codex canary / ${{ matrix.lane }}", "next-canary", 92488340834, "skipped", "2026-08-06T00:48:29Z", "2026-08-06T00:48:29Z", null]),
+    p5TestJob(["Core contract / ${{ matrix.lane }}", "core-contract", 92488340839, "skipped", "2026-08-06T00:48:29Z", "2026-08-06T00:48:29Z", null]),
+    p5TestJob(["Claude structural lifecycle / ${{ matrix.lane }}", "claude-lifecycle", 92488340899, "skipped", "2026-08-06T00:48:29Z", "2026-08-06T00:48:29Z", null])
+  ],
+  validatedFragments: [
+    p5TestFragment({ jobName: "Policy validation", jobKey: "policy-validation", checkRunId: 92488210860, conclusion: "failure", markerSha256: "2c326c0b52ebc440b7920239f96742217dbc4ebb90217ca9e1e72b3b57ff94d2", startedAt: "2026-08-06T09:47:53.4856117+09:00", finishedAt: "2026-08-06T09:48:25.2062249+09:00", wallTimeMs: 31721, rawExitCode: 1, observedStatus: "executed-fail", hostedGateInput: false }),
+    p5TestFragment({ jobName: "Dependency review", jobKey: "dependency-review", checkRunId: 92488210883, conclusion: "success", markerSha256: "ddf0d5491bab84818977afebfd54d6454faa5751e74074f85ec3a93a77c8b9f6", startedAt: "2026-08-06T09:47:53.6766969+09:00", finishedAt: "2026-08-06T09:48:09.7938305+09:00", wallTimeMs: 16117, rawExitCode: 0, observedStatus: "executed-pass", hostedGateInput: false, imageVersion: "20260803.193.1" }),
+    p5TestFragment({ jobName: "CI", jobKey: "gate", checkRunId: 92488340496, conclusion: "failure", markerSha256: "6f9d91950c77453bd08c197c7d4c4db62308fa955be26194c43d2dfe6b14a77b", startedAt: "2026-08-06T09:48:45.2480533+09:00", finishedAt: "2026-08-06T09:49:34.9122271+09:00", wallTimeMs: 49664, rawExitCode: 1, observedStatus: "executed-fail", hostedGateInput: true, registryBound: false, imageVersion: "20260803.193.1" })
+  ],
+  rejectedFragments: [],
+  artifacts: p5TestArtifacts(31060819525, "2026-08-06T00:56:38Z")
+};
+
 const P5_TEST_FINAL_JOBS = [
   ["Policy validation", "policy-validation"],
   ["Install and build", "install-build"],
@@ -478,7 +512,7 @@ function p5SyntheticClosureObservation(sourceCommit) {
     repository: "wotjr1649/codex-conductor-cc",
     pullRequestNumber: 2,
     runId: 39999999999,
-    runNumber: 6,
+    runNumber: 7,
     runAttempt: 1,
     rerunCount: 0,
     automaticRetryCount: null,
@@ -518,6 +552,7 @@ function p5ClosureFixture() {
     ...historical.hostedObservations,
     structuredClone(p5Run4Observation),
     structuredClone(p5Run5Observation),
+    structuredClone(p5Run6Observation),
     finalObservation
   ];
   for (const result of closure.profileResults) {
@@ -558,10 +593,15 @@ function p5ObservationDigest(value) {
 
 test("P5-EVIDENCE-V3-DIGEST-001 remediation observations stay canonical", () => {
   assert.deepEqual(
-    [p5ObservationDigest(p5Run4Observation), p5ObservationDigest(p5Run5Observation)],
+    [
+      p5ObservationDigest(p5Run4Observation),
+      p5ObservationDigest(p5Run5Observation),
+      p5ObservationDigest(p5Run6Observation)
+    ],
     [
       "226dbb7a4d9b8bf2727b42d688af1ac608edca9f7ba5ae81f70b580caf944fa1",
-      "8c7a6955d040431e6e9c3ee0341cc67dddc3d25cb3bd38b0bef13514c1c6e7ec"
+      "8c7a6955d040431e6e9c3ee0341cc67dddc3d25cb3bd38b0bef13514c1c6e7ec",
+      "82433eea5afe5fa3a72eb91edc07118a4c9abb7a1eba449bded7d99a4c68697d"
     ]
   );
 });
@@ -590,10 +630,14 @@ test("P5-DIAGNOSTIC-001 subprocess diagnostics expose only fixed P5 tokens", () 
 });
 
 test("P5-SOURCE-BOOTSTRAP-001 accepts only the exact one-time frontier", async () => {
-  const { isExactP5BootstrapFrontier } = await import(
+  const {
+    isExactP5BootstrapCheckout,
+    isExactP5BootstrapFrontier
+  } = await import(
     "../scripts/lib/p5-validation.mjs"
   );
   assert.equal(typeof isExactP5BootstrapFrontier, "function");
+  assert.equal(typeof isExactP5BootstrapCheckout, "function");
   assert.equal(isExactP5BootstrapFrontier(exactBootstrapFixture), true);
   for (const mutate of [
     (value) => { value.boundSource = "0".repeat(40); },
@@ -610,6 +654,71 @@ test("P5-SOURCE-BOOTSTRAP-001 accepts only the exact one-time frontier", async (
   const rebound = structuredClone(exactBootstrapFixture);
   rebound.boundSource = "f".repeat(40);
   assert.equal(isExactP5BootstrapFrontier(rebound), false);
+
+  const exactCorrectionFixture = {
+    ...structuredClone(exactBootstrapFixture),
+    headParents: ["4190a2ba59637dcdbe3f32be0edc019483496620"],
+    policyCommitParents: ["748d6181e30f642930bc13f4f9a718a1f366dd27"],
+    policyCommitPaths: structuredClone(exactBootstrapFixture.policyPaths)
+  };
+  assert.equal(isExactP5BootstrapFrontier(exactCorrectionFixture), true);
+  for (const mutate of [
+    (value) => { value.policyCommitParents = []; },
+    (value) => { value.policyCommitPaths.pop(); },
+    (value) => { value.headParents = ["0".repeat(40)]; }
+  ]) {
+    const observed = structuredClone(exactCorrectionFixture);
+    mutate(observed);
+    assert.equal(isExactP5BootstrapFrontier(observed), false);
+  }
+
+  const mergeCheckout = structuredClone(exactBootstrapFixture);
+  mergeCheckout.headParents = [
+    "84515289913dfe8a7452754ad442d37873bdfd53",
+    "4190a2ba59637dcdbe3f32be0edc019483496620"
+  ];
+  mergeCheckout.policyPaths = [".github/workflows/pull-request-ci.yml"];
+  const baseParent = structuredClone(exactBootstrapFixture);
+  baseParent.headParents = ["0".repeat(40)];
+  baseParent.policyPaths = [".gitattributes"];
+  assert.equal(
+    isExactP5BootstrapCheckout([
+      "4190a2ba59637dcdbe3f32be0edc019483496620"
+    ], [
+      exactCorrectionFixture,
+      exactBootstrapFixture
+    ]),
+    true
+  );
+  assert.equal(
+    isExactP5BootstrapCheckout([
+      "84515289913dfe8a7452754ad442d37873bdfd53",
+      "4190a2ba59637dcdbe3f32be0edc019483496620"
+    ], [
+      mergeCheckout,
+      baseParent,
+      exactCorrectionFixture
+    ]),
+    true
+  );
+  assert.equal(
+    isExactP5BootstrapCheckout([
+      "84515289913dfe8a7452754ad442d37873bdfd53",
+      "4190a2ba59637dcdbe3f32be0edc019483496620"
+    ], [
+      mergeCheckout,
+      exactBootstrapFixture,
+      exactBootstrapFixture
+    ]),
+    false
+  );
+  assert.equal(
+    isExactP5BootstrapCheckout([
+      "84515289913dfe8a7452754ad442d37873bdfd53",
+      "4190a2ba59637dcdbe3f32be0edc019483496620"
+    ], [mergeCheckout, baseParent]),
+    false
+  );
 });
 
 test("P5-RED-001 versioned profile, scenario, schema, and evidence sources exist", () => {
@@ -650,7 +759,7 @@ test("P5-RED-001 versioned profile, scenario, schema, and evidence sources exist
   }
   const v3Schema = p5EvidenceSchemas.get("p5-evidence-v3");
   assert.equal(v3Schema.properties.hostedObservations.minItems, 2);
-  assert.equal(v3Schema.properties.hostedObservations.maxItems, 5);
+  assert.equal(v3Schema.properties.hostedObservations.maxItems, 6);
   assert.deepEqual(
     v3Schema.$defs.hostedObservationV3.properties.conclusion.enum,
     ["failure", "success"]
@@ -1985,13 +2094,13 @@ test("P5-EVIDENCE-001 local, hosted, not-run, canary, and blocked truth stays di
   );
 });
 
-test("P5-EVIDENCE-V3-CLOSURE-001 accepts only the exact five-run closure", () => {
+test("P5-EVIDENCE-V3-CLOSURE-001 accepts only the exact six-run closure", () => {
   const closure = p5ClosureFixture();
   const schema = p5EvidenceSchemas.get("p5-evidence-v3");
   assert.deepEqual(validateJsonSchema(closure, schema, "P5 evidence"), []);
   assert.deepEqual(validateP5Evidence(closure, profiles), []);
 
-  for (const count of [3, 4]) {
+  for (const count of [3, 4, 5]) {
     const partial = structuredClone(closure);
     partial.hostedObservations.length = count;
     assert.ok(
@@ -2022,18 +2131,18 @@ test("P5-EVIDENCE-V3-CLOSURE-001 accepts only the exact five-run closure", () =>
       value.hostedObservations[3].rerunCount = 1;
     }, "P5E_HOSTED_V3_BINDING"],
     ["conclusion", (value) => {
-      value.hostedObservations[4].conclusion = "failure";
+      value.hostedObservations[5].conclusion = "failure";
     }, "P5E_HOSTED_V3_BINDING"],
     ["job-set", (value) => {
-      value.hostedObservations[4].jobObservations.pop();
+      value.hostedObservations[5].jobObservations.pop();
     }, "P5E_HOSTED_V3_BINDING"],
     ["canary-promotion", (value) => {
-      value.hostedObservations[4].validatedFragments
+      value.hostedObservations[5].validatedFragments
         .find(({ jobKey }) => jobKey === "next-canary")
         .sanitizedLogProjection.hostedGateInput = true;
     }, "P5E_HOSTED_V3_TRUST_BOUNDARY"],
     ["artifact-readback", (value) => {
-      value.hostedObservations[4].artifacts.readbackStatus = "pending";
+      value.hostedObservations[5].artifacts.readbackStatus = "pending";
     }, "P5E_HOSTED_V3_BINDING"],
     ["cache-merge", (value) => {
       value.prRefCacheObservation.mergeSha = "0".repeat(40);

@@ -70,6 +70,7 @@ export const P5_BOOTSTRAP_FRONTIER = Object.freeze({
   boundSource: "4ad56ea41a479cae0950bce817760455d5fb87fc",
   evidenceRebindCommit: "5475e3e2bccc9af6e10079da5d355b4dab88b3e5",
   windowsFixCommit: "748d6181e30f642930bc13f4f9a718a1f366dd27",
+  policyCommit: "4190a2ba59637dcdbe3f32be0edc019483496620",
   evidenceRebindPaths: Object.freeze([
     "docs/baselines/2026-07-31-p5-matrix-profile-bootstrap.md",
     "evidence/ledgers/p5-attempts.json",
@@ -97,6 +98,23 @@ function exactPathSet(actual, expected) {
 }
 
 export function isExactP5BootstrapFrontier(observed) {
+  const directPolicy =
+    isDeepStrictEqual(observed?.headParents, [
+      P5_BOOTSTRAP_FRONTIER.windowsFixCommit
+    ]) &&
+    exactPathSet(observed?.policyPaths, P5_BOOTSTRAP_FRONTIER.policyPaths);
+  const exactCorrection =
+    isDeepStrictEqual(observed?.headParents, [
+      P5_BOOTSTRAP_FRONTIER.policyCommit
+    ]) &&
+    isDeepStrictEqual(observed?.policyCommitParents, [
+      P5_BOOTSTRAP_FRONTIER.windowsFixCommit
+    ]) &&
+    exactPathSet(
+      observed?.policyCommitPaths,
+      P5_BOOTSTRAP_FRONTIER.policyPaths
+    ) &&
+    exactPathSet(observed?.policyPaths, P5_BOOTSTRAP_FRONTIER.policyPaths);
   return (
     observed?.boundSource === P5_BOOTSTRAP_FRONTIER.boundSource &&
     isDeepStrictEqual(observed?.evidenceRebindParents, [
@@ -105,16 +123,28 @@ export function isExactP5BootstrapFrontier(observed) {
     isDeepStrictEqual(observed?.windowsFixParents, [
       P5_BOOTSTRAP_FRONTIER.evidenceRebindCommit
     ]) &&
-    isDeepStrictEqual(observed?.headParents, [
-      P5_BOOTSTRAP_FRONTIER.windowsFixCommit
-    ]) &&
     exactPathSet(
       observed?.evidenceRebindPaths,
       P5_BOOTSTRAP_FRONTIER.evidenceRebindPaths
     ) &&
     exactPathSet(observed?.windowsFixPaths, P5_BOOTSTRAP_FRONTIER.windowsFixPaths) &&
-    exactPathSet(observed?.policyPaths, P5_BOOTSTRAP_FRONTIER.policyPaths) &&
+    (directPolicy || exactCorrection) &&
     isDeepStrictEqual(observed?.uncommittedPaths, [])
+  );
+}
+
+export function isExactP5BootstrapCheckout(headParents, candidates) {
+  const inspectedCandidates =
+    headParents?.length === 1
+      ? candidates?.slice(0, 1)
+      : headParents?.length === 2
+        ? candidates
+        : [];
+  return (
+    Array.isArray(headParents) &&
+    Array.isArray(candidates) &&
+    candidates.length === headParents.length + 1 &&
+    inspectedCandidates.filter(isExactP5BootstrapFrontier).length === 1
   );
 }
 
@@ -2664,6 +2694,12 @@ const P5_V3_REMEDIATION_RUNS = [
     runNumber: 5,
     sourceHeadSha: "748d6181e30f642930bc13f4f9a718a1f366dd27",
     digest: "8c7a6955d040431e6e9c3ee0341cc67dddc3d25cb3bd38b0bef13514c1c6e7ec"
+  },
+  {
+    runId: 31060819525,
+    runNumber: 6,
+    sourceHeadSha: "4190a2ba59637dcdbe3f32be0edc019483496620",
+    digest: "82433eea5afe5fa3a72eb91edc07118a4c9abb7a1eba449bded7d99a4c68697d"
   }
 ];
 
@@ -2681,7 +2717,7 @@ export function validateP5Evidence(manifest, profileRegistry) {
   const hostedV3Historical =
     hostedV3 && manifest?.hostedObservations?.length === 2;
   const hostedV3Closure =
-    hostedV3 && manifest?.hostedObservations?.length === 5;
+    hostedV3 && manifest?.hostedObservations?.length === 6;
   const hostedObserved = hostedFailureV2 || hostedV3;
   if (!localOnly && !hostedObserved) {
     errors.push(
@@ -3045,7 +3081,7 @@ export function validateP5Evidence(manifest, profileRegistry) {
           );
         }
       );
-      const finalObservation = observations[4];
+      const finalObservation = observations[5];
       const finalJobs = Array.isArray(finalObservation?.jobObservations)
         ? finalObservation.jobObservations
         : [];
@@ -3074,7 +3110,7 @@ export function validateP5Evidence(manifest, profileRegistry) {
             job?.log?.rawLogsPersisted === false
         );
       const finalBindingValid =
-        finalObservation?.runNumber === 6 &&
+        finalObservation?.runNumber === 7 &&
         finalObservation?.runAttempt === 1 &&
         finalObservation?.rerunCount === 0 &&
         finalObservation?.automaticRetryCount === null &&
@@ -3095,10 +3131,10 @@ export function validateP5Evidence(manifest, profileRegistry) {
         finalObservation?.artifacts?.entries?.length === 0 &&
         finalObservation?.artifacts?.releaseTrustInput === false &&
         new Set(observations.map((observation) => observation?.runId)).size ===
-          5 &&
+          6 &&
         isDeepStrictEqual(
           observations.map((observation) => observation?.runNumber),
-          [2, 3, 4, 5, 6]
+          [2, 3, 4, 5, 6, 7]
         );
 
       if (!historicalPrefixValid || !remediationRunsValid || !finalBindingValid) {
@@ -3151,7 +3187,7 @@ export function validateP5Evidence(manifest, profileRegistry) {
       }
     } else {
       errors.push(
-        "P5E_HOSTED_V3_BINDING: only the exact two-run history or five-run closure is accepted"
+        "P5E_HOSTED_V3_BINDING: only the exact two-run history or six-run closure is accepted"
       );
     }
 
