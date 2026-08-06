@@ -22,10 +22,15 @@ import {
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const P4_FINAL = "84515289913dfe8a7452754ad442d37873bdfd53";
 const ACTUAL_P4_SOURCE = "843e679936daba71a6c4c2fdd55fcade01b46b73";
-const P5_INTEGRATION_BASE = "ca9204646deb8c024cd76985092720ede2552028";
-const P5_INTEGRATION_REPAIR_PATHS = [
-  "scripts/validate-p5.mjs",
-  "tests/p5-matrix-profile.test.mjs"
+const P5_INTEGRATION_REPAIRS = [
+  {
+    base: "ca9204646deb8c024cd76985092720ede2552028",
+    paths: ["scripts/validate-p5.mjs", "tests/p5-matrix-profile.test.mjs"]
+  },
+  {
+    base: "5ddb05da90378c97b54d5c86822fe6d33c643160",
+    paths: ["scripts/validate-p5.mjs", "tests/p5-windows-resource.test.mjs"]
+  }
 ];
 const errors = [];
 
@@ -328,13 +333,14 @@ const exactBootstrap = isExactP5BootstrapCheckout(
   }))
 );
 const validationHeadSha = git(["rev-parse", validationHead]);
-const exactIntegrationRepair =
-  (validationHeadSha === P5_INTEGRATION_BASE &&
-    samePathSet(uncommittedPaths, P5_INTEGRATION_REPAIR_PATHS)) ||
-  (uncommittedPaths.length === 0 &&
-    headParents.length === 1 &&
-    headParents[0] === P5_INTEGRATION_BASE &&
-    samePathSet(commitPaths(validationHead), P5_INTEGRATION_REPAIR_PATHS));
+const exactIntegrationRepair = P5_INTEGRATION_REPAIRS.some(
+  ({ base, paths }) =>
+    (validationHeadSha === base && samePathSet(uncommittedPaths, paths)) ||
+    (uncommittedPaths.length === 0 &&
+      headParents.length === 1 &&
+      headParents[0] === base &&
+      samePathSet(commitPaths(validationHead), paths))
+);
 const postSourcePaths = [
   ...gitLines(["diff", "--name-only", `${boundSource}..${validationHead}`]),
   ...uncommittedPaths

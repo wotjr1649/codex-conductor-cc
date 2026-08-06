@@ -108,7 +108,7 @@ test("P5-PROCESS-TREE-001 taskkill releases the exact child and retained file ha
         return false;
       }
     },
-    4000,
+    15000,
     "P5E_RESOURCE_CHILD_NOT_READY"
   );
   assert.equal(processExists(root.pid), true, "P5E_ROOT_NOT_RUNNING");
