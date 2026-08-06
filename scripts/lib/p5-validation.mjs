@@ -72,6 +72,7 @@ export const P5_BOOTSTRAP_FRONTIER = Object.freeze({
   windowsFixCommit: "748d6181e30f642930bc13f4f9a718a1f366dd27",
   policyCommit: "4190a2ba59637dcdbe3f32be0edc019483496620",
   mergeSourceCommit: "080bebe13c8f565ee94954e622fe698aff0ee963",
+  sourceFixCommit: "97ecd4d684cff1f42ea3fe9cdea4b141ae9ed45a",
   evidenceRebindPaths: Object.freeze([
     "docs/baselines/2026-07-31-p5-matrix-profile-bootstrap.md",
     "evidence/ledgers/p5-attempts.json",
@@ -90,6 +91,11 @@ export const P5_BOOTSTRAP_FRONTIER = Object.freeze({
   ]),
   sourceFixPaths: Object.freeze([
     ".github/workflows/pull-request-ci.yml",
+    "evidence/schemas/p5-evidence-v3.schema.json",
+    "scripts/lib/p5-validation.mjs",
+    "tests/p5-matrix-profile.test.mjs"
+  ]),
+  closureSourcePaths: Object.freeze([
     "evidence/schemas/p5-evidence-v3.schema.json",
     "scripts/lib/p5-validation.mjs",
     "tests/p5-matrix-profile.test.mjs"
@@ -127,6 +133,14 @@ export function isExactP5BootstrapFrontier(observed) {
       P5_BOOTSTRAP_FRONTIER.mergeSourceCommit
     ]) &&
     exactPathSet(observed?.policyPaths, P5_BOOTSTRAP_FRONTIER.sourceFixPaths);
+  const exactClosureSource =
+    isDeepStrictEqual(observed?.headParents, [
+      P5_BOOTSTRAP_FRONTIER.sourceFixCommit
+    ]) &&
+    exactPathSet(
+      observed?.policyPaths,
+      P5_BOOTSTRAP_FRONTIER.closureSourcePaths
+    );
   return (
     observed?.boundSource === P5_BOOTSTRAP_FRONTIER.boundSource &&
     isDeepStrictEqual(observed?.evidenceRebindParents, [
@@ -140,7 +154,7 @@ export function isExactP5BootstrapFrontier(observed) {
       P5_BOOTSTRAP_FRONTIER.evidenceRebindPaths
     ) &&
     exactPathSet(observed?.windowsFixPaths, P5_BOOTSTRAP_FRONTIER.windowsFixPaths) &&
-    (directPolicy || exactCorrection || exactSourceFix) &&
+    (directPolicy || exactCorrection || exactSourceFix || exactClosureSource) &&
     isDeepStrictEqual(observed?.uncommittedPaths, [])
   );
 }
@@ -2774,10 +2788,106 @@ const P5_V3_REMEDIATION_RUNS = [
   }
 ];
 
+const P5_V3_RUN_8 = {
+  repository: "wotjr1649/codex-conductor-cc",
+  pullRequestNumber: 2,
+  runId: 31067303488,
+  runNumber: 8,
+  sourceHeadSha: "97ecd4d684cff1f42ea3fe9cdea4b141ae9ed45a",
+  eventMergeSha: "762fd212130c57dc5e709f6b3d9eb8362a536c51",
+  baseSha: "84515289913dfe8a7452754ad442d37873bdfd53",
+  checkSuiteId: 84268794283,
+  runStartedAt: "2026-08-06T03:02:23Z",
+  runCompletedAt: "2026-08-06T03:07:54Z",
+  checkRunIds: [
+    92507615862,
+    92507748813,
+    92507748844,
+    92507748827,
+    92507748831,
+    92507748817,
+    92507748888,
+    92507748826,
+    92507748829,
+    92507615833,
+    92507748865,
+    92508332131
+  ]
+};
+
 function p5V3ObservationDigest(observation) {
   return createHash("sha256")
     .update(JSON.stringify(observation))
     .digest("hex");
+}
+
+function p5V3SuccessfulRunBinding(observation) {
+  const jobs = Array.isArray(observation?.jobObservations)
+    ? observation.jobObservations
+    : [];
+  const fragments = Array.isArray(observation?.validatedFragments)
+    ? observation.validatedFragments
+    : [];
+  const jobNames = jobs.map((job) => job?.jobName);
+  const jobIds = jobs.map((job) => job?.checkRunId);
+  const fragmentIds = fragments.map((fragment) => fragment?.checkRunId);
+  const jobsValid =
+    includesExactSet(jobNames, EXPECTED_HOSTED_JOB_NAMES) &&
+    jobIds.length === new Set(jobIds).size &&
+    jobs.every(
+      (job) =>
+        job?.status === "completed" &&
+        job?.conclusion === "success" &&
+        job?.jobKey === EXPECTED_HOSTED_JOB_KEYS.get(job?.jobName) &&
+        job?.runnerToolProjection?.node === "24.18.1" &&
+        job?.runnerToolProjection?.npm === "11.16.0" &&
+        job?.runnerToolProjection?.nodeExecutableSha256 ===
+          P5_V3_NODE_SHA256 &&
+        job?.runnerToolProjection?.rawLogsPersisted === false &&
+        job?.log?.markerCount === 1 &&
+        job?.log?.rawLogsPersisted === false
+    );
+  const structureValid =
+    observation?.runAttempt === 1 &&
+    observation?.rerunCount === 0 &&
+    observation?.automaticRetryCount === null &&
+    observation?.workflowSha === observation?.eventMergeSha &&
+    observation?.conclusion === "success" &&
+    observation?.expectedLogicalJobCount === 12 &&
+    observation?.observedRestJobCount === 12 &&
+    observation?.placeholderJobCount === 0 &&
+    observation?.collectionStatus === "validated" &&
+    isDeepStrictEqual(observation?.collectionIssues, []) &&
+    jobsValid &&
+    fragments.length === 12 &&
+    fragmentIds.length === new Set(fragmentIds).size &&
+    observation?.rejectedFragments?.length === 0 &&
+    observation?.artifacts?.readbackStatus === "resolved" &&
+    observation?.artifacts?.observedCount === 0 &&
+    observation?.artifacts?.entries?.length === 0 &&
+    observation?.artifacts?.releaseTrustInput === false;
+  const trustValid =
+    fragments.every((fragment) => {
+      const job = jobs.find(
+        (candidate) => candidate?.checkRunId === fragment?.checkRunId
+      );
+      const canary = fragment?.jobKey === "next-canary";
+      return (
+        fragment?.fragmentStatus === "validated-rest-bound" &&
+        fragment?.restBindingStatus === "validated" &&
+        fragment?.validationErrorCodes?.length === 0 &&
+        fragment?.releaseTrustInput === false &&
+        fragment?.jobName === job?.jobName &&
+        fragment?.jobKey === job?.jobKey &&
+        fragment?.conclusion === job?.conclusion &&
+        fragment?.sanitizedLogProjection?.observedStatus ===
+          (canary ? "non-blocking-canary" : "executed-pass") &&
+        fragment?.sanitizedLogProjection?.rawExitCode === 0 &&
+        fragment?.sanitizedLogProjection?.rawLogsPersisted === false &&
+        fragment?.sanitizedLogProjection?.hostedGateInput === !canary
+      );
+    }) && isDeepStrictEqual([...fragmentIds].sort(), [...jobIds].sort());
+  return { jobIds, structureValid, trustValid };
 }
 
 export function validateP5Evidence(manifest, profileRegistry) {
@@ -2788,7 +2898,7 @@ export function validateP5Evidence(manifest, profileRegistry) {
   const hostedV3Historical =
     hostedV3 && manifest?.hostedObservations?.length === 2;
   const hostedV3Closure =
-    hostedV3 && manifest?.hostedObservations?.length === 7;
+    hostedV3 && manifest?.hostedObservations?.length === 8;
   const hostedObserved = hostedFailureV2 || hostedV3;
   if (!localOnly && !hostedObserved) {
     errors.push(
@@ -3152,92 +3262,53 @@ export function validateP5Evidence(manifest, profileRegistry) {
           );
         }
       );
-      const finalObservation = observations[6];
-      const finalJobs = Array.isArray(finalObservation?.jobObservations)
-        ? finalObservation.jobObservations
-        : [];
-      const finalFragments = Array.isArray(finalObservation?.validatedFragments)
-        ? finalObservation.validatedFragments
-        : [];
-      const finalJobNames = finalJobs.map((job) => job?.jobName);
-      const finalJobIds = finalJobs.map((job) => job?.checkRunId);
-      const finalFragmentIds = finalFragments.map(
-        (fragment) => fragment?.checkRunId
-      );
-      const finalJobsValid =
-        includesExactSet(finalJobNames, EXPECTED_HOSTED_JOB_NAMES) &&
-        finalJobIds.length === new Set(finalJobIds).size &&
-        finalJobs.every(
-          (job) =>
-            job?.status === "completed" &&
-            job?.conclusion === "success" &&
-            job?.jobKey === EXPECTED_HOSTED_JOB_KEYS.get(job?.jobName) &&
-            job?.runnerToolProjection?.node === "24.18.1" &&
-            job?.runnerToolProjection?.npm === "11.16.0" &&
-            job?.runnerToolProjection?.nodeExecutableSha256 ===
-              P5_V3_NODE_SHA256 &&
-            job?.runnerToolProjection?.rawLogsPersisted === false &&
-            job?.log?.markerCount === 1 &&
-            job?.log?.rawLogsPersisted === false
-        );
+      const run8Observation = observations[6];
+      const finalObservation = observations[7];
+      const run8Binding = p5V3SuccessfulRunBinding(run8Observation);
+      const finalBinding = p5V3SuccessfulRunBinding(finalObservation);
+      const run8BindingValid =
+        run8Observation?.repository === P5_V3_RUN_8.repository &&
+        run8Observation?.pullRequestNumber === P5_V3_RUN_8.pullRequestNumber &&
+        run8Observation?.runId === P5_V3_RUN_8.runId &&
+        run8Observation?.runNumber === P5_V3_RUN_8.runNumber &&
+        run8Observation?.event === "pull_request" &&
+        run8Observation?.runUrl ===
+          `https://github.com/wotjr1649/codex-conductor-cc/actions/runs/${P5_V3_RUN_8.runId}` &&
+        run8Observation?.sourceHeadSha === P5_V3_RUN_8.sourceHeadSha &&
+        run8Observation?.eventMergeSha === P5_V3_RUN_8.eventMergeSha &&
+        run8Observation?.baseSha === P5_V3_RUN_8.baseSha &&
+        run8Observation?.checkSuiteId === P5_V3_RUN_8.checkSuiteId &&
+        run8Observation?.runStartedAt === P5_V3_RUN_8.runStartedAt &&
+        run8Observation?.runCompletedAt === P5_V3_RUN_8.runCompletedAt &&
+        includesExactSet(run8Binding.jobIds, P5_V3_RUN_8.checkRunIds) &&
+        run8Binding.structureValid;
       const finalBindingValid =
-        finalObservation?.runNumber === 8 &&
-        finalObservation?.runAttempt === 1 &&
-        finalObservation?.rerunCount === 0 &&
-        finalObservation?.automaticRetryCount === null &&
+        finalObservation?.runNumber === 9 &&
         finalObservation?.sourceHeadSha === manifest.source?.sourceCommit &&
-        finalObservation?.workflowSha === finalObservation?.eventMergeSha &&
-        finalObservation?.conclusion === "success" &&
-        finalObservation?.expectedLogicalJobCount === 12 &&
-        finalObservation?.observedRestJobCount === 12 &&
-        finalObservation?.placeholderJobCount === 0 &&
-        finalObservation?.collectionStatus === "validated" &&
-        isDeepStrictEqual(finalObservation?.collectionIssues, []) &&
-        finalJobsValid &&
-        finalFragments.length === 12 &&
-        finalFragmentIds.length === new Set(finalFragmentIds).size &&
-        finalObservation?.rejectedFragments?.length === 0 &&
-        finalObservation?.artifacts?.readbackStatus === "resolved" &&
-        finalObservation?.artifacts?.observedCount === 0 &&
-        finalObservation?.artifacts?.entries?.length === 0 &&
-        finalObservation?.artifacts?.releaseTrustInput === false &&
+        finalBinding.structureValid &&
         new Set(observations.map((observation) => observation?.runId)).size ===
-          7 &&
+          8 &&
         isDeepStrictEqual(
           observations.map((observation) => observation?.runNumber),
-          [2, 3, 4, 5, 6, 7, 8]
+          [2, 3, 4, 5, 6, 7, 8, 9]
         );
 
-      if (!historicalPrefixValid || !remediationRunsValid || !finalBindingValid) {
+      if (
+        !historicalPrefixValid ||
+        !remediationRunsValid ||
+        !run8BindingValid ||
+        !finalBindingValid
+      ) {
         errors.push(
-          "P5E_HOSTED_V3_BINDING: exact historical, remediation, and successful final observations are required"
+          "P5E_HOSTED_V3_BINDING: exact historical, remediation, successful intermediate, and final observations are required"
         );
       }
 
       const finalTrustInvalid =
-        finalFragments.some((fragment) => {
-          const job = finalJobs.find(
-            (candidate) => candidate?.checkRunId === fragment?.checkRunId
-          );
-          const canary = fragment?.jobKey === "next-canary";
-          return (
-            fragment?.fragmentStatus !== "validated-rest-bound" ||
-            fragment?.restBindingStatus !== "validated" ||
-            fragment?.validationErrorCodes?.length !== 0 ||
-            fragment?.releaseTrustInput !== false ||
-            fragment?.jobName !== job?.jobName ||
-            fragment?.jobKey !== job?.jobKey ||
-            fragment?.conclusion !== job?.conclusion ||
-            fragment?.sanitizedLogProjection?.observedStatus !==
-              (canary ? "non-blocking-canary" : "executed-pass") ||
-            fragment?.sanitizedLogProjection?.rawExitCode !== 0 ||
-            fragment?.sanitizedLogProjection?.rawLogsPersisted !== false ||
-            fragment?.sanitizedLogProjection?.hostedGateInput !== !canary
-          );
-        }) || !isDeepStrictEqual([...finalFragmentIds].sort(), [...finalJobIds].sort());
+        !run8Binding.trustValid || !finalBinding.trustValid;
       if (finalTrustInvalid) {
         errors.push(
-          "P5E_HOSTED_V3_TRUST_BOUNDARY: every final fragment must remain REST-bound and canary input non-authoritative"
+          "P5E_HOSTED_V3_TRUST_BOUNDARY: every successful fragment must remain REST-bound and canary input non-authoritative"
         );
       }
 
@@ -3258,7 +3329,7 @@ export function validateP5Evidence(manifest, profileRegistry) {
       }
     } else {
       errors.push(
-        "P5E_HOSTED_V3_BINDING: only the exact two-run history or seven-run closure is accepted"
+        "P5E_HOSTED_V3_BINDING: only the exact two-run history or eight-run closure is accepted"
       );
     }
 

@@ -97,6 +97,11 @@ const exactSourceFixPaths = [
   "scripts/lib/p5-validation.mjs",
   "tests/p5-matrix-profile.test.mjs"
 ];
+const exactClosureSourcePaths = [
+  "evidence/schemas/p5-evidence-v3.schema.json",
+  "scripts/lib/p5-validation.mjs",
+  "tests/p5-matrix-profile.test.mjs"
+];
 
 function hostedProvenance(jobKey, checkRunId) {
   return {
@@ -657,13 +662,36 @@ const P5_TEST_FINAL_JOBS = [
   ["CI", "gate"]
 ];
 
-function p5SyntheticClosureObservation(sourceCommit) {
-  const eventMergeSha = "c".repeat(40);
+const P5_TEST_RUN_8_JOB_IDS = [
+  92507615862,
+  92507748813,
+  92507748844,
+  92507748827,
+  92507748831,
+  92507748817,
+  92507748888,
+  92507748826,
+  92507748829,
+  92507615833,
+  92507748865,
+  92508332131
+];
+
+function p5SyntheticClosureObservation({
+  sourceCommit,
+  runId,
+  runNumber,
+  eventMergeSha,
+  checkSuiteId,
+  runStartedAt,
+  runCompletedAt,
+  checkRunIds = P5_TEST_FINAL_JOBS.map((_, index) => 99000000000 + index)
+}) {
   const jobObservations = P5_TEST_FINAL_JOBS.map(([jobName, jobKey], index) =>
     p5TestJob([
       jobName,
       jobKey,
-      99000000000 + index,
+      checkRunIds[index],
       "success",
       "2026-08-06T01:00:00Z",
       "2026-08-06T01:01:00Z",
@@ -677,7 +705,7 @@ function p5SyntheticClosureObservation(sourceCommit) {
     p5TestFragment({
       jobName,
       jobKey,
-      checkRunId: 99000000000 + index,
+      checkRunId: checkRunIds[index],
       conclusion: "success",
       markerSha256: (index + 1).toString(16).padStart(64, "0"),
       startedAt: "2026-08-06T01:00:01Z",
@@ -693,20 +721,20 @@ function p5SyntheticClosureObservation(sourceCommit) {
   return {
     repository: "wotjr1649/codex-conductor-cc",
     pullRequestNumber: 2,
-    runId: 39999999999,
-    runNumber: 8,
+    runId,
+    runNumber,
     runAttempt: 1,
     rerunCount: 0,
     automaticRetryCount: null,
     event: "pull_request",
-    runUrl: "https://github.com/wotjr1649/codex-conductor-cc/actions/runs/39999999999",
+    runUrl: `https://github.com/wotjr1649/codex-conductor-cc/actions/runs/${runId}`,
     sourceHeadSha: sourceCommit,
     eventMergeSha,
     workflowSha: eventMergeSha,
     baseSha: "84515289913dfe8a7452754ad442d37873bdfd53",
-    checkSuiteId: 89999999999,
-    runStartedAt: "2026-08-06T00:59:59Z",
-    runCompletedAt: "2026-08-06T01:01:01Z",
+    checkSuiteId,
+    runStartedAt,
+    runCompletedAt,
     conclusion: "success",
     expectedLogicalJobCount: 12,
     observedRestJobCount: 12,
@@ -716,7 +744,7 @@ function p5SyntheticClosureObservation(sourceCommit) {
     jobObservations,
     validatedFragments,
     rejectedFragments: [],
-    artifacts: p5TestArtifacts(39999999999, "2026-08-06T01:02:00Z")
+    artifacts: p5TestArtifacts(runId, "2026-08-06T04:02:00Z")
   };
 }
 
@@ -725,17 +753,37 @@ function p5ClosureFixture() {
     "evidence/manifests/p5/p5-matrix-profile-bootstrap-20260731.json"
   );
   const closure = structuredClone(historical);
+  if (closure.hostedObservations.length === 8) return closure;
   closure.source.sourceCommit = "b".repeat(40);
   closure.overallStatus = "hosted-complete";
   closure.hostedGateStatus = "hosted-pass";
   closure.remoteExecution = "executed-pass";
-  const finalObservation = p5SyntheticClosureObservation(closure.source.sourceCommit);
+  const run8Observation = p5SyntheticClosureObservation({
+    sourceCommit: "97ecd4d684cff1f42ea3fe9cdea4b141ae9ed45a",
+    runId: 31067303488,
+    runNumber: 8,
+    eventMergeSha: "762fd212130c57dc5e709f6b3d9eb8362a536c51",
+    checkSuiteId: 84268794283,
+    runStartedAt: "2026-08-06T03:02:23Z",
+    runCompletedAt: "2026-08-06T03:07:54Z",
+    checkRunIds: P5_TEST_RUN_8_JOB_IDS
+  });
+  const finalObservation = p5SyntheticClosureObservation({
+    sourceCommit: closure.source.sourceCommit,
+    runId: 39999999999,
+    runNumber: 9,
+    eventMergeSha: "c".repeat(40),
+    checkSuiteId: 89999999999,
+    runStartedAt: "2026-08-06T03:59:59Z",
+    runCompletedAt: "2026-08-06T04:01:01Z"
+  });
   closure.hostedObservations = [
     ...historical.hostedObservations,
     structuredClone(p5Run4Observation),
     structuredClone(p5Run5Observation),
     structuredClone(p5Run6Observation),
     structuredClone(p5Run7Observation),
+    run8Observation,
     finalObservation
   ];
   for (const result of closure.profileResults) {
@@ -880,6 +928,29 @@ test("P5-SOURCE-BOOTSTRAP-001 accepts only the exact one-time frontier", async (
     true
   );
 
+  const exactClosureSourceFixture = {
+    ...structuredClone(exactSourceFixFixture),
+    headParents: ["97ecd4d684cff1f42ea3fe9cdea4b141ae9ed45a"],
+    policyPaths: structuredClone(exactClosureSourcePaths)
+  };
+  assert.equal(isExactP5BootstrapFrontier(exactClosureSourceFixture), true);
+  for (const mutate of [
+    (value) => { value.headParents = ["0".repeat(40)]; },
+    (value) => { value.policyPaths.pop(); },
+    (value) => { value.policyPaths.push("scripts/unreviewed.mjs"); }
+  ]) {
+    const observed = structuredClone(exactClosureSourceFixture);
+    mutate(observed);
+    assert.equal(isExactP5BootstrapFrontier(observed), false);
+  }
+  assert.equal(
+    isExactP5BootstrapCheckout(
+      ["97ecd4d684cff1f42ea3fe9cdea4b141ae9ed45a"],
+      [exactClosureSourceFixture, exactSourceFixFixture]
+    ),
+    true
+  );
+
   const mergeCheckout = structuredClone(exactBootstrapFixture);
   mergeCheckout.headParents = [
     "84515289913dfe8a7452754ad442d37873bdfd53",
@@ -980,7 +1051,7 @@ test("P5-RED-001 versioned profile, scenario, schema, and evidence sources exist
   }
   const v3Schema = p5EvidenceSchemas.get("p5-evidence-v3");
   assert.equal(v3Schema.properties.hostedObservations.minItems, 2);
-  assert.equal(v3Schema.properties.hostedObservations.maxItems, 7);
+  assert.equal(v3Schema.properties.hostedObservations.maxItems, 8);
   assert.deepEqual(
     v3Schema.$defs.hostedObservationV3.properties.conclusion.enum,
     ["failure", "success"]
@@ -2249,7 +2320,9 @@ test("P5-EVIDENCE-001 local, hosted, not-run, canary, and blocked truth stays di
               fragment.sanitizedLogProjection.hostedGateInput = true;
               value.hostedObservations[1].validatedFragments[0] = fragment;
             },
-            "P5E_HOSTED_V3_TRUST_BOUNDARY"
+            evidence.hostedObservations.length === 2
+              ? "P5E_HOSTED_V3_TRUST_BOUNDARY"
+              : "P5E_HOSTED_V3_BINDING"
           ],
           [
             "registry-digest",
@@ -2350,13 +2423,13 @@ test("P5-EVIDENCE-001 local, hosted, not-run, canary, and blocked truth stays di
   );
 });
 
-test("P5-EVIDENCE-V3-CLOSURE-001 accepts only the exact seven-run closure", () => {
+test("P5-EVIDENCE-V3-CLOSURE-001 accepts only the exact eight-run closure", () => {
   const closure = p5ClosureFixture();
   const schema = p5EvidenceSchemas.get("p5-evidence-v3");
   assert.deepEqual(validateJsonSchema(closure, schema, "P5 evidence"), []);
   assert.deepEqual(validateP5Evidence(closure, profiles), []);
 
-  for (const count of [3, 4, 5, 6]) {
+  for (const count of [3, 4, 5, 6, 7]) {
     const partial = structuredClone(closure);
     partial.hostedObservations.length = count;
     assert.ok(
@@ -2386,19 +2459,25 @@ test("P5-EVIDENCE-V3-CLOSURE-001 accepts only the exact seven-run closure", () =
     ["rerun", (value) => {
       value.hostedObservations[3].rerunCount = 1;
     }, "P5E_HOSTED_V3_BINDING"],
+    ["intermediate-source", (value) => {
+      value.hostedObservations[6].sourceHeadSha = "0".repeat(40);
+    }, "P5E_HOSTED_V3_BINDING"],
+    ["intermediate-job-id", (value) => {
+      value.hostedObservations[6].jobObservations[0].checkRunId = 1;
+    }, "P5E_HOSTED_V3_BINDING"],
     ["conclusion", (value) => {
-      value.hostedObservations[6].conclusion = "failure";
+      value.hostedObservations[7].conclusion = "failure";
     }, "P5E_HOSTED_V3_BINDING"],
     ["job-set", (value) => {
-      value.hostedObservations[6].jobObservations.pop();
+      value.hostedObservations[7].jobObservations.pop();
     }, "P5E_HOSTED_V3_BINDING"],
     ["canary-promotion", (value) => {
-      value.hostedObservations[6].validatedFragments
+      value.hostedObservations[7].validatedFragments
         .find(({ jobKey }) => jobKey === "next-canary")
         .sanitizedLogProjection.hostedGateInput = true;
     }, "P5E_HOSTED_V3_TRUST_BOUNDARY"],
     ["artifact-readback", (value) => {
-      value.hostedObservations[6].artifacts.readbackStatus = "pending";
+      value.hostedObservations[7].artifacts.readbackStatus = "pending";
     }, "P5E_HOSTED_V3_BINDING"],
     ["cache-merge", (value) => {
       value.prRefCacheObservation.mergeSha = "0".repeat(40);
