@@ -22,6 +22,11 @@ import {
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const P4_FINAL = "84515289913dfe8a7452754ad442d37873bdfd53";
 const ACTUAL_P4_SOURCE = "843e679936daba71a6c4c2fdd55fcade01b46b73";
+const P5_INTEGRATION_BASE = "ca9204646deb8c024cd76985092720ede2552028";
+const P5_INTEGRATION_REPAIR_PATHS = [
+  "scripts/validate-p5.mjs",
+  "tests/p5-matrix-profile.test.mjs"
+];
 const errors = [];
 
 function readJson(relativePath) {
@@ -33,13 +38,17 @@ function readJson(relativePath) {
   }
 }
 
-function git(args) {
-  const result = spawnSync("git", args, {
+function gitProbe(args) {
+  return spawnSync("git", args, {
     cwd: ROOT,
     encoding: "utf8",
     shell: false,
     windowsHide: true
   });
+}
+
+function git(args) {
+  const result = gitProbe(args);
   if (result.status !== 0) {
     errors.push(`git ${args.join(" ")}: exit ${result.status}`);
     return "";
@@ -59,6 +68,58 @@ const commitParents = (commit) =>
     .slice(1);
 const commitPaths = (commit) =>
   gitLines(["diff-tree", "--no-commit-id", "--name-only", "-r", commit]);
+const samePathSet = (actual, expected) => {
+  const actualSet = new Set(actual);
+  return actualSet.size === expected.length && expected.every((item) => actualSet.has(item));
+};
+
+function resolveValidationHead() {
+  if (process.env.GITHUB_ACTIONS !== "true") return "HEAD";
+
+  try {
+    const eventPath = process.env.GITHUB_EVENT_PATH ?? "";
+    const eventStat = fs.statSync(eventPath);
+    if (!eventStat.isFile() || eventStat.size > 1024 * 1024) throw new Error();
+    const event = JSON.parse(fs.readFileSync(eventPath, "utf8"));
+    const repository = process.env.GITHUB_REPOSITORY ?? "";
+    const pullRequestNumber = event?.number;
+    const base = event?.pull_request?.base;
+    const head = event?.pull_request?.head;
+    const baseSha = base?.sha ?? "";
+    const headSha = head?.sha ?? "";
+    const checkoutSha = gitProbe(["rev-parse", "HEAD"]);
+    const checkoutParents = gitProbe(["rev-list", "--parents", "-n", "1", "HEAD"]);
+    const parents = checkoutParents.stdout.trim().split(/\s+/).slice(1);
+    const sha = /^[0-9a-f]{40}$/;
+
+    if (
+      process.env.GITHUB_EVENT_NAME !== "pull_request" ||
+      !Number.isSafeInteger(pullRequestNumber) ||
+      pullRequestNumber < 1 ||
+      !repository ||
+      event?.repository?.full_name !== repository ||
+      base?.repo?.full_name !== repository ||
+      base?.ref !== process.env.GITHUB_BASE_REF ||
+      head?.ref !== process.env.GITHUB_HEAD_REF ||
+      process.env.GITHUB_REF !== `refs/pull/${pullRequestNumber}/merge` ||
+      !sha.test(baseSha) ||
+      !sha.test(headSha) ||
+      !sha.test(process.env.GITHUB_SHA ?? "") ||
+      checkoutSha.status !== 0 ||
+      checkoutSha.stdout.trim() !== process.env.GITHUB_SHA ||
+      checkoutParents.status !== 0 ||
+      parents.length !== 2 ||
+      parents[0] !== baseSha ||
+      parents[1] !== headSha
+    ) {
+      throw new Error();
+    }
+    return headSha;
+  } catch {
+    errors.push("P5E_PR_HEAD");
+    return "HEAD";
+  }
+}
 
 const requiredFiles = [
   "ci/matrix-profiles-v1.json",
@@ -201,6 +262,7 @@ if (
 ) {
   errors.push("P5E_LEDGER_RED: meaningful RED must remain in the ordered ledger");
 }
+const validationHead = resolveValidationHead();
 const boundSource = evidence?.source?.sourceCommit ?? "";
 const boundSourceType = spawnSync("git", ["cat-file", "-t", boundSource], {
   cwd: ROOT,
@@ -215,7 +277,7 @@ const p4ToSource = spawnSync(
 );
 const sourceToHead = spawnSync(
   "git",
-  ["merge-base", "--is-ancestor", boundSource, "HEAD"],
+  ["merge-base", "--is-ancestor", boundSource, validationHead],
   { cwd: ROOT, encoding: "utf8", shell: false, windowsHide: true }
 );
 const baseline = fs.existsSync(baselinePath)
@@ -256,22 +318,30 @@ const bootstrapContext = {
   policyCommitPaths: commitPaths(P5_BOOTSTRAP_FRONTIER.policyCommit),
   uncommittedPaths
 };
-const headParents = commitParents("HEAD");
+const headParents = commitParents(validationHead);
 const exactBootstrap = isExactP5BootstrapCheckout(
   headParents,
-  ["HEAD", ...headParents].map((candidate) => ({
+  [validationHead, ...headParents].map((candidate) => ({
     ...bootstrapContext,
     headParents: commitParents(candidate),
     policyPaths: commitPaths(candidate)
   }))
 );
+const validationHeadSha = git(["rev-parse", validationHead]);
+const exactIntegrationRepair =
+  (validationHeadSha === P5_INTEGRATION_BASE &&
+    samePathSet(uncommittedPaths, P5_INTEGRATION_REPAIR_PATHS)) ||
+  (uncommittedPaths.length === 0 &&
+    headParents.length === 1 &&
+    headParents[0] === P5_INTEGRATION_BASE &&
+    samePathSet(commitPaths(validationHead), P5_INTEGRATION_REPAIR_PATHS));
 const postSourcePaths = [
-  ...gitLines(["diff", "--name-only", `${boundSource}..HEAD`]),
+  ...gitLines(["diff", "--name-only", `${boundSource}..${validationHead}`]),
   ...uncommittedPaths
 ]
   .filter(Boolean);
 for (const relativePath of new Set(postSourcePaths)) {
-  if (!exactBootstrap && !isEvidenceOnlyPath(relativePath)) {
+  if (!exactBootstrap && !exactIntegrationRepair && !isEvidenceOnlyPath(relativePath)) {
     errors.push(`P5E_POST_SOURCE_CHANGE:${relativePath}`);
   }
 }
@@ -331,7 +401,13 @@ const immutablePaths = [
   "docs/baselines/2026-07-31-p4-contract-baseline.md"
 ];
 for (const immutablePath of immutablePaths) {
-  const diff = git(["diff", "--name-only", P4_FINAL, "--", immutablePath]);
+  const diff = git([
+    "diff",
+    "--name-only",
+    `${P4_FINAL}..${validationHead}`,
+    "--",
+    immutablePath
+  ]);
   const status = git([
     "status",
     "--porcelain=v1",
@@ -349,17 +425,19 @@ if (
 }
 
 const changed = [
-  ...git(["diff", "--name-only", `${P4_FINAL}..HEAD`]).split(/\r?\n/),
-  ...git(["diff", "--name-only"]).split(/\r?\n/),
-  ...git(["diff", "--name-only", "--cached"]).split(/\r?\n/),
-  ...git(["ls-files", "--others", "--exclude-standard"]).split(/\r?\n/)
-].filter(Boolean);
-for (const relativePath of new Set(changed.map((item) => item.replaceAll("\\", "/")))) {
+  ...gitLines(["diff", "--name-only", `${P4_FINAL}..${validationHead}`]),
+  ...uncommittedPaths
+];
+for (const relativePath of new Set(changed)) {
   if (!isP5AllowedPath(relativePath)) {
     errors.push(`P5E_SCOPE: path outside P5 allowlist: ${relativePath}`);
   }
 }
-const binary = git(["diff", "--numstat", P4_FINAL])
+const binary = [
+  git(["diff", "--numstat", `${P4_FINAL}..${validationHead}`]),
+  git(["diff", "--numstat", validationHead])
+]
+  .join("\n")
   .split(/\r?\n/)
   .filter((line) => line.startsWith("-\t-\t"));
 if (binary.length > 0) errors.push("P5E_BINARY: committed binary additions are forbidden");

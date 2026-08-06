@@ -1013,6 +1013,97 @@ test("P5-SOURCE-BOOTSTRAP-001 accepts only the exact one-time frontier", async (
   );
 });
 
+test("P5-INTEGRATION-HEAD-001 validates the pull-request head, not its synthetic merge", (t) => {
+  const probeRoot = mkdtempSync(path.join(tmpdir(), "p5-integration-head-"));
+  t.after(() => rmSync(probeRoot, { recursive: true, force: true }));
+  const repoPath = path.join(probeRoot, "repo");
+  const eventPath = path.join(probeRoot, "event.json");
+  const repository = "wotjr1649/codex-conductor-cc";
+  const baseSha = "de6aa123bb1b6aacefeac2953df5c0817e3b93d2";
+  const integrationBase = "ca9204646deb8c024cd76985092720ede2552028";
+  const git = (args) => spawnSync("git", args, {
+    cwd: repoPath,
+    encoding: "utf8",
+    shell: false
+  });
+  const requireGit = (args) => {
+    const result = git(args);
+    assert.equal(result.status, 0, fixedProbeDiagnostic(result, "P5E_TEST_GIT"));
+    return result.stdout.trim();
+  };
+
+  const clone = spawnSync("git", ["clone", "--shared", "--no-checkout", root, repoPath], {
+    encoding: "utf8",
+    shell: false
+  });
+  assert.equal(clone.status, 0, fixedProbeDiagnostic(clone, "P5E_TEST_GIT"));
+  requireGit(["checkout", "--detach", integrationBase]);
+  for (const relativePath of [
+    "scripts/validate-p5.mjs",
+    "tests/p5-matrix-profile.test.mjs"
+  ]) {
+    writeFileSync(
+      path.join(repoPath, relativePath),
+      readFileSync(path.join(root, relativePath))
+    );
+  }
+  requireGit(["add", "scripts/validate-p5.mjs", "tests/p5-matrix-profile.test.mjs"]);
+  requireGit([
+    "-c", "user.name=P5 Test",
+    "-c", "user.email=p5-test@example.invalid",
+    "-c", "commit.gpgsign=false",
+    "commit", "-m", "test: integration repair"
+  ]);
+  const pullRequestHead = requireGit(["rev-parse", "HEAD"]);
+
+  requireGit(["checkout", "--detach", baseSha]);
+  requireGit([
+    "-c", "user.name=P5 Test",
+    "-c", "user.email=p5-test@example.invalid",
+    "-c", "commit.gpgsign=false",
+    "merge", "--no-ff", "--no-edit", pullRequestHead
+  ]);
+  const mergeSha = requireGit(["rev-parse", "HEAD"]);
+  const event = {
+    number: 3,
+    repository: { full_name: repository },
+    pull_request: {
+      base: { ref: "main", sha: baseSha, repo: { full_name: repository } },
+      head: {
+        ref: "codex/p4-contract-baseline",
+        sha: pullRequestHead,
+        repo: { full_name: repository }
+      }
+    }
+  };
+  const runValidator = () => spawnSync(process.execPath, ["scripts/validate-p5.mjs"], {
+    cwd: repoPath,
+    encoding: "utf8",
+    shell: false,
+    env: {
+      ...process.env,
+      GITHUB_ACTIONS: "true",
+      GITHUB_EVENT_NAME: "pull_request",
+      GITHUB_EVENT_PATH: eventPath,
+      GITHUB_REPOSITORY: repository,
+      GITHUB_REF: "refs/pull/3/merge",
+      GITHUB_BASE_REF: "main",
+      GITHUB_HEAD_REF: "codex/p4-contract-baseline",
+      GITHUB_SHA: mergeSha
+    }
+  });
+
+  writeFileSync(eventPath, `${JSON.stringify(event)}\n`, "utf8");
+  const valid = runValidator();
+  assert.equal(valid.status, 0, fixedProbeDiagnostic(valid, "P5E_TEST_VALIDATOR"));
+
+  event.pull_request.head.sha = baseSha;
+  writeFileSync(eventPath, `${JSON.stringify(event)}\n`, "utf8");
+  const spoofed = runValidator();
+  assert.equal(spoofed.status, 1, fixedProbeDiagnostic(spoofed, "P5E_TEST_VALIDATOR"));
+  assert.equal(fixedProbeDiagnostic(spoofed, "P5E_TEST_VALIDATOR"), "P5E_PR_HEAD");
+});
+
 test("P5-RED-001 versioned profile, scenario, schema, and evidence sources exist", () => {
   for (const relativePath of [
     "ci/matrix-profiles-v1.json",
