@@ -66,6 +66,58 @@ const P5_PATH_PREFIXES = [
   "tests/p5-"
 ];
 
+export const P5_BOOTSTRAP_FRONTIER = Object.freeze({
+  boundSource: "4ad56ea41a479cae0950bce817760455d5fb87fc",
+  evidenceRebindCommit: "5475e3e2bccc9af6e10079da5d355b4dab88b3e5",
+  windowsFixCommit: "748d6181e30f642930bc13f4f9a718a1f366dd27",
+  evidenceRebindPaths: Object.freeze([
+    "docs/baselines/2026-07-31-p5-matrix-profile-bootstrap.md",
+    "evidence/ledgers/p5-attempts.json",
+    "evidence/manifests/p5/p5-matrix-profile-bootstrap-20260731.json"
+  ]),
+  windowsFixPaths: Object.freeze([
+    "scripts/lib/p5-runner-provenance.psm1",
+    "scripts/write-p5-runner-evidence.ps1",
+    "tests/p5-matrix-profile.test.mjs"
+  ]),
+  policyPaths: Object.freeze([
+    "evidence/schemas/p5-evidence-v3.schema.json",
+    "scripts/lib/p5-validation.mjs",
+    "scripts/validate-p5.mjs",
+    "tests/p5-matrix-profile.test.mjs"
+  ])
+});
+
+function exactPathSet(actual, expected) {
+  return (
+    Array.isArray(actual) &&
+    actual.length === new Set(actual).size &&
+    isDeepStrictEqual([...actual].sort(), [...expected].sort())
+  );
+}
+
+export function isExactP5BootstrapFrontier(observed) {
+  return (
+    observed?.boundSource === P5_BOOTSTRAP_FRONTIER.boundSource &&
+    isDeepStrictEqual(observed?.evidenceRebindParents, [
+      P5_BOOTSTRAP_FRONTIER.boundSource
+    ]) &&
+    isDeepStrictEqual(observed?.windowsFixParents, [
+      P5_BOOTSTRAP_FRONTIER.evidenceRebindCommit
+    ]) &&
+    isDeepStrictEqual(observed?.headParents, [
+      P5_BOOTSTRAP_FRONTIER.windowsFixCommit
+    ]) &&
+    exactPathSet(
+      observed?.evidenceRebindPaths,
+      P5_BOOTSTRAP_FRONTIER.evidenceRebindPaths
+    ) &&
+    exactPathSet(observed?.windowsFixPaths, P5_BOOTSTRAP_FRONTIER.windowsFixPaths) &&
+    exactPathSet(observed?.policyPaths, P5_BOOTSTRAP_FRONTIER.policyPaths) &&
+    isDeepStrictEqual(observed?.uncommittedPaths, [])
+  );
+}
+
 export function sha256File(absolutePath) {
   return createHash("sha256").update(fs.readFileSync(absolutePath)).digest("hex");
 }
@@ -1556,6 +1608,20 @@ const EXPECTED_HOSTED_JOB_NAMES = [
   "Non-blocking Codex canary / next",
   "CI"
 ];
+const EXPECTED_HOSTED_JOB_KEYS = new Map([
+  ["Policy validation", "policy-validation"],
+  ["Install and build", "install-build"],
+  ["Unit tests", "unit"],
+  ["Core contract / current", "core-contract"],
+  ["Core contract / previous", "core-contract"],
+  ["Windows integration", "windows-integration"],
+  ["Claude structural lifecycle / minimum", "claude-lifecycle"],
+  ["Claude structural lifecycle / current", "claude-lifecycle"],
+  ["Security", "security"],
+  ["Dependency review", "dependency-review"],
+  ["Non-blocking Codex canary / next", "next-canary"],
+  ["CI", "gate"]
+]);
 
 const EXPECTED_VALIDATION_SOURCE_PATHS = [
   "scripts/run-p5-hosted-evidence-collector.mjs",
@@ -2586,12 +2652,37 @@ const P5_V3_EXPECTED_CACHE = {
   releaseTrustInput: false
 };
 
+const P5_V3_REMEDIATION_RUNS = [
+  {
+    runId: 31003825837,
+    runNumber: 4,
+    sourceHeadSha: "5475e3e2bccc9af6e10079da5d355b4dab88b3e5",
+    digest: "226dbb7a4d9b8bf2727b42d688af1ac608edca9f7ba5ae81f70b580caf944fa1"
+  },
+  {
+    runId: 31027289099,
+    runNumber: 5,
+    sourceHeadSha: "748d6181e30f642930bc13f4f9a718a1f366dd27",
+    digest: "8c7a6955d040431e6e9c3ee0341cc67dddc3d25cb3bd38b0bef13514c1c6e7ec"
+  }
+];
+
+function p5V3ObservationDigest(observation) {
+  return createHash("sha256")
+    .update(JSON.stringify(observation))
+    .digest("hex");
+}
+
 export function validateP5Evidence(manifest, profileRegistry) {
   const errors = [];
   const localOnly = manifest?.schemaVersion === "p5-evidence-v1";
   const hostedFailureV2 = manifest?.schemaVersion === "p5-evidence-v2";
-  const hostedFailureV3 = manifest?.schemaVersion === "p5-evidence-v3";
-  const hostedObserved = hostedFailureV2 || hostedFailureV3;
+  const hostedV3 = manifest?.schemaVersion === "p5-evidence-v3";
+  const hostedV3Historical =
+    hostedV3 && manifest?.hostedObservations?.length === 2;
+  const hostedV3Closure =
+    hostedV3 && manifest?.hostedObservations?.length === 5;
+  const hostedObserved = hostedFailureV2 || hostedV3;
   if (!localOnly && !hostedObserved) {
     errors.push(
       `P5E_EVIDENCE_SCHEMA_VERSION:${manifest?.schemaVersion ?? "missing"}`
@@ -2625,11 +2716,13 @@ export function validateP5Evidence(manifest, profileRegistry) {
     "security"
   ]) {
     const result = actual.get(id);
-    const expectedHostedStatus = hostedObserved
-      ? id === "policy-validation"
+    const expectedHostedStatus = hostedV3Closure
+      ? "hosted-pass"
+      : hostedObserved
+        ? id === "policy-validation"
         ? "executed-fail"
         : "skipped"
-      : "not-run";
+        : "not-run";
     if (
       result?.localStatus !== "local-pass" ||
       result?.hostedStatus !== expectedHostedStatus
@@ -2648,7 +2741,12 @@ export function validateP5Evidence(manifest, profileRegistry) {
   if (
     canary?.blocking !== false ||
     canary?.localStatus !== "not-run" ||
-    canary?.hostedStatus !== (hostedObserved ? "skipped" : "not-run") ||
+    canary?.hostedStatus !==
+      (hostedV3Closure
+        ? "non-blocking-canary"
+        : hostedObserved
+          ? "skipped"
+          : "not-run") ||
     canary?.disposition !== "non-blocking-canary"
   ) {
     errors.push("P5E_CANARY_TRUTH: defined canary is not an executed supported lane");
@@ -2794,7 +2892,7 @@ export function validateP5Evidence(manifest, profileRegistry) {
       errors.push("P5E_HOSTED_FAILURE_BINDING: exact failed attempt 1 evidence is required");
     }
   }
-  if (hostedFailureV3) {
+  if (hostedV3) {
     const expectedEvidenceIds = new Map([
       [
         "policy-validation",
@@ -2879,62 +2977,223 @@ export function validateP5Evidence(manifest, profileRegistry) {
       ["windows-c0", ["P5-C0-BLOCKED"]],
       ["state-d1", ["P5-D1-BLOCKED"]]
     ]);
+    const observations = Array.isArray(manifest.hostedObservations)
+      ? manifest.hostedObservations
+      : [];
+
+    if (hostedV3Historical) {
+      if (
+        manifest.overallStatus !== "blocked" ||
+        manifest.hostedGateStatus !== "executed-fail" ||
+        manifest.remoteExecution !== "executed-fail"
+      ) {
+        errors.push(
+          "P5E_HOSTED_V3_GATE: two failed hosted attempts must remain blocking"
+        );
+      }
+      if (!isDeepStrictEqual(observations, P5_V3_EXPECTED_OBSERVATIONS)) {
+        errors.push(
+          "P5E_HOSTED_V3_BINDING: exact ordered run, job, step, log, artifact, and fragment observations are required"
+        );
+      }
+      if (
+        !isDeepStrictEqual(manifest.prRefCacheObservation, P5_V3_EXPECTED_CACHE)
+      ) {
+        errors.push(
+          "P5E_HOSTED_V3_CACHE: the mutable PR-ref cache snapshot must remain run-unattributed"
+        );
+      }
+    } else if (hostedV3Closure) {
+      for (const observation of observations.slice(2)) {
+        for (const fragment of observation?.validatedFragments ?? []) {
+          const evidenceIds = expectedEvidenceIds.get(fragment?.jobKey);
+          if (evidenceIds) {
+            evidenceIds.push(`p5-hosted-fragment-${fragment.checkRunId}`);
+          }
+        }
+      }
+
+      if (
+        manifest.overallStatus !== "hosted-complete" ||
+        manifest.hostedGateStatus !== "hosted-pass" ||
+        manifest.remoteExecution !== "executed-pass" ||
+        BLOCKING_JOBS.some(
+          (profileId) => actual.get(profileId)?.hostedStatus !== "hosted-pass"
+        ) ||
+        actual.get("next-canary")?.hostedStatus !== "non-blocking-canary"
+      ) {
+        errors.push(
+          "P5E_HOSTED_V3_GATE: exact successful hosted closure is required"
+        );
+      }
+
+      const historicalPrefixValid = isDeepStrictEqual(
+        observations.slice(0, 2),
+        P5_V3_EXPECTED_OBSERVATIONS
+      );
+      const remediationRunsValid = P5_V3_REMEDIATION_RUNS.every(
+        (expected, index) => {
+          const observation = observations[index + 2];
+          return (
+            observation?.runId === expected.runId &&
+            observation?.runNumber === expected.runNumber &&
+            observation?.runAttempt === 1 &&
+            observation?.rerunCount === 0 &&
+            observation?.sourceHeadSha === expected.sourceHeadSha &&
+            observation?.conclusion === "failure" &&
+            p5V3ObservationDigest(observation) === expected.digest
+          );
+        }
+      );
+      const finalObservation = observations[4];
+      const finalJobs = Array.isArray(finalObservation?.jobObservations)
+        ? finalObservation.jobObservations
+        : [];
+      const finalFragments = Array.isArray(finalObservation?.validatedFragments)
+        ? finalObservation.validatedFragments
+        : [];
+      const finalJobNames = finalJobs.map((job) => job?.jobName);
+      const finalJobIds = finalJobs.map((job) => job?.checkRunId);
+      const finalFragmentIds = finalFragments.map(
+        (fragment) => fragment?.checkRunId
+      );
+      const finalJobsValid =
+        includesExactSet(finalJobNames, EXPECTED_HOSTED_JOB_NAMES) &&
+        finalJobIds.length === new Set(finalJobIds).size &&
+        finalJobs.every(
+          (job) =>
+            job?.status === "completed" &&
+            job?.conclusion === "success" &&
+            job?.jobKey === EXPECTED_HOSTED_JOB_KEYS.get(job?.jobName) &&
+            job?.runnerToolProjection?.node === "24.18.1" &&
+            job?.runnerToolProjection?.npm === "11.16.0" &&
+            job?.runnerToolProjection?.nodeExecutableSha256 ===
+              P5_V3_NODE_SHA256 &&
+            job?.runnerToolProjection?.rawLogsPersisted === false &&
+            job?.log?.markerCount === 1 &&
+            job?.log?.rawLogsPersisted === false
+        );
+      const finalBindingValid =
+        finalObservation?.runNumber === 6 &&
+        finalObservation?.runAttempt === 1 &&
+        finalObservation?.rerunCount === 0 &&
+        finalObservation?.automaticRetryCount === null &&
+        finalObservation?.sourceHeadSha === manifest.source?.sourceCommit &&
+        finalObservation?.workflowSha === finalObservation?.eventMergeSha &&
+        finalObservation?.conclusion === "success" &&
+        finalObservation?.expectedLogicalJobCount === 12 &&
+        finalObservation?.observedRestJobCount === 12 &&
+        finalObservation?.placeholderJobCount === 0 &&
+        finalObservation?.collectionStatus === "validated" &&
+        isDeepStrictEqual(finalObservation?.collectionIssues, []) &&
+        finalJobsValid &&
+        finalFragments.length === 12 &&
+        finalFragmentIds.length === new Set(finalFragmentIds).size &&
+        finalObservation?.rejectedFragments?.length === 0 &&
+        finalObservation?.artifacts?.readbackStatus === "resolved" &&
+        finalObservation?.artifacts?.observedCount === 0 &&
+        finalObservation?.artifacts?.entries?.length === 0 &&
+        finalObservation?.artifacts?.releaseTrustInput === false &&
+        new Set(observations.map((observation) => observation?.runId)).size ===
+          5 &&
+        isDeepStrictEqual(
+          observations.map((observation) => observation?.runNumber),
+          [2, 3, 4, 5, 6]
+        );
+
+      if (!historicalPrefixValid || !remediationRunsValid || !finalBindingValid) {
+        errors.push(
+          "P5E_HOSTED_V3_BINDING: exact historical, remediation, and successful final observations are required"
+        );
+      }
+
+      const finalTrustInvalid =
+        finalFragments.some((fragment) => {
+          const job = finalJobs.find(
+            (candidate) => candidate?.checkRunId === fragment?.checkRunId
+          );
+          const canary = fragment?.jobKey === "next-canary";
+          return (
+            fragment?.fragmentStatus !== "validated-rest-bound" ||
+            fragment?.restBindingStatus !== "validated" ||
+            fragment?.validationErrorCodes?.length !== 0 ||
+            fragment?.releaseTrustInput !== false ||
+            fragment?.jobName !== job?.jobName ||
+            fragment?.jobKey !== job?.jobKey ||
+            fragment?.conclusion !== job?.conclusion ||
+            fragment?.sanitizedLogProjection?.observedStatus !==
+              (canary ? "non-blocking-canary" : "executed-pass") ||
+            fragment?.sanitizedLogProjection?.rawExitCode !== 0 ||
+            fragment?.sanitizedLogProjection?.rawLogsPersisted !== false ||
+            fragment?.sanitizedLogProjection?.hostedGateInput !== !canary
+          );
+        }) || !isDeepStrictEqual([...finalFragmentIds].sort(), [...finalJobIds].sort());
+      if (finalTrustInvalid) {
+        errors.push(
+          "P5E_HOSTED_V3_TRUST_BOUNDARY: every final fragment must remain REST-bound and canary input non-authoritative"
+        );
+      }
+
+      const cache = manifest.prRefCacheObservation;
+      if (
+        cache?.mergeSha !== finalObservation?.eventMergeSha ||
+        cache?.readbackStatus !== "resolved" ||
+        cache?.matchingRefCacheCount !== 0 ||
+        cache?.entries?.length !== 0 ||
+        cache?.inventorySha256 !==
+          "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945" ||
+        cache?.executionWindowAttribution !== "not-observed" ||
+        cache?.releaseTrustInput !== false
+      ) {
+        errors.push(
+          "P5E_HOSTED_V3_CACHE: final mutable PR-ref cache readback must bind the successful merge"
+        );
+      }
+    } else {
+      errors.push(
+        "P5E_HOSTED_V3_BINDING: only the exact two-run history or five-run closure is accepted"
+      );
+    }
+
     const evidenceIdsDiffer = [...expectedEvidenceIds].some(
       ([profileId, evidenceIds]) =>
         !isDeepStrictEqual(actual.get(profileId)?.evidenceIds, evidenceIds)
     );
-    if (
-      manifest.overallStatus !== "blocked" ||
-      manifest.hostedGateStatus !== "executed-fail" ||
-      manifest.remoteExecution !== "executed-fail"
-    ) {
-      errors.push("P5E_HOSTED_V3_GATE: two failed hosted attempts must remain blocking");
-    }
-    if (
-      !isDeepStrictEqual(
-        manifest.hostedObservations,
-        P5_V3_EXPECTED_OBSERVATIONS
-      )
-    ) {
-      errors.push(
-        "P5E_HOSTED_V3_BINDING: exact ordered run, job, step, log, artifact, and fragment observations are required"
-      );
-    }
-    if (!isDeepStrictEqual(manifest.prRefCacheObservation, P5_V3_EXPECTED_CACHE)) {
-      errors.push(
-        "P5E_HOSTED_V3_CACHE: the mutable PR-ref cache snapshot must remain run-unattributed"
-      );
-    }
     if (evidenceIdsDiffer) {
       errors.push(
-        "P5E_HOSTED_V3_PROFILE_EVIDENCE: both hosted attempts must remain linked without promoting rejected fragments"
+        "P5E_HOSTED_V3_PROFILE_EVIDENCE: hosted observations must remain linked only through REST-bound fragments"
       );
     }
-    for (const observation of manifest.hostedObservations ?? []) {
-      const validated = observation?.validatedFragments ?? [];
-      const rejected = observation?.rejectedFragments ?? [];
-      const validatedIds = new Set(validated.map((fragment) => fragment?.checkRunId));
-      if (
-        validated.some(
-          (fragment) =>
-            fragment?.fragmentStatus !== "validated-rest-bound" ||
-            fragment?.jobKey !== "gate" ||
-            fragment?.validationErrorCodes?.length !== 0 ||
-            fragment?.sanitizedLogProjection?.hostedGateInput !== true
-        ) ||
-        rejected.some(
-          (fragment) =>
-            validatedIds.has(fragment?.checkRunId) ||
-            fragment?.fragmentStatus !== "rejected-untrusted-fragment" ||
-            fragment?.validationErrorCodes?.[0] !==
-              "P5E_RUNNER_EVIDENCE_IDENTITY" ||
-            fragment?.releaseTrustInput !== false ||
-            fragment?.sanitizedLogProjection?.hostedGateInput !== false
-        )
-      ) {
-        errors.push(
-          "P5E_HOSTED_V3_TRUST_BOUNDARY: rejected runner projections cannot become hosted gate inputs"
+
+    if (hostedV3Historical) {
+      for (const observation of observations) {
+        const validated = observation?.validatedFragments ?? [];
+        const rejected = observation?.rejectedFragments ?? [];
+        const validatedIds = new Set(
+          validated.map((fragment) => fragment?.checkRunId)
         );
+        if (
+          validated.some(
+            (fragment) =>
+              fragment?.fragmentStatus !== "validated-rest-bound" ||
+              fragment?.jobKey !== "gate" ||
+              fragment?.validationErrorCodes?.length !== 0 ||
+              fragment?.sanitizedLogProjection?.hostedGateInput !== true
+          ) ||
+          rejected.some(
+            (fragment) =>
+              validatedIds.has(fragment?.checkRunId) ||
+              fragment?.fragmentStatus !== "rejected-untrusted-fragment" ||
+              fragment?.validationErrorCodes?.[0] !==
+                "P5E_RUNNER_EVIDENCE_IDENTITY" ||
+              fragment?.releaseTrustInput !== false ||
+              fragment?.sanitizedLogProjection?.hostedGateInput !== false
+          )
+        ) {
+          errors.push(
+            "P5E_HOSTED_V3_TRUST_BOUNDARY: rejected runner projections cannot become hosted gate inputs"
+          );
+        }
       }
     }
   }

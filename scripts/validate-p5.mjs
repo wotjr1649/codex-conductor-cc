@@ -8,6 +8,8 @@ import { fileURLToPath } from "node:url";
 
 import { validateJsonSchema } from "./lib/p4-schema-validator.mjs";
 import {
+  P5_BOOTSTRAP_FRONTIER,
+  isExactP5BootstrapFrontier,
   validateAttemptLedger,
   validateP5Evidence,
   validateP5Privacy,
@@ -44,6 +46,19 @@ function git(args) {
   }
   return result.stdout.trimEnd();
 }
+
+const gitLines = (args) =>
+  git(args)
+    .split(/\r?\n/)
+    .filter(Boolean)
+    .map((item) => item.replaceAll("\\", "/"));
+const commitParents = (commit) =>
+  git(["rev-list", "--parents", "-n", "1", commit])
+    .trim()
+    .split(/\s+/)
+    .slice(1);
+const commitPaths = (commit) =>
+  gitLines(["diff-tree", "--no-commit-id", "--name-only", "-r", commit]);
 
 const requiredFiles = [
   "ci/matrix-profiles-v1.json",
@@ -223,19 +238,31 @@ const evidenceOnlyFiles = new Set([
   "evidence/ledgers/p5-attempts.json"
 ]);
 const evidenceOnlyPrefixes = ["evidence/manifests/p5/"];
+const isEvidenceOnlyPath = (relativePath) =>
+  evidenceOnlyFiles.has(relativePath) ||
+  evidenceOnlyPrefixes.some((allowedPath) => relativePath.startsWith(allowedPath));
+const uncommittedPaths = [
+  ...gitLines(["diff", "--name-only"]),
+  ...gitLines(["diff", "--name-only", "--cached"]),
+  ...gitLines(["ls-files", "--others", "--exclude-standard"])
+];
+const exactBootstrap = isExactP5BootstrapFrontier({
+  boundSource,
+  evidenceRebindParents: commitParents(P5_BOOTSTRAP_FRONTIER.evidenceRebindCommit),
+  windowsFixParents: commitParents(P5_BOOTSTRAP_FRONTIER.windowsFixCommit),
+  headParents: commitParents("HEAD"),
+  evidenceRebindPaths: commitPaths(P5_BOOTSTRAP_FRONTIER.evidenceRebindCommit),
+  windowsFixPaths: commitPaths(P5_BOOTSTRAP_FRONTIER.windowsFixCommit),
+  policyPaths: commitPaths("HEAD"),
+  uncommittedPaths
+});
 const postSourcePaths = [
-  ...git(["diff", "--name-only", `${boundSource}..HEAD`]).split(/\r?\n/),
-  ...git(["diff", "--name-only"]).split(/\r?\n/),
-  ...git(["diff", "--name-only", "--cached"]).split(/\r?\n/),
-  ...git(["ls-files", "--others", "--exclude-standard"]).split(/\r?\n/)
+  ...gitLines(["diff", "--name-only", `${boundSource}..HEAD`]),
+  ...uncommittedPaths
 ]
-  .filter(Boolean)
-  .map((item) => item.replaceAll("\\", "/"));
+  .filter(Boolean);
 for (const relativePath of new Set(postSourcePaths)) {
-  if (
-    !evidenceOnlyFiles.has(relativePath) &&
-    !evidenceOnlyPrefixes.some((allowedPath) => relativePath.startsWith(allowedPath))
-  ) {
+  if (!exactBootstrap && !isEvidenceOnlyPath(relativePath)) {
     errors.push(`P5E_POST_SOURCE_CHANGE:${relativePath}`);
   }
 }

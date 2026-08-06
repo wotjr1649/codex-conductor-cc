@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/wotjr1649/codex-conductor-cc/evidence/schemas/p5-evidence-v3.schema.json",
-  "title": "P5 matrix profile bootstrap and exact two-run hosted provenance evidence",
+  "title": "P5 matrix profile bootstrap historical and five-run hosted provenance evidence",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -327,7 +327,7 @@
     "hostedObservations": {
       "type": "array",
       "minItems": 2,
-      "maxItems": 2,
+      "maxItems": 5,
       "items": {
         "$ref": "#/$defs/hostedObservationV3"
       }
@@ -902,7 +902,8 @@
         "observedStatus": {
           "enum": [
             "executed-pass",
-            "executed-fail"
+            "executed-fail",
+            "non-blocking-canary"
           ]
         },
         "rawLogsPersisted": {
@@ -934,15 +935,31 @@
       "properties": {
         "jobName": {
           "enum": [
-            "Dependency review",
             "Policy validation",
+            "Install and build",
+            "Unit tests",
+            "Core contract / current",
+            "Core contract / previous",
+            "Windows integration",
+            "Claude structural lifecycle / minimum",
+            "Claude structural lifecycle / current",
+            "Security",
+            "Dependency review",
+            "Non-blocking Codex canary / next",
             "CI"
           ]
         },
         "jobKey": {
           "enum": [
-            "dependency-review",
             "policy-validation",
+            "install-build",
+            "unit",
+            "core-contract",
+            "windows-integration",
+            "claude-lifecycle",
+            "security",
+            "dependency-review",
+            "next-canary",
             "gate"
           ]
         },
@@ -1175,23 +1192,35 @@
           "format": "date-time"
         },
         "conclusion": {
-          "const": "failure"
+          "enum": [
+            "failure",
+            "success"
+          ]
         },
         "expectedLogicalJobCount": {
           "const": 12
         },
         "observedRestJobCount": {
-          "const": 10
+          "enum": [
+            10,
+            12
+          ]
         },
         "placeholderJobCount": {
-          "const": 3
+          "enum": [
+            0,
+            3
+          ]
         },
         "collectionStatus": {
-          "const": "incomplete-or-invalid"
+          "enum": [
+            "incomplete-or-invalid",
+            "validated"
+          ]
         },
         "collectionIssues": {
           "type": "array",
-          "minItems": 3,
+          "minItems": 0,
           "maxItems": 3,
           "items": {
             "$ref": "#/$defs/collectionIssue"
@@ -1200,7 +1229,7 @@
         "jobObservations": {
           "type": "array",
           "minItems": 10,
-          "maxItems": 10,
+          "maxItems": 12,
           "items": {
             "$ref": "#/$defs/hostedJobObservation"
           }
@@ -1208,14 +1237,14 @@
         "validatedFragments": {
           "type": "array",
           "minItems": 1,
-          "maxItems": 1,
+          "maxItems": 12,
           "items": {
             "$ref": "#/$defs/hostedFragmentV3"
           }
         },
         "rejectedFragments": {
           "type": "array",
-          "minItems": 1,
+          "minItems": 0,
           "maxItems": 2,
           "items": {
             "$ref": "#/$defs/hostedFragmentV3"
