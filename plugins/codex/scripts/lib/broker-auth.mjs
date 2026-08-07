@@ -117,7 +117,9 @@ export function createBrokerAuthProof(hello, challenge, auth) {
   };
 }
 
-export function verifyBrokerAuthProof(proof, hello, challenge, auth, { operation, seenNonces = null } = {}) {
+/** @param {{ operation?: string, seenNonces?: Set<string> | null }} [options] */
+export function verifyBrokerAuthProof(proof, hello, challenge, auth, options = {}) {
+  const { operation, seenNonces = null } = options;
   const params = proof?.params;
   const replayKey = `${params?.clientNonce ?? ""}.${params?.serverNonce ?? ""}`;
   if (

@@ -259,8 +259,9 @@ export function spawnBrokerProcess({ scriptPath, cwd, endpoint, pidFile, logFile
     stdio: auth ? ["ignore", logFd, logFd, "pipe"] : ["ignore", logFd, logFd]
   });
   if (auth) {
-    child.stdio[3].on("error", () => {});
-    child.stdio[3].end(`${auth.capability}\n`);
+    const control = /** @type {import("node:stream").Writable} */ (child.stdio[3]);
+    control.on("error", () => {});
+    control.end(`${auth.capability}\n`);
   }
   child.unref();
   fs.closeSync(logFd);

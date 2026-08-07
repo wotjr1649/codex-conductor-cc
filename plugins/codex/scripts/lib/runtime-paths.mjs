@@ -85,12 +85,9 @@ export function ensurePrivateTree(root, segments, options = {}) {
   return current;
 }
 
-export function resolvePosixRuntimeRoot({
-  baseDir,
-  env = process.env,
-  uid = process.getuid?.(),
-  platform = process.platform
-} = {}) {
+/** @param {{ baseDir?: string, env?: NodeJS.ProcessEnv, uid?: number, platform?: NodeJS.Platform }} [options] */
+export function resolvePosixRuntimeRoot(options = {}) {
+  const { baseDir, env = process.env, uid = process.getuid?.(), platform = process.platform } = options;
   if (!Number.isSafeInteger(uid) || uid < 0) {
     throw new Error("A valid current user id is required for the POSIX runtime root.");
   }
