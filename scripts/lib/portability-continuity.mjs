@@ -145,8 +145,57 @@ export function validateLegacyWorkflowArchive(baseText, currentText) {
   return [];
 }
 
-export function filterLegacyP5ContinuationErrors(errors, allowedPaths) {
-  if (!Array.isArray(errors) || !Array.isArray(allowedPaths)) return ["P6E_LEGACY_ERRORS: invalid input"];
+export function findCrLfDigestPaths(root, inheritedTests) {
+  const matches = new Set();
+  if (typeof root !== "string" || !Array.isArray(inheritedTests)) return matches;
+  let testsRoot;
+  try {
+    const testsPath = path.resolve(root, "tests");
+    const testsStat = fs.lstatSync(testsPath);
+    if (!testsStat.isDirectory() || testsStat.isSymbolicLink()) return matches;
+    testsRoot = fs.realpathSync(testsPath);
+  } catch {
+    return matches;
+  }
+  for (const entry of inheritedTests) {
+    const relativePath = normalizeRelativePath(entry?.path);
+    if (
+      !/^tests\/[^/]+\.test\.mjs$/.test(relativePath) ||
+      !/^[0-9a-f]{64}$/.test(entry?.sha256 ?? "")
+    ) {
+      continue;
+    }
+    try {
+      const candidate = path.resolve(root, relativePath);
+      const stat = fs.lstatSync(candidate);
+      const realPath = fs.realpathSync(candidate);
+      if (!stat.isFile() || stat.isSymbolicLink() || path.dirname(realPath) !== testsRoot) continue;
+      const crlfText = fs
+        .readFileSync(realPath, "utf8")
+        .replaceAll("\r\n", "\n")
+        .replaceAll("\n", "\r\n");
+      if (createHash("sha256").update(crlfText).digest("hex") === entry.sha256) {
+        matches.add(relativePath);
+      }
+    } catch {
+      continue;
+    }
+  }
+  return matches;
+}
+
+export function filterLegacyP5ContinuationErrors(
+  errors,
+  allowedPaths,
+  portableDigestPaths = []
+) {
+  if (
+    !Array.isArray(errors) ||
+    !Array.isArray(allowedPaths) ||
+    !Array.isArray(portableDigestPaths)
+  ) {
+    return ["P6E_LEGACY_ERRORS: invalid input"];
+  }
   const archiveErrors = errors.filter((error) => LEGACY_ARCHIVE_P5_ERRORS.includes(error));
   if (
     archiveErrors.length !== LEGACY_ARCHIVE_P5_ERRORS.length ||
@@ -155,6 +204,11 @@ export function filterLegacyP5ContinuationErrors(errors, allowedPaths) {
     return [...errors];
   }
   const allowed = new Set(allowedPaths.map(normalizeRelativePath).filter(Boolean));
+  const portableDigests = new Set(
+    portableDigestPaths
+      .map(normalizeRelativePath)
+      .filter((relativePath) => /^tests\/[^/]+\.test\.mjs$/.test(relativePath))
+  );
   return errors.filter((error) => {
     if (LEGACY_ARCHIVE_P5_ERRORS.includes(error)) return false;
     for (const prefix of [
@@ -166,6 +220,10 @@ export function filterLegacyP5ContinuationErrors(errors, allowedPaths) {
     if (error === "P5E_IMMUTABLE_PATH:package-lock.json") return !allowed.has("package-lock.json");
     if (error === "P5E_IMMUTABLE_PATH:plugins/codex/scripts") {
       return ![...allowed].some((relativePath) => relativePath.startsWith("plugins/codex/scripts/"));
+    }
+    const digestPrefix = "P5E_TEST_DIGEST:";
+    if (error.startsWith(digestPrefix)) {
+      return !portableDigests.has(normalizeRelativePath(error.slice(digestPrefix.length)));
     }
     return true;
   });

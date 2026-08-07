@@ -10,6 +10,7 @@ Personal-fork portability release.
 - Replaced persisted-PID authority on POSIX with retained process handles and authenticated worker self-cancellation.
 - Removed Windows shell interpolation from product command execution while preserving constrained `.cmd` launcher compatibility.
 - Added runtime jobs without Codex/Claude artifact acquisition for `windows-2025`, `ubuntu-24.04`, `macos-15-intel`, and `macos-15`, plus exact security scanning, dependency review, and an artifact compatibility catalog.
+- Bound the Windows full-suite lane to lockfile-only, no-lifecycle dependency restore and a non-redirected ephemeral test root.
 - Preserved the released v0.1/P5 Windows evidence body through an exact continuation gate and archived only its obsolete automatic PR trigger.
 
 Unsupported tuples remain Windows arm64/ia32, Linux arm64, and Node.js below 24.

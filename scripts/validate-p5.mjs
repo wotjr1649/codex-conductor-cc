@@ -539,6 +539,7 @@ if (
   ]).status === 0
 ) {
   const {
+    findCrLfDigestPaths,
     filterLegacyP5ContinuationErrors,
     validatePortabilityRepository
   } = await import(
@@ -559,7 +560,14 @@ if (
       ]),
       ...uncommittedPaths
     ];
-    const remainingErrors = filterLegacyP5ContinuationErrors(errors, allowedPaths);
+    const portableDigestPaths = [
+      ...findCrLfDigestPaths(ROOT, scenarios?.inheritedTests)
+    ];
+    const remainingErrors = filterLegacyP5ContinuationErrors(
+      errors,
+      allowedPaths,
+      portableDigestPaths
+    );
     errors.length = 0;
     errors.push(...remainingErrors);
   }

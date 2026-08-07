@@ -67,7 +67,30 @@ jobs:
 
       - name: Run current Windows suite
         if: ${{ matrix.platform == 'win32' }}
-        run: npm test
+        shell: pwsh
+        run: |
+          if (
+            $env:SystemDrive -cne 'C:' -or
+            $env:GITHUB_RUN_ID -notmatch '^\d+$' -or
+            $env:GITHUB_RUN_ATTEMPT -notmatch '^\d+$'
+          ) {
+            throw 'Unsafe Windows test environment.'
+          }
+          $tempRoot = Join-Path $env:SystemDrive "p6-temp-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT"
+          if (Test-Path -LiteralPath $tempRoot) {
+            throw 'Windows test root already exists.'
+          }
+          New-Item -ItemType Directory -Path $tempRoot -ErrorAction Stop | Out-Null
+          $item = Get-Item -LiteralPath $tempRoot -Force
+          if (-not $item.PSIsContainer -or ($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint)) {
+            throw 'Windows test root is not an ordinary directory.'
+          }
+          $env:TEMP = $tempRoot
+          $env:TMP = $tempRoot
+          npm ci --ignore-scripts --no-audit --no-fund
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm test
+          exit $LASTEXITCODE
 
       - name: Verify clean source
         if: ${{ !cancelled() }}

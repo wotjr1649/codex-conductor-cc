@@ -76,8 +76,12 @@ or Claude artifacts. A separate Windows security job uses the existing
 digest-verifying installer for the exact admitted actionlint, zizmor, OSV, and
 gitleaks versions; dependency review uses its full-SHA Action. The terminal
 gate requires the four runtime profiles plus both security jobs and rejects
-`continue-on-error`. No job receives secrets, installs packages, uses caches,
-or uploads release artifacts.
+`continue-on-error`. No job receives secrets, uses caches, or uploads release
+artifacts. The Windows runtime lane restores only `package-lock.json`
+dependencies through `npm ci --ignore-scripts --no-audit --no-fund`. It
+validates the GitHub run IDs, creates a fresh non-reparse `C:\p6-temp-*`
+directory on the ephemeral runner, and scopes `TEMP`/`TMP` to that directory
+so path-safety tests do not inherit the hosted workspace redirect.
 
 `ci/portability-profiles-v1.json` records reviewed Node, Codex, and Claude asset
 metadata for the four supported tuples, but those records are compatibility

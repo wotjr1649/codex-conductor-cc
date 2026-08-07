@@ -20,6 +20,34 @@ const CURRENT_TEST_COMMAND = [
   "tests/state.test.mjs",
   "tests/portability/*.test.mjs"
 ].join(" ");
+const WINDOWS_TEST_BLOCK = [
+  "      - name: Run current Windows suite",
+  "        if: ${{ matrix.platform == 'win32' }}",
+  "        shell: pwsh",
+  "        run: |",
+  "          if (",
+  "            $env:SystemDrive -cne 'C:' -or",
+  "            $env:GITHUB_RUN_ID -notmatch '^\\d+$' -or",
+  "            $env:GITHUB_RUN_ATTEMPT -notmatch '^\\d+$'",
+  "          ) {",
+  "            throw 'Unsafe Windows test environment.'",
+  "          }",
+  "          $tempRoot = Join-Path $env:SystemDrive \"p6-temp-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT\"",
+  "          if (Test-Path -LiteralPath $tempRoot) {",
+  "            throw 'Windows test root already exists.'",
+  "          }",
+  "          New-Item -ItemType Directory -Path $tempRoot -ErrorAction Stop | Out-Null",
+  "          $item = Get-Item -LiteralPath $tempRoot -Force",
+  "          if (-not $item.PSIsContainer -or ($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint)) {",
+  "            throw 'Windows test root is not an ordinary directory.'",
+  "          }",
+  "          $env:TEMP = $tempRoot",
+  "          $env:TMP = $tempRoot",
+  "          npm ci --ignore-scripts --no-audit --no-fund",
+  "          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }",
+  "          npm test",
+  "          exit $LASTEXITCODE"
+].join("\n");
 
 export function validatePortabilityPackage(packageJson) {
   return packageJson?.scripts?.test === CURRENT_TEST_COMMAND
@@ -114,8 +142,7 @@ export function validatePortabilityWorkflow(text, registry) {
     /continue-on-error\s*:/.test(normalized) ||
     !normalized.includes("if: ${{ matrix.platform != 'win32' }}") ||
     !normalized.includes("node --test --test-concurrency=1 tests/portability/*.test.mjs") ||
-    !normalized.includes("if: ${{ matrix.platform == 'win32' }}") ||
-    !normalized.includes("run: npm test") ||
+    !normalized.includes(WINDOWS_TEST_BLOCK) ||
     !/^  security:\n    name: Security$/m.test(normalized) ||
     !normalized.includes("./scripts/install-p3-tool.ps1") ||
     !normalized.includes("@('actionlint', 'zizmor', 'osv-scanner', 'gitleaks')") ||

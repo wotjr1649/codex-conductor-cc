@@ -12,7 +12,9 @@ import {
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const profiles = JSON.parse(fs.readFileSync(path.join(ROOT, "ci/portability-profiles-v1.json"), "utf8"));
-const workflow = fs.readFileSync(path.join(ROOT, ".github/workflows/portability-ci.yml"), "utf8");
+const workflow = fs
+  .readFileSync(path.join(ROOT, ".github/workflows/portability-ci.yml"), "utf8")
+  .replaceAll("\r\n", "\n");
 const packageJson = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8"));
 
 test("P6-POLICY-001 requires the exact four immutable portability profiles", () => {
@@ -39,6 +41,20 @@ test("P6-POLICY-002 keeps portability CI read-only and rejects untrusted acquisi
     /gate/i
   );
   assert.match(
+    validatePortabilityWorkflow(
+      workflow.replace("npm ci --ignore-scripts --no-audit --no-fund", "npm ci"),
+      profiles
+    ).join("\n"),
+    /gate/i
+  );
+  assert.match(
+    validatePortabilityWorkflow(
+      workflow.replace("$env:SystemDrive -cne 'C:'", "$env:SystemDrive -cne 'D:'"),
+      profiles
+    ).join("\n"),
+    /gate/i
+  );
+  assert.match(
     validatePortabilityWorkflow(workflow.replace("fail-fast: false", "fail-fast: true"), profiles).join("\n"),
     /gate/i
   );
@@ -51,7 +67,10 @@ test("P6-POLICY-002 keeps portability CI read-only and rejects untrusted acquisi
   );
   assert.match(
     validatePortabilityWorkflow(
-      workflow.replace("        run: npm test", "        continue-on-error: true\n        run: npm test"),
+      workflow.replace(
+        "        shell: pwsh\n        run: |",
+        "        continue-on-error: true\n        shell: pwsh\n        run: |"
+      ),
       profiles
     ).join("\n"),
     /gate/i

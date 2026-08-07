@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 
 import {
   PORTABILITY_BASE,
+  findCrLfDigestPaths,
   filterLegacyP5ContinuationErrors,
   isPortabilityAllowedPath,
   validatePortabilityCodeowners,
@@ -57,7 +58,9 @@ test("P6-CONTINUITY-001 binds the released v0.1 base and explicit path scope", (
 });
 
 test("P6-CONTINUITY-001A requires ownership for every portability policy surface", () => {
-  const codeowners = fs.readFileSync(path.join(ROOT, ".github/CODEOWNERS"), "utf8");
+  const codeowners = fs
+    .readFileSync(path.join(ROOT, ".github/CODEOWNERS"), "utf8")
+    .replaceAll("\r\n", "\n");
   assert.deepEqual(validatePortabilityCodeowners(codeowners), []);
   assert.match(
     validatePortabilityCodeowners(codeowners.replace("/scripts/lib/portability-* @wotjr1649\n", "")).join("\n"),
@@ -115,6 +118,40 @@ test("P6-CONTINUITY-004 consumes only exact final-frontier legacy errors", () =>
     ]
   );
   assert.deepEqual(filterLegacyP5ContinuationErrors(legacyErrors.slice(1), allowedPaths), legacyErrors.slice(1));
+  assert.deepEqual(
+    filterLegacyP5ContinuationErrors(
+      [...legacyErrors, "P5E_TEST_DIGEST:tests/broker-endpoint.test.mjs"],
+      allowedPaths,
+      ["tests/broker-endpoint.test.mjs"]
+    ),
+    []
+  );
+  assert.deepEqual(
+    filterLegacyP5ContinuationErrors(
+      [...legacyErrors, "P5E_TEST_DIGEST:tests/commands.test.mjs"],
+      allowedPaths,
+      ["tests/broker-endpoint.test.mjs"]
+    ),
+    ["P5E_TEST_DIGEST:tests/commands.test.mjs"]
+  );
+});
+
+test("P6-CONTINUITY-005 recognizes only exact inherited CRLF text digests", () => {
+  const registry = JSON.parse(
+    fs.readFileSync(path.join(ROOT, "ci", "scenario-registry-v1.json"), "utf8")
+  );
+  const paths = findCrLfDigestPaths(ROOT, registry.inheritedTests);
+  assert.equal(paths.has("tests/broker-endpoint.test.mjs"), true);
+  assert.equal(paths.has("tests/runtime.test.mjs"), false);
+  const inherited = registry.inheritedTests.find(
+    ({ path: relativePath }) => relativePath === "tests/broker-endpoint.test.mjs"
+  );
+  assert.equal(findCrLfDigestPaths(ROOT, [{ ...inherited, sha256: "0".repeat(64) }]).size, 0);
+  assert.equal(
+    findCrLfDigestPaths(ROOT, [{ ...inherited, path: "tests/../broker-endpoint.test.mjs" }])
+      .size,
+    0
+  );
 });
 
 test("P6-CONTINUITY-002 accepts only the marked insertion in the legacy validator", () => {

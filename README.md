@@ -35,7 +35,9 @@ Portability CI covers all four supported tuples with fixed GitHub runner labels 
 Those tools remain user-managed prerequisites; the committed artifact registry is compatibility
 metadata only. A separate security lane acquires only the exact digest-verified scanners admitted
 by `toolchain.json`; pinned dependency review and all four runtime jobs must also pass the terminal
-`Portability CI` gate.
+`Portability CI` gate. The Windows full-suite lane restores only lockfile-pinned development
+dependencies with lifecycle scripts, audit, and funding requests disabled, and places temporary
+path-safety fixtures under a new ordinary `C:\` directory on the ephemeral runner.
 
 ## Install
 
