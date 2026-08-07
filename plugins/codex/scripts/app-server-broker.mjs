@@ -7,12 +7,28 @@ import process from "node:process";
 
 import { parseArgs } from "./lib/args.mjs";
 import { BROKER_BUSY_RPC_CODE, CodexAppServerClient } from "./lib/app-server.mjs";
-import { parseBrokerEndpoint } from "./lib/broker-endpoint.mjs";
+import {
+  createBrokerAuthChallenge,
+  createBrokerAuthReady,
+  createBrokerOperationAck,
+  verifyBrokerAuthProof
+} from "./lib/broker-auth.mjs";
+import { createBrokerEndpoint, parseBrokerEndpoint } from "./lib/broker-endpoint.mjs";
 import { assertSupportedRuntime } from "./lib/platform-policy.mjs";
+import {
+  ensurePrivateDirectory,
+  ensurePrivateTree,
+  resolvePosixRuntimeRoot,
+  runtimeScopeId
+} from "./lib/runtime-paths.mjs";
 
 assertSupportedRuntime();
 
 const STREAMING_METHODS = new Set(["turn/start", "review/start", "thread/compact/start"]);
+const AUTH_OPERATIONS = new Set(["connect", "ready", "shutdown"]);
+const MAX_AUTH_FRAME_BYTES = 4096;
+const MAX_FRAME_BYTES = 8 * 1024 * 1024;
+const MAX_AUTHENTICATED_NONCES = 4096;
 
 function buildStreamThreadIds(method, params, result) {
   const threadIds = new Set();
@@ -55,7 +71,7 @@ async function main() {
   }
 
   const { options } = parseArgs(argv, {
-    valueOptions: ["cwd", "pid-file", "endpoint"]
+    valueOptions: ["auth-fd", "broker-id", "cwd", "generation", "pid-file", "endpoint"]
   });
 
   if (!options.endpoint) {
@@ -65,7 +81,32 @@ async function main() {
   const cwd = options.cwd ? path.resolve(process.cwd(), options.cwd) : process.cwd();
   const endpoint = String(options.endpoint);
   const listenTarget = parseBrokerEndpoint(endpoint);
+  let brokerAuth = null;
+  if (listenTarget.kind === "unix") {
+    const authFd = Number(options["auth-fd"]);
+    if (!Number.isSafeInteger(authFd) || authFd < 3 || !options["broker-id"] || !options.generation) {
+      throw new Error("POSIX broker authentication material is required.");
+    }
+    try {
+      brokerAuth = {
+        brokerId: String(options["broker-id"]),
+        generation: String(options.generation),
+        capability: fs.readFileSync(authFd, "utf8").trim()
+      };
+    } finally {
+      fs.closeSync(authFd);
+    }
+  }
   const pidFile = options["pid-file"] ? path.resolve(options["pid-file"]) : null;
+  if (listenTarget.kind === "unix") {
+    const uid = process.getuid?.();
+    const root = resolvePosixRuntimeRoot({ uid });
+    const runs = ensurePrivateTree(root, [runtimeScopeId(cwd), "runs"], { uid });
+    const sessionDir = ensurePrivateDirectory(path.join(runs, brokerAuth.brokerId), { uid });
+    if (endpoint !== createBrokerEndpoint(sessionDir) || pidFile !== path.join(sessionDir, "broker.pid")) {
+      throw new Error("POSIX broker runtime targets did not match their derived identity.");
+    }
+  }
   writePidFile(pidFile);
 
   const appClient = await CodexAppServerClient.connect(cwd, { disableBroker: true });
@@ -73,6 +114,8 @@ async function main() {
   let activeStreamSocket = null;
   let activeStreamThreadIds = null;
   const sockets = new Set();
+  const authenticatedConnections = new Set();
+  const seenNonces = new Set();
 
   function clearSocketOwnership(socket) {
     if (activeRequestSocket === socket) {
@@ -122,9 +165,19 @@ async function main() {
     sockets.add(socket);
     socket.setEncoding("utf8");
     let buffer = "";
+    let authenticated = listenTarget.kind === "pipe";
+    let authenticatedOperation = authenticated ? "connect" : null;
+    let authHello = null;
+    let authChallenge = null;
+    let authProof = null;
 
     socket.on("data", async (chunk) => {
       buffer += chunk;
+      const frameLimit = authenticated ? MAX_FRAME_BYTES : MAX_AUTH_FRAME_BYTES;
+      if (Buffer.byteLength(buffer) > frameLimit) {
+        socket.destroy();
+        return;
+      }
       let newlineIndex = buffer.indexOf("\n");
       while (newlineIndex !== -1) {
         const line = buffer.slice(0, newlineIndex);
@@ -146,6 +199,55 @@ async function main() {
           continue;
         }
 
+        if (!authenticated) {
+          try {
+            if (message.method === "broker/hello" && message.id !== undefined && !authHello) {
+              const operation = message.params?.operation;
+              if (!AUTH_OPERATIONS.has(operation) || seenNonces.size >= MAX_AUTHENTICATED_NONCES) {
+                throw new Error("Broker authentication failed.");
+              }
+              authHello = message;
+              authChallenge = createBrokerAuthChallenge(authHello, brokerAuth);
+              send(socket, { id: message.id, result: authChallenge });
+              continue;
+            }
+            if (message.method === "broker/auth" && message.id !== undefined && authHello && authChallenge && !authProof) {
+              verifyBrokerAuthProof(message, authHello, authChallenge, brokerAuth, {
+                operation: authHello.params.operation,
+                seenNonces
+              });
+              authProof = message;
+              authenticated = true;
+              authenticatedOperation = authHello.params.operation;
+              if (authenticatedOperation === "connect") authenticatedConnections.add(socket);
+              send(socket, { id: message.id, result: createBrokerAuthReady(authProof, brokerAuth) });
+              continue;
+            }
+          } catch {
+            // Return one generic failure and close; never reveal capability or transcript details.
+          }
+          send(socket, {
+            id: message.id ?? null,
+            error: buildJsonRpcError(-32002, "Broker authentication failed.")
+          });
+          socket.end();
+          return;
+        }
+
+        if (listenTarget.kind === "unix") {
+          const allowed =
+            authenticatedOperation === "connect"
+              ? message.method !== "broker/shutdown"
+              : authenticatedOperation === "shutdown"
+                ? message.method === "broker/shutdown"
+                : false;
+          if (!allowed) {
+            send(socket, { id: message.id ?? null, error: buildJsonRpcError(-32002, "Broker operation is not authorized.") });
+            socket.end();
+            return;
+          }
+        }
+
         if (message.id !== undefined && message.method === "initialize") {
           send(socket, {
             id: message.id,
@@ -161,7 +263,14 @@ async function main() {
         }
 
         if (message.id !== undefined && message.method === "broker/shutdown") {
-          send(socket, { id: message.id, result: {} });
+          if (authenticatedConnections.size > 0) {
+            send(socket, { id: message.id, error: buildJsonRpcError(BROKER_BUSY_RPC_CODE, "Shared Codex broker is busy.") });
+            continue;
+          }
+          send(socket, {
+            id: message.id,
+            result: listenTarget.kind === "unix" ? createBrokerOperationAck(authProof, brokerAuth, "stopped") : {}
+          });
           await shutdown(server);
           process.exit(0);
         }
@@ -227,11 +336,13 @@ async function main() {
 
     socket.on("close", () => {
       sockets.delete(socket);
+      authenticatedConnections.delete(socket);
       clearSocketOwnership(socket);
     });
 
     socket.on("error", () => {
       sockets.delete(socket);
+      authenticatedConnections.delete(socket);
       clearSocketOwnership(socket);
     });
   });

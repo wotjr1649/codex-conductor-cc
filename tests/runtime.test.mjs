@@ -25,7 +25,7 @@ const SESSION_HOOK = path.join(PLUGIN_ROOT, "scripts", "session-lifecycle-hook.m
 const EXPECTED_CLIENT_INFO = {
   name: "codex_conductor",
   title: "Codex Conductor",
-  version: "0.1.0"
+  version: "0.2.0"
 };
 const EXPECTED_CAPABILITIES = {
   experimentalApi: false,
@@ -1871,8 +1871,18 @@ test("session end fully cleans up jobs for the ending session", async (t) => {
   fs.writeFileSync(completedLog, "completed\n", "utf8");
   fs.writeFileSync(runningLog, "running\n", "utf8");
   fs.writeFileSync(otherSessionLog, "other\n", "utf8");
-  fs.writeFileSync(completedJobFile, JSON.stringify({ id: "review-completed" }, null, 2), "utf8");
-  fs.writeFileSync(otherJobFile, JSON.stringify({ id: "review-other" }, null, 2), "utf8");
+  fs.writeFileSync(completedJobFile, JSON.stringify({
+    id: "review-completed",
+    status: "completed",
+    sessionId: "sess-current",
+    logFile: completedLog
+  }, null, 2), "utf8");
+  fs.writeFileSync(otherJobFile, JSON.stringify({
+    id: "review-other",
+    status: "completed",
+    sessionId: "sess-other",
+    logFile: otherSessionLog
+  }, null, 2), "utf8");
 
   const sleeper = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], {
     cwd: repo,
@@ -1880,7 +1890,13 @@ test("session end fully cleans up jobs for the ending session", async (t) => {
     stdio: "ignore"
   });
   sleeper.unref();
-  fs.writeFileSync(runningJobFile, JSON.stringify({ id: "review-running" }, null, 2), "utf8");
+  fs.writeFileSync(runningJobFile, JSON.stringify({
+    id: "review-running",
+    status: "running",
+    sessionId: "sess-current",
+    pid: sleeper.pid,
+    logFile: runningLog
+  }, null, 2), "utf8");
 
   t.after(() => {
     try {

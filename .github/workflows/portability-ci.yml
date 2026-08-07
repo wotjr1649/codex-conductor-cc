@@ -1,0 +1,152 @@
+name: Portability CI
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  runtime:
+    name: Runtime (${{ matrix.id }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - id: windows-x64
+            runner: windows-2025
+            platform: win32
+            architecture: x64
+          - id: linux-x64
+            runner: ubuntu-24.04
+            platform: linux
+            architecture: x64
+          - id: macos-x64
+            runner: macos-15-intel
+            platform: darwin
+            architecture: x64
+          - id: macos-arm64
+            runner: macos-15
+            platform: darwin
+            architecture: arm64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 25
+    env:
+      PORTABILITY_PROFILE: ${{ matrix.id }}
+      EXPECTED_PLATFORM: ${{ matrix.platform }}
+      EXPECTED_ARCHITECTURE: ${{ matrix.architecture }}
+      EXPECTED_RUNNER: ${{ matrix.runner }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up exact Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version: 24.18.1
+          architecture: ${{ matrix.architecture }}
+          check-latest: false
+          package-manager-cache: false
+
+      - name: Verify host identity
+        run: node scripts/write-portability-runner-evidence.mjs
+
+      - name: Validate frozen P5 continuation and portability policy
+        run: node scripts/validate-p5.mjs
+
+      - name: Run portability tests
+        if: ${{ matrix.platform != 'win32' }}
+        run: node --test --test-concurrency=1 tests/portability/*.test.mjs
+
+      - name: Run current Windows suite
+        if: ${{ matrix.platform == 'win32' }}
+        run: npm test
+
+      - name: Verify clean source
+        if: ${{ !cancelled() }}
+        run: git diff --exit-code HEAD -- .
+
+  security:
+    name: Security
+    runs-on: windows-2025
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Acquire exact local security tools
+        shell: pwsh
+        run: |
+          $environmentNames = @{
+            actionlint = 'P5_ACTIONLINT_PATH'
+            zizmor = 'P5_ZIZMOR_PATH'
+            'osv-scanner' = 'P5_OSV_SCANNER_PATH'
+            gitleaks = 'P5_GITLEAKS_PATH'
+          }
+          foreach ($toolId in @('actionlint', 'zizmor', 'osv-scanner', 'gitleaks')) {
+            $toolPath = ./scripts/install-p3-tool.ps1 `
+              -ToolId $toolId `
+              -DestinationRoot (Join-Path $env:RUNNER_TEMP 'p6-security-tools')
+            Add-Content -LiteralPath $env:GITHUB_PATH -Value (Split-Path -Parent $toolPath)
+            Add-Content -LiteralPath $env:GITHUB_ENV -Value "$($environmentNames[$toolId])=$toolPath"
+          }
+
+      - name: Lint workflow
+        run: actionlint.exe
+
+      - name: Audit workflow security
+        run: zizmor.exe --offline --persona pedantic --strict-collection .github/workflows
+
+      - name: Scan dependency lockfile
+        run: osv-scanner.exe scan --lockfile package-lock.json
+
+      - name: Scan repository for secrets
+        run: gitleaks.exe dir --redact --no-banner .
+
+      - name: Verify clean source
+        if: ${{ !cancelled() }}
+        run: git diff --exit-code HEAD -- .
+
+  dependency-review:
+    name: Dependency review
+    runs-on: windows-2025
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Review dependency changes
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+
+      - name: Verify clean source
+        if: ${{ !cancelled() }}
+        run: git diff --exit-code HEAD -- .
+
+  portability:
+    name: Portability CI
+    if: ${{ always() }}
+    needs: [runtime, security, dependency-review]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: Require all native runtime profiles
+        env:
+          RUNTIME_RESULT: ${{ needs.runtime.result }}
+          SECURITY_RESULT: ${{ needs.security.result }}
+          DEPENDENCY_RESULT: ${{ needs.dependency-review.result }}
+        run: |
+          test "$RUNTIME_RESULT" = success
+          test "$SECURITY_RESULT" = success
+          test "$DEPENDENCY_RESULT" = success

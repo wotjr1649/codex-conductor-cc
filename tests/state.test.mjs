@@ -40,7 +40,7 @@ test("resolveStateDir uses CLAUDE_PLUGIN_DATA when it is provided", () => {
   }
 });
 
-test("saveState prunes dropped job artifacts when indexed jobs exceed the cap", () => {
+test("saveState prunes the index without deleting dropped job artifacts", () => {
   const workspace = makeTempDir();
   const stateFile = resolveStateFile(workspace);
   fs.mkdirSync(path.dirname(stateFile), { recursive: true });
@@ -89,6 +89,8 @@ test("saveState prunes dropped job artifacts when indexed jobs exceed the cap", 
 
   assert.equal(fs.existsSync(retainedJobFile), true);
   assert.equal(fs.existsSync(retainedLogFile), true);
+  assert.equal(fs.existsSync(prunedJobFile), true);
+  assert.equal(fs.existsSync(prunedLogFile), true);
 
   const savedState = JSON.parse(fs.readFileSync(stateFile, "utf8"));
   assert.equal(savedState.jobs.length, 50);
@@ -98,7 +100,7 @@ test("saveState prunes dropped job artifacts when indexed jobs exceed the cap", 
   );
   assert.deepEqual(
     fs.readdirSync(jobsDir).sort(),
-    Array.from({ length: 50 }, (_, index) => `job-${index + 1}`)
+    Array.from({ length: 51 }, (_, index) => `job-${index}`)
       .flatMap((jobId) => [`${jobId}.json`, `${jobId}.log`])
       .sort()
   );

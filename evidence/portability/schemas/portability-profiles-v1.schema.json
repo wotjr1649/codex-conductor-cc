@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/wotjr1649/codex-conductor-cc/evidence/portability/schemas/portability-profiles-v1.schema.json",
+  "title": "Codex Conductor portability profiles v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "schemaVersion", "nodeVersion", "ciAcquisition", "reviewedAt", "profiles"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "schemaVersion": { "const": "portability-profiles-v1" },
+    "nodeVersion": { "const": "24.18.1" },
+    "ciAcquisition": { "const": false },
+    "reviewedAt": { "type": "string", "format": "date" },
+    "profiles": { "type": "array", "minItems": 4, "maxItems": 4 }
+  }
+}

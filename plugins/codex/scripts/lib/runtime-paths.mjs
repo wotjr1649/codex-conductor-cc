@@ -26,6 +26,32 @@ export function isPrivateDirectoryMetadata({
   );
 }
 
+export function isSafeRuntimeAncestorMetadata({ isDirectory, isSymbolicLink, mode }) {
+  return Boolean(
+    isDirectory &&
+      !isSymbolicLink &&
+      Number.isInteger(mode) &&
+      ((mode & 0o022) === 0 || (mode & 0o1000) !== 0)
+  );
+}
+
+function assertSafeRuntimeAncestorChain(directory) {
+  const root = path.parse(directory).root;
+  let current = root;
+  const segments = path.relative(root, directory).split(path.sep).filter(Boolean);
+  for (const segment of [null, ...segments]) {
+    if (segment) current = path.join(current, segment);
+    const stats = fs.lstatSync(current);
+    if (!isSafeRuntimeAncestorMetadata({
+      isDirectory: stats.isDirectory(),
+      isSymbolicLink: stats.isSymbolicLink(),
+      mode: stats.mode
+    })) {
+      throw new Error("POSIX runtime base has an unsafe writable ancestor.");
+    }
+  }
+}
+
 export function ensurePrivateDirectory(directory, { uid = process.getuid?.() } = {}) {
   if (!path.isAbsolute(directory) || directory.includes("\0")) {
     throw new Error("Private runtime directory must be absolute.");
@@ -62,18 +88,21 @@ export function ensurePrivateTree(root, segments, options = {}) {
 export function resolvePosixRuntimeRoot({
   baseDir,
   env = process.env,
-  uid = process.getuid?.()
+  uid = process.getuid?.(),
+  platform = process.platform
 } = {}) {
   if (!Number.isSafeInteger(uid) || uid < 0) {
     throw new Error("A valid current user id is required for the POSIX runtime root.");
   }
-  const configuredBase = baseDir ?? env.XDG_RUNTIME_DIR ?? os.tmpdir();
+  const posixFallback = platform === "linux" || platform === "darwin" ? "/tmp" : os.tmpdir();
+  const configuredBase = baseDir ?? env.XDG_RUNTIME_DIR ?? posixFallback;
   if (!path.isAbsolute(configuredBase) || configuredBase.includes("\0")) {
     throw new Error("POSIX runtime base must be absolute.");
   }
   const canonicalBase = fs.realpathSync.native(configuredBase);
+  assertSafeRuntimeAncestorChain(canonicalBase);
   if (baseDir || env.XDG_RUNTIME_DIR) ensurePrivateDirectory(canonicalBase, { uid });
-  return ensurePrivateDirectory(path.join(canonicalBase, `codex-conductor-${uid}`), { uid });
+  return ensurePrivateDirectory(path.join(canonicalBase, `cxc-${uid}`), { uid });
 }
 
 export function runtimeScopeId(cwd) {

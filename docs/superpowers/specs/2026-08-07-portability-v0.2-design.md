@@ -15,7 +15,7 @@ The release remains unofficial, fork-owned, repository-marketplace distributed, 
 
 ## Boundaries
 
-- Keep the Windows P3/P4/P5 workflow, profiles, evidence, and tests frozen.
+- Keep the Windows P3/P4/P5 workflow body, profiles, evidence, and tests frozen; archive only its obsolete automatic PR trigger.
 - Continue from exact base `099afca5946debe5620411f2ab1d4aec388918ca`; history rewrites do not qualify.
 - Add a separate portability validation plane and workflow.
 - Use Node standard modules and installed dependencies; add no runtime dependency for sockets, authentication, archives, or process control.
@@ -24,7 +24,7 @@ The release remains unofficial, fork-owned, repository-marketplace distributed, 
 
 ## P5 continuity
 
-`scripts/validate-p5.mjs` gets one small continuation branch. The legacy path remains intact for the released base and its historical repair commits. A descendant of the exact base may continue only when `scripts/validate-portability.mjs` succeeds.
+`scripts/validate-p5.mjs` gets one marked continuation at its final result frontier. The legacy path remains intact and executes its source-binding, immutable-path, scope, privacy, and binary checks first. A descendant of the exact base may consume only the known legacy errors for the reviewed base/current path set, and only when `scripts/validate-portability.mjs` succeeds.
 
 The portability validator will:
 
@@ -33,7 +33,7 @@ The portability validator will:
 3. allow only the explicit v0.2 path set;
 4. validate the new platform registry, pinned artifacts, workflow, tests, and evidence together.
 
-New portability tests live below `tests/portability/`, outside the frozen P5 top-level test registry. The existing Windows workflow continues running its unchanged checks.
+New portability tests live below `tests/portability/`; the two inherited runtime/state tests have exact source transformations and registry digests. The historical Windows workflow body remains unchanged but no longer runs automatically because its v0.1 source snapshots cannot truthfully validate v0.2. The replacement portability workflow runs the current Windows v0.2 suite plus the three POSIX suites, exact security scanners, and dependency review before its terminal automatic PR gate.
 
 ## Platform policy
 
@@ -43,11 +43,11 @@ One shared module exposes and validates the four supported `(platform, arch)` tu
 
 On Linux and macOS, all sockets and control files are derived from validated opaque IDs beneath a private runtime root:
 
-`<runtime-root>/codex-conductor/<scope-id>/...`
+`<runtime-base>/cxc-<uid>/<scope-id>/...`
 
-The root and each ancestor used by the plugin must be absolute, owned by the current user, non-symlinked, and not group/world writable. Directories use mode `0700`; capability files use `0600`; Unix sockets are reduced to `0600` after bind. Paths are derived locally and are not persisted in session or job state.
+The canonical ancestor chain must contain only directories and rejects any group/world-writable ancestor that lacks the sticky bit. The selected private base and derived runtime root must be current-UID, non-symlinked `0700` directories; capability files use `0600`, and Unix sockets are reduced to `0600` after bind. Paths are derived locally and are not persisted in session or job state.
 
-State records contain only validated identifiers, generation values, status, and non-sensitive timestamps. Writes use a temporary file plus same-directory atomic rename. Corrupt, mismatched, or type-swapped state fails closed; cleanup never follows stored paths or symlinks.
+State records contain only validated identifiers, generation values, status, and non-sensitive timestamps. Writes use a temporary file plus same-directory atomic rename. Index pruning retains unindexed job artifacts; explicit Windows session cleanup deletes only after an independent regular job file matches `id`, session, status, PID, and managed log path. Corrupt, mismatched, or type-swapped state fails closed; cleanup never follows stored paths or symlinks.
 
 Windows named-pipe behavior stays unchanged.
 
@@ -76,18 +76,19 @@ Background workers expose a private authenticated control socket. Cancel and ses
 
 ## Toolchain and CI
 
-Add a versioned portability registry containing exact platform tuple, runner label, asset URL, and SHA-256 data. The initial runners are literal labels:
+Add a versioned portability registry containing exact platform tuple, runner label, asset URL, and SHA-256 data. The runners are literal labels:
 
+- `windows-2025`
 - `ubuntu-24.04`
 - `macos-15-intel`
 - `macos-15`
 
-The separate portability workflow downloads only pinned official assets, verifies digests before extraction, rejects unsafe archive entries, and then verifies the platform-native trust signal available for that artifact. macOS jobs verify signing/notarization where supplied; Linux jobs verify signed checksum or Sigstore material where supplied. A failed or unavailable trust check blocks activation for that tuple.
+The registry is a reviewed compatibility catalog, not an installer policy. The plugin and runtime jobs do not install or acquire Node, Codex, or Claude artifacts. The workflow uses pinned `setup-node`, records the exact host tuple, and exercises the repository's local fake runtime. Its security lane alone acquires exact admitted scanners through the existing digest-verifying installer. Native Codex and Claude remain user-managed prerequisites; changing that boundary requires a separately reviewed acquisition design.
 
-No `*-latest` labels, package force flags, global installs, reruns, or fallback downloads are allowed.
+No `*-latest` labels, package force flags, global installs, direct or fallback downloads, reruns, caches, or release artifacts are allowed.
 
 ## Verification and release
 
 Tests are written RED first for tuple rejection, runtime-root permissions, path traversal/symlink attacks, broker impersonation/replay, stale PID safety, process-group escalation, background cancellation, and frozen P5 continuity. Windows contract tests must remain green.
 
-Support is release-ready only after all four tuple jobs pass naturally, the portability evidence matches the exact commit and runner identities, review threads are clear, and a full security diff review finds no unresolved high-confidence issue. Then the personal fork may fast-forward merge and publish v0.2.0 with the exact supported tuple list.
+Support is release-ready only after all four tuple jobs pass naturally, the portability evidence matches the exact commit and runner identities, review threads are clear, and a full security diff review finds no unresolved high-confidence issue. The archived P5 workflow is not dispatched or treated as v0.2 evidence. Then the personal fork may fast-forward merge and publish v0.2.0 with the exact supported tuple list.

@@ -1,15 +1,71 @@
 import { spawnSync } from "node:child_process";
+import fs from "node:fs";
+import path from "node:path";
 import process from "node:process";
 
+const SAFE_CMD_ARGUMENT = /^[A-Za-z0-9_./:=+@-]+$/;
+const CMD_META = /[\r\n"&|<>^%]/;
+
+function resolveWithWhere(command, options) {
+  const env = options.env ?? process.env;
+  const systemRoot = env.SystemRoot ?? env.SYSTEMROOT ?? process.env.SystemRoot ?? process.env.SYSTEMROOT;
+  if (!systemRoot) return null;
+  const whereExe = path.join(systemRoot, "System32", "where.exe");
+  const result = spawnSync(whereExe, [command], {
+    cwd: options.cwd,
+    env,
+    encoding: "utf8",
+    shell: false,
+    windowsHide: true
+  });
+  if (result.status !== 0) return null;
+  return String(result.stdout ?? "")
+    .split(/\r?\n/)
+    .map((value) => value.trim())
+    .find((value) => /\.(?:exe|com|cmd|bat)$/i.test(value) && fs.existsSync(value)) ?? null;
+}
+
+export function resolveCommandInvocation(command, args = [], options = {}) {
+  const platform = options.platform ?? process.platform;
+  if (options.shell) throw new Error("Shell command execution is disabled.");
+  if (platform !== "win32") return { command, args, shell: false, windowsVerbatimArguments: false };
+
+  const resolved = /[\\/]/.test(command) ? path.resolve(command) : resolveWithWhere(command, options);
+  if (!resolved || !/\.(?:cmd|bat)$/i.test(resolved)) {
+    return { command: resolved ?? command, args, shell: false, windowsVerbatimArguments: false };
+  }
+  if (CMD_META.test(resolved) || args.some((value) => !SAFE_CMD_ARGUMENT.test(String(value)))) {
+    throw new Error("Unsafe Windows command invocation.");
+  }
+  const env = options.env ?? process.env;
+  const systemRoot = env.SystemRoot ?? env.SYSTEMROOT ?? process.env.SystemRoot ?? process.env.SYSTEMROOT;
+  const commandShell =
+    env.ComSpec ??
+    env.COMSPEC ??
+    process.env.ComSpec ??
+    process.env.COMSPEC ??
+    (systemRoot ? path.join(systemRoot, "System32", "cmd.exe") : null);
+  if (!commandShell) throw new Error("Windows command shell is unavailable.");
+  const commandLine = `""${resolved}"${args.length ? ` ${args.join(" ")}` : ""}"`;
+  return {
+    command: commandShell,
+    args: ["/d", "/s", "/c", commandLine],
+    shell: false,
+    windowsVerbatimArguments: true
+  };
+}
+
 export function runCommand(command, args = [], options = {}) {
-  const result = spawnSync(command, args, {
+  const invocation = resolveCommandInvocation(command, args, options);
+  const result = spawnSync(invocation.command, invocation.args, {
     cwd: options.cwd,
     env: options.env,
     encoding: "utf8",
     input: options.input,
     maxBuffer: options.maxBuffer,
     stdio: options.stdio ?? "pipe",
-    shell: options.shell ?? (process.platform === "win32" ? (process.env.SHELL || true) : false),
+    shell: false,
+    windowsVerbatimArguments: invocation.windowsVerbatimArguments,
     windowsHide: true
   });
 

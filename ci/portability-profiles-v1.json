@@ -1,0 +1,65 @@
+{
+  "$schema": "../evidence/portability/schemas/portability-profiles-v1.schema.json",
+  "schemaVersion": "portability-profiles-v1",
+  "nodeVersion": "24.18.1",
+  "ciAcquisition": false,
+  "reviewedAt": "2026-08-07",
+  "profiles": [
+    {
+      "id": "windows-x64",
+      "platform": "win32",
+      "architecture": "x64",
+      "runner": "windows-2025",
+      "supportStatus": "runtime-supported",
+      "artifacts": {
+        "node": { "version": "24.18.1", "file": "node-v24.18.1-win-x64.zip", "url": "https://nodejs.org/dist/v24.18.1/node-v24.18.1-win-x64.zip", "sha256": "ec56b84a7551893ab2324ebdfdc4ab974a63b4781162600b68a1293cc3e53765" },
+        "codexCurrent": { "version": "0.146.0", "file": "codex-x86_64-pc-windows-msvc.exe.zip", "url": "https://github.com/openai/codex/releases/download/rust-v0.146.0/codex-x86_64-pc-windows-msvc.exe.zip", "sha256": "4781b618fa3a16d91c892f8a1e2c82625f9286f9bb944a5690ba727c84fc5729" },
+        "codexPrevious": { "version": "0.145.0", "file": "codex-x86_64-pc-windows-msvc.exe.zip", "url": "https://github.com/openai/codex/releases/download/rust-v0.145.0/codex-x86_64-pc-windows-msvc.exe.zip", "sha256": "bc6ae808bf5a9cdf113364ac281594d6da76dc103c19129e9d32caed54ec3cda" },
+        "claudeMinimum": { "version": "2.1.196", "file": "claude.exe", "url": "https://downloads.claude.ai/claude-code-releases/2.1.196/win32-x64/claude.exe", "sha256": "180d7b279455e8b89d4353a5146447be2f80b80fb0db14bdc6dd9cb98c0aef09" },
+        "claudeCurrent": { "version": "2.1.220", "file": "claude.exe", "url": "https://downloads.claude.ai/claude-code-releases/2.1.220/win32-x64/claude.exe", "sha256": "af5bf1f1b2aadffc768eccd787084c6fdf9ba81624cbe96c1c6d9ac1a1550231" }
+      }
+    },
+    {
+      "id": "linux-x64",
+      "platform": "linux",
+      "architecture": "x64",
+      "runner": "ubuntu-24.04",
+      "supportStatus": "runtime-supported",
+      "artifacts": {
+        "node": { "version": "24.18.1", "file": "node-v24.18.1-linux-x64.tar.xz", "url": "https://nodejs.org/dist/v24.18.1/node-v24.18.1-linux-x64.tar.xz", "sha256": "d6c664df3f3f61458e8c277585571328522d705166723a7c7823a9253a4d15a0" },
+        "codexCurrent": { "version": "0.146.0", "file": "codex-x86_64-unknown-linux-musl.tar.gz", "url": "https://github.com/openai/codex/releases/download/rust-v0.146.0/codex-x86_64-unknown-linux-musl.tar.gz", "sha256": "5ba3b9405543953081f661d0854d266f76e2abbe51d41349355a36de7673776a", "sigstoreSha256": "bfb599864b19ce36f0379228de638c1e3e16846dbeb73c3311a085beed797f1f" },
+        "codexPrevious": { "version": "0.145.0", "file": "codex-x86_64-unknown-linux-musl.tar.gz", "url": "https://github.com/openai/codex/releases/download/rust-v0.145.0/codex-x86_64-unknown-linux-musl.tar.gz", "sha256": "bfaf13c9ba34f2ad764e4a916c49cf7177aeba329cf0f719e2227566fc8d662a", "sigstoreSha256": "b1b8c92bcca42815a5e3fc2f9d07c443019e2bde1e42cc773b4c236b9d6ad115" },
+        "claudeMinimum": { "version": "2.1.196", "file": "claude-linux-x64.tar.gz", "url": "https://github.com/anthropics/claude-code/releases/download/v2.1.196/claude-linux-x64.tar.gz", "sha256": "6ebd818a3957cd7ccbfb2b24f67e0a9063f94b86db6233e0dd33f483c5bc52ed" },
+        "claudeCurrent": { "version": "2.1.220", "file": "claude-linux-x64.tar.gz", "url": "https://github.com/anthropics/claude-code/releases/download/v2.1.220/claude-linux-x64.tar.gz", "sha256": "e69e7f72d784c243bcc377a578ad9ff8e65ae14da672fbbf9f2ba7bf47eca7ec" }
+      }
+    },
+    {
+      "id": "macos-x64",
+      "platform": "darwin",
+      "architecture": "x64",
+      "runner": "macos-15-intel",
+      "supportStatus": "runtime-supported",
+      "artifacts": {
+        "node": { "version": "24.18.1", "file": "node-v24.18.1-darwin-x64.tar.gz", "url": "https://nodejs.org/dist/v24.18.1/node-v24.18.1-darwin-x64.tar.gz", "sha256": "6fb20fceacbb157c2f95825b80df4a454a0f6d81cdcd7bb81eeae9147e0e76ec" },
+        "codexCurrent": { "version": "0.146.0", "file": "codex-x86_64-apple-darwin.tar.gz", "url": "https://github.com/openai/codex/releases/download/rust-v0.146.0/codex-x86_64-apple-darwin.tar.gz", "sha256": "710d727b0fa2b4ab2189eb1bdc5ab40177c168296af264913eb7ab3ce848d04b" },
+        "codexPrevious": { "version": "0.145.0", "file": "codex-x86_64-apple-darwin.tar.gz", "url": "https://github.com/openai/codex/releases/download/rust-v0.145.0/codex-x86_64-apple-darwin.tar.gz", "sha256": "4216d7a40aa49d74b65fab93d2a86d2e25a902482b827dbdb3f357777b09fadf" },
+        "claudeMinimum": { "version": "2.1.196", "file": "claude-darwin-x64.tar.gz", "url": "https://github.com/anthropics/claude-code/releases/download/v2.1.196/claude-darwin-x64.tar.gz", "sha256": "b3cef9415924261a9f0b6cb11d7ec7df3373bd075b076373df04c2af1797c3a4" },
+        "claudeCurrent": { "version": "2.1.220", "file": "claude-darwin-x64.tar.gz", "url": "https://github.com/anthropics/claude-code/releases/download/v2.1.220/claude-darwin-x64.tar.gz", "sha256": "3c9072239f05fdd4ca6a02a58d892f2ccf0460ff7e5c94a9c88d65eb3383da16" }
+      }
+    },
+    {
+      "id": "macos-arm64",
+      "platform": "darwin",
+      "architecture": "arm64",
+      "runner": "macos-15",
+      "supportStatus": "runtime-supported",
+      "artifacts": {
+        "node": { "version": "24.18.1", "file": "node-v24.18.1-darwin-arm64.tar.gz", "url": "https://nodejs.org/dist/v24.18.1/node-v24.18.1-darwin-arm64.tar.gz", "sha256": "eb02f7fab96d3d67de40c5ec8566096fcb4c2026728787683ae5a97eb612b941" },
+        "codexCurrent": { "version": "0.146.0", "file": "codex-aarch64-apple-darwin.tar.gz", "url": "https://github.com/openai/codex/releases/download/rust-v0.146.0/codex-aarch64-apple-darwin.tar.gz", "sha256": "2750132d300e64f1dbffb95e3d913fd9c9dc7812bc8e1bce5c61357248b7929e" },
+        "codexPrevious": { "version": "0.145.0", "file": "codex-aarch64-apple-darwin.tar.gz", "url": "https://github.com/openai/codex/releases/download/rust-v0.145.0/codex-aarch64-apple-darwin.tar.gz", "sha256": "072a30a65f05666735889ef0f60b56db186adbdde9d5c5cc1a64be0b598530fe" },
+        "claudeMinimum": { "version": "2.1.196", "file": "claude-darwin-arm64.tar.gz", "url": "https://github.com/anthropics/claude-code/releases/download/v2.1.196/claude-darwin-arm64.tar.gz", "sha256": "c05c3c71c89f413c3ee6677ac2e7946b3c8c0d118206e4f889d47602a24cf4c7" },
+        "claudeCurrent": { "version": "2.1.220", "file": "claude-darwin-arm64.tar.gz", "url": "https://github.com/anthropics/claude-code/releases/download/v2.1.220/claude-darwin-arm64.tar.gz", "sha256": "1c895d3d7a97cc1ebd457a2f64ba20212476de82468e4a3fc142beeee270e55e" }
+      }
+    }
+  ]
+}

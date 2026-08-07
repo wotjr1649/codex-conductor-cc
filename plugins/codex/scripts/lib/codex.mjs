@@ -904,7 +904,10 @@ export function getCodexAvailability(cwd) {
 }
 
 export function getSessionRuntimeStatus(env = process.env, cwd = process.cwd()) {
-  const endpoint = env?.[BROKER_ENDPOINT_ENV] ?? loadBrokerSession(cwd)?.endpoint ?? null;
+  const endpoint =
+    (process.platform === "win32" ? env?.[BROKER_ENDPOINT_ENV] : null) ??
+    loadBrokerSession(cwd)?.endpoint ??
+    null;
   if (endpoint) {
     return {
       mode: "shared",

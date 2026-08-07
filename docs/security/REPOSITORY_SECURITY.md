@@ -65,3 +65,30 @@ Review occurs earlier when a Node 24 security release appears, a vendor key or
 artifact changes, a relevant vulnerability lands, an Action changes runtime,
 or a source/license/manifest identity drifts. Exact regression pins remain
 immutable; only claims such as “current” expire.
+
+## Portability workflow
+
+`.github/workflows/portability-ci.yml` is the read-only `pull_request`
+workflow for Windows x64, Linux x64, macOS x64, and macOS arm64. It uses
+literal runner labels, full-SHA checkout/setup actions, exact Node 24.18.1,
+no persisted checkout credential, and runtime jobs that do not acquire Codex
+or Claude artifacts. A separate Windows security job uses the existing
+digest-verifying installer for the exact admitted actionlint, zizmor, OSV, and
+gitleaks versions; dependency review uses its full-SHA Action. The terminal
+gate requires the four runtime profiles plus both security jobs and rejects
+`continue-on-error`. No job receives secrets, installs packages, uses caches,
+or uploads release artifacts.
+
+`ci/portability-profiles-v1.json` records reviewed Node, Codex, and Claude asset
+metadata for the four supported tuples, but those records are compatibility
+catalog entries rather than executable acquisition authority. Adding an
+installer or automated native-signing admission later requires a separate
+supply-chain threat review.
+
+The released P5 workflow body remains byte-for-byte historical evidence. Its
+automatic PR trigger is archived as `workflow_dispatch`, which this release
+does not invoke; the portability continuation validator permits only that
+exact trigger replacement. The continuation runs at the final P5 frontier,
+after legacy source-binding, immutable-path, scope, privacy, and binary checks,
+and consumes only the exact legacy errors tied to the reviewed base and
+portability path set.

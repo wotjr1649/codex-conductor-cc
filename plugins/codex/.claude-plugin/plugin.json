@@ -1,6 +1,6 @@
 {
   "name": "codex",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Codex Conductor delegates tasks and code reviews from Claude Code to Codex.",
   "author": {
     "name": "wotjr1649",

@@ -121,13 +121,13 @@
     {
       "path": "tests/runtime.test.mjs",
       "declaredCount": 61,
-      "sha256": "e0443d4981f662320113c008dbe52295e221ab6a40f05d72f2199280aad6aacb",
+      "sha256": "a0b82253d920dda1dc038b0128bf2a4e96dbb4f16689b19966e7346cd2e00a58",
       "profileId": "windows-integration"
     },
     {
       "path": "tests/state.test.mjs",
       "declaredCount": 3,
-      "sha256": "66fbbfdb02d538bf02e236fbcff93d052bae37014a0d3f10610804257e3453a9",
+      "sha256": "ab534ac2098e5bc2f1e87b645f7e85dbd95034e5490da6ded27b9a772dd1b016",
       "profileId": "unit"
     }
   ],

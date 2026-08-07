@@ -19,11 +19,23 @@ policy](docs/UPSTREAM.md) for the exact source relationship.
 
 - **ChatGPT subscription (incl. Free) or OpenAI API key.**
   - Usage will contribute to your Codex usage limits. [Learn more](https://developers.openai.com/codex/pricing).
-- **64-bit Windows (x64)**
-- **Node.js 24.0 or later (x64)**
+- **Node.js 24.0 or later**
+- One supported runtime tuple:
+  - Windows x64
+  - Linux x64
+  - macOS x64
+  - macOS arm64 (Apple Silicon)
 
-Other operating systems, 32-bit Windows, ARM64 Windows, and Node.js versions
-older than 24 are not supported by this personal fork.
+Windows ARM64/32-bit, Linux ARM64, other operating systems, and Node.js versions older than 24
+are not supported by this personal fork. The root npm package remains a private Windows evidence
+harness; install the portable plugin through the personal Claude Code marketplace below.
+
+Portability CI covers all four supported tuples with fixed GitHub runner labels and pinned Node
+24.18.1. Repository steps do not download, install, cache, or publish Codex or Claude artifacts.
+Those tools remain user-managed prerequisites; the committed artifact registry is compatibility
+metadata only. A separate security lane acquires only the exact digest-verified scanners admitted
+by `toolchain.json`; pinned dependency review and all four runtime jobs must also pass the terminal
+`Portability CI` gate.
 
 ## Install
 

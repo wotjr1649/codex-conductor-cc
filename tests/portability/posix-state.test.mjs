@@ -9,10 +9,12 @@ import {
 } from "../../plugins/codex/scripts/lib/broker-endpoint.mjs";
 import {
   loadState,
+  removeSessionJobArtifacts,
   resolveJobFile,
   resolveJobLogFile,
   resolveStateFile,
-  saveState
+  saveState,
+  writeJobFile
 } from "../../plugins/codex/scripts/lib/state.mjs";
 import { makeTempDir } from "../helpers.mjs";
 
@@ -104,4 +106,45 @@ test("P6-STATE-003 state replacement is complete and leaves no temporary file", 
     fs.readdirSync(path.dirname(stateFile)).filter((name) => name.includes(".tmp")),
     []
   );
+});
+
+test("P6-STATE-004 session cleanup requires matching independent job artifacts", () => {
+  const workspace = makeTempDir();
+  const currentLog = resolveJobLogFile(workspace, "job-current");
+  const otherLog = resolveJobLogFile(workspace, "job-other");
+  fs.writeFileSync(currentLog, "current\n", "utf8");
+  fs.writeFileSync(otherLog, "other\n", "utf8");
+  const current = {
+    id: "job-current",
+    sessionId: "sess-current",
+    status: "completed",
+    logFile: currentLog
+  };
+  const other = {
+    id: "job-other",
+    sessionId: "sess-other",
+    status: "completed",
+    logFile: otherLog
+  };
+  writeJobFile(workspace, current.id, current);
+  writeJobFile(workspace, other.id, other);
+
+  assert.throws(
+    () => removeSessionJobArtifacts(
+      workspace,
+      [current, { ...other, sessionId: "sess-current" }],
+      "sess-current"
+    ),
+    /session artifact/i
+  );
+  assert.equal(fs.existsSync(resolveJobFile(workspace, current.id)), true);
+  assert.equal(fs.existsSync(currentLog), true);
+  assert.equal(fs.existsSync(resolveJobFile(workspace, other.id)), true);
+  assert.equal(fs.existsSync(otherLog), true);
+
+  assert.equal(removeSessionJobArtifacts(workspace, [current], "sess-current"), 1);
+  assert.equal(fs.existsSync(resolveJobFile(workspace, current.id)), false);
+  assert.equal(fs.existsSync(currentLog), false);
+  assert.equal(fs.existsSync(resolveJobFile(workspace, other.id)), true);
+  assert.equal(fs.existsSync(otherLog), true);
 });

@@ -8,13 +8,20 @@
  * @typedef {import("./app-server-protocol").InitializeCapabilities} InitializeCapabilities
  */
 import fs from "node:fs";
-import net from "node:net";
 import process from "node:process";
 import { spawn } from "node:child_process";
 import readline from "node:readline";
 import { parseBrokerEndpoint } from "./broker-endpoint.mjs";
-import { ensureBrokerSession, loadBrokerSession } from "./broker-lifecycle.mjs";
-import { terminateOwnedPosixProcess, terminateProcessTree } from "./process.mjs";
+import {
+  connectAuthenticatedBrokerSession,
+  ensureBrokerSession,
+  loadBrokerSession
+} from "./broker-lifecycle.mjs";
+import {
+  resolveCommandInvocation,
+  terminateOwnedPosixProcess,
+  terminateProcessTree
+} from "./process.mjs";
 
 const PLUGIN_MANIFEST_URL = new URL("../../.claude-plugin/plugin.json", import.meta.url);
 const PLUGIN_MANIFEST = JSON.parse(fs.readFileSync(PLUGIN_MANIFEST_URL, "utf8"));
@@ -187,11 +194,16 @@ class SpawnedCodexAppServerClient extends AppServerClientBase {
   }
 
   async initialize() {
-    this.proc = spawn("codex", ["app-server"], {
+    const invocation = resolveCommandInvocation("codex", ["app-server"], {
+      cwd: this.cwd,
+      env: this.options.env ?? process.env
+    });
+    this.proc = spawn(invocation.command, invocation.args, {
       cwd: this.cwd,
       env: this.options.env ?? process.env,
       stdio: ["pipe", "pipe", "pipe"],
-      shell: process.platform === "win32" ? (process.env.SHELL || true) : false,
+      shell: false,
+      windowsVerbatimArguments: invocation.windowsVerbatimArguments,
       detached: process.platform !== "win32",
       windowsHide: true
     });
@@ -247,7 +259,7 @@ class SpawnedCodexAppServerClient extends AppServerClientBase {
       if (process.platform === "win32") {
         setTimeout(() => {
           if (this.proc && !this.proc.killed && this.proc.exitCode === null) {
-            // On Windows with shell: true, the direct child is cmd.exe.
+            // On Windows the retained child can be the constrained cmd.exe wrapper for a .cmd launcher.
             // Use terminateProcessTree to kill the entire tree including
             // the grandchild node process.
             try {
@@ -280,27 +292,21 @@ class BrokerCodexAppServerClient extends AppServerClientBase {
   constructor(cwd, options = {}) {
     super(cwd, options);
     this.transport = "broker";
-    this.endpoint = options.brokerEndpoint;
+    this.session = options.brokerSession;
+    this.endpoint = this.session.endpoint;
   }
 
   async initialize() {
-    await new Promise((resolve, reject) => {
-      const target = parseBrokerEndpoint(this.endpoint);
-      this.socket = net.createConnection({ path: target.path });
-      this.socket.setEncoding("utf8");
-      this.socket.on("connect", resolve);
-      this.socket.on("data", (chunk) => {
-        this.handleChunk(chunk);
-      });
-      this.socket.on("error", (error) => {
-        if (!this.exitResolved) {
-          reject(error);
-        }
-        this.handleExit(error);
-      });
-      this.socket.on("close", () => {
-        this.handleExit(this.exitError);
-      });
+    const { socket } = await connectAuthenticatedBrokerSession(this.session, "connect", this.options.timeoutMs ?? 1000);
+    this.socket = socket;
+    this.socket.on("data", (chunk) => {
+      this.handleChunk(chunk);
+    });
+    this.socket.on("error", (error) => {
+      this.handleExit(error);
+    });
+    this.socket.on("close", () => {
+      this.handleExit(this.exitError);
     });
 
     await this.request("initialize", {
@@ -335,19 +341,24 @@ class BrokerCodexAppServerClient extends AppServerClientBase {
 
 export class CodexAppServerClient {
   static async connect(cwd, options = {}) {
-    let brokerEndpoint = null;
+    let brokerSession = options.brokerSession ?? null;
     if (!options.disableBroker) {
-      brokerEndpoint = options.brokerEndpoint ?? options.env?.[BROKER_ENDPOINT_ENV] ?? process.env[BROKER_ENDPOINT_ENV] ?? null;
-      if (!brokerEndpoint && options.reuseExistingBroker) {
-        brokerEndpoint = loadBrokerSession(cwd)?.endpoint ?? null;
+      const rawEndpoint = options.brokerEndpoint ?? options.env?.[BROKER_ENDPOINT_ENV] ?? process.env[BROKER_ENDPOINT_ENV] ?? null;
+      if (!brokerSession && rawEndpoint) {
+        if (parseBrokerEndpoint(rawEndpoint).kind === "unix") {
+          throw new Error("POSIX broker endpoints must come from authenticated broker state.");
+        }
+        brokerSession = { endpoint: rawEndpoint };
       }
-      if (!brokerEndpoint && !options.reuseExistingBroker) {
-        const brokerSession = await ensureBrokerSession(cwd, { env: options.env });
-        brokerEndpoint = brokerSession?.endpoint ?? null;
+      if (!brokerSession && options.reuseExistingBroker) {
+        brokerSession = loadBrokerSession(cwd);
+      }
+      if (!brokerSession && !options.reuseExistingBroker) {
+        brokerSession = await ensureBrokerSession(cwd, { env: options.env });
       }
     }
-    const client = brokerEndpoint
-      ? new BrokerCodexAppServerClient(cwd, { ...options, brokerEndpoint })
+    const client = brokerSession
+      ? new BrokerCodexAppServerClient(cwd, { ...options, brokerSession })
       : new SpawnedCodexAppServerClient(cwd, options);
     await client.initialize();
     return client;

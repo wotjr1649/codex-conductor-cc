@@ -55,6 +55,13 @@ import {
 import { resolveWorkspaceRoot } from "./lib/workspace.mjs";
 import { assertSupportedRuntime } from "./lib/platform-policy.mjs";
 import {
+  createWorkerController,
+  discardUnstartedWorkerController,
+  sendWorkerCancel,
+  startWorkerControlServer,
+  validateWorkerControllerDescriptor
+} from "./lib/worker-control.mjs";
+import {
   renderNativeReviewResult,
   renderReviewResult,
   renderStoredJobResult,
@@ -186,7 +193,13 @@ function firstMeaningfulLine(text, fallback) {
 async function buildSetupReport(cwd, actionsTaken = []) {
   const workspaceRoot = resolveWorkspaceRoot(cwd);
   const nodeStatus = binaryAvailable("node", ["--version"], { cwd });
-  const npmStatus = binaryAvailable("npm", ["--version"], { cwd });
+  const npmCli = path.join(path.dirname(process.execPath), "node_modules", "npm", "bin", "npm-cli.js");
+  const npmStatus =
+    process.platform === "win32"
+      ? fs.existsSync(npmCli)
+        ? binaryAvailable(process.execPath, [npmCli, "--version"], { cwd })
+        : { available: false, detail: "not found" }
+      : binaryAvailable("npm", ["--version"], { cwd });
   const codexStatus = getCodexAvailability(cwd);
   const authStatus = await getCodexAuthStatus(cwd);
   const config = getConfig(workspaceRoot);
@@ -672,13 +685,25 @@ async function runForegroundCommand(job, runner, options = {}) {
   return execution;
 }
 
-function spawnDetachedTaskWorker(cwd, jobId) {
+function spawnDetachedTaskWorker(cwd, jobId, controller = null) {
   const scriptPath = path.join(ROOT_DIR, "scripts", "codex-companion.mjs");
-  return spawn(process.execPath, [scriptPath, "task-worker", "--cwd", cwd, "--job-id", jobId, "--start-after-stdin"], {
+  const args = [scriptPath, "task-worker", "--cwd", cwd, "--job-id", jobId, "--start-after-stdin"];
+  if (controller) {
+    args.push(
+      "--control-fd",
+      "3",
+      "--worker-id",
+      controller.descriptor.workerId,
+      "--generation",
+      controller.descriptor.generation
+    );
+  }
+  return spawn(process.execPath, args, {
     cwd,
     env: process.env,
     detached: true,
-    stdio: ["pipe", "ignore", "ignore"],
+    shell: false,
+    stdio: controller ? ["pipe", "ignore", "ignore", "pipe"] : ["pipe", "ignore", "ignore"],
     windowsHide: true
   });
 }
@@ -687,27 +712,60 @@ function enqueueBackgroundTask(cwd, job, request) {
   const { logFile } = createTrackedProgress(job);
   appendLogLine(logFile, "Queued for background execution.");
 
-  const child = spawnDetachedTaskWorker(cwd, job.id);
-  if (!Number.isSafeInteger(child.pid) || !child.stdin) {
-    child.stdin?.destroy();
-    child.unref();
-    throw new Error("Unable to start the background task worker.");
-  }
+  const controller = process.platform === "win32" ? null : createWorkerController(job.workspaceRoot);
   const queuedRecord = {
     ...job,
     status: "queued",
     phase: "queued",
-    pid: child.pid ?? null,
+    pid: null,
     logFile,
-    request
+    request,
+    ...(controller ? { controller: controller.descriptor } : {})
   };
   try {
     writeJobFile(job.workspaceRoot, job.id, queuedRecord);
     upsertJob(job.workspaceRoot, queuedRecord);
   } catch (error) {
-    child.stdin.destroy();
-    child.unref();
+    if (controller) discardUnstartedWorkerController(controller);
     throw error;
+  }
+
+  let child;
+  try {
+    child = spawnDetachedTaskWorker(cwd, job.id, controller);
+  } catch (error) {
+    if (controller) discardUnstartedWorkerController(controller);
+    const failedRecord = {
+      ...queuedRecord,
+      status: "indeterminate",
+      phase: "indeterminate",
+      errorMessage: "Background task worker did not start."
+    };
+    writeJobFile(job.workspaceRoot, job.id, failedRecord);
+    upsertJob(job.workspaceRoot, failedRecord);
+    throw error;
+  }
+  if (!Number.isSafeInteger(child.pid) || !child.stdin || (controller && !child.stdio[3])) {
+    child.stdin?.destroy();
+    child.stdio[3]?.destroy();
+    child.unref();
+    const failedRecord = {
+      ...queuedRecord,
+      status: "indeterminate",
+      phase: "indeterminate",
+      errorMessage: "Background task worker did not start."
+    };
+    writeJobFile(job.workspaceRoot, job.id, failedRecord);
+    upsertJob(job.workspaceRoot, failedRecord);
+    throw new Error("Unable to start the background task worker.");
+  }
+  if (!controller) {
+    const windowsRecord = { ...queuedRecord, pid: child.pid };
+    writeJobFile(job.workspaceRoot, job.id, windowsRecord);
+    upsertJob(job.workspaceRoot, windowsRecord);
+  } else {
+    child.stdio[3].on("error", () => {});
+    child.stdio[3].end(`${controller.auth.capability}\n`);
   }
   child.stdin.on("error", () => {});
   child.stdin.end(WORKER_START_TOKEN);
@@ -853,7 +911,7 @@ async function handleTransfer(argv) {
 
 async function handleTaskWorker(argv) {
   const { options } = parseCommandInput(argv, {
-    valueOptions: ["cwd", "job-id"],
+    valueOptions: ["control-fd", "cwd", "generation", "job-id", "worker-id"],
     booleanOptions: ["start-after-stdin"]
   });
 
@@ -862,6 +920,19 @@ async function handleTaskWorker(argv) {
   }
   if (options["start-after-stdin"] && fs.readFileSync(0, "utf8") !== WORKER_START_TOKEN) {
     throw new Error("Background task worker did not receive its start signal.");
+  }
+
+  let transferredCapability = null;
+  if (process.platform !== "win32") {
+    const controlFd = Number(options["control-fd"]);
+    if (!Number.isSafeInteger(controlFd) || controlFd < 3) {
+      throw new Error("Background task worker did not receive its control capability.");
+    }
+    try {
+      transferredCapability = fs.readFileSync(controlFd, "utf8").trim();
+    } finally {
+      fs.closeSync(controlFd);
+    }
   }
 
   const cwd = resolveCommandCwd(options);
@@ -876,6 +947,57 @@ async function handleTaskWorker(argv) {
     throw new Error(`Stored job ${options["job-id"]} is missing its task request payload.`);
   }
 
+  let controllerServer = null;
+  let workerStarted = false;
+  let cancelRequested = false;
+
+  function updateWorkerStatus(status, message) {
+    const latest = readStoredJob(workspaceRoot, storedJob.id) ?? storedJob;
+    const patch = {
+      status,
+      phase: status,
+      pid: null,
+      errorMessage: message
+    };
+    writeJobFile(workspaceRoot, storedJob.id, { ...latest, ...patch });
+    upsertJob(workspaceRoot, { id: storedJob.id, ...patch });
+  }
+
+  if (process.platform !== "win32") {
+    const descriptor = validateWorkerControllerDescriptor(storedJob.controller);
+    if (descriptor.workerId !== options["worker-id"] || descriptor.generation !== options.generation) {
+      throw new Error("Background task worker controller identity did not match its state.");
+    }
+    controllerServer = await startWorkerControlServer(workspaceRoot, descriptor, transferredCapability, async () => {
+      const current = readStoredJob(workspaceRoot, storedJob.id) ?? storedJob;
+      if (current.status !== "queued" && current.status !== "running" && current.status !== "cancel_requested") {
+        return "indeterminate";
+      }
+      if (!workerStarted) {
+        cancelRequested = true;
+        updateWorkerStatus("cancel_requested", "Authenticated cancellation requested.");
+        return "accepted";
+      }
+
+      let threadId = current.threadId ?? null;
+      let turnId = current.turnId ?? null;
+      for (let attempt = 0; (!threadId || !turnId) && attempt < 20; attempt += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        const refreshed = readStoredJob(workspaceRoot, storedJob.id) ?? {};
+        threadId = refreshed.threadId ?? null;
+        turnId = refreshed.turnId ?? null;
+      }
+      const interrupt = await interruptAppServerTurn(cwd, { threadId, turnId });
+      if (!interrupt.interrupted) {
+        updateWorkerStatus("indeterminate", "Authenticated worker control could not confirm interruption.");
+        return "indeterminate";
+      }
+      cancelRequested = true;
+      updateWorkerStatus("cancel_requested", "Authenticated cancellation requested.");
+      return "accepted";
+    });
+  }
+
   const { logFile, progress } = createTrackedProgress(
     {
       ...storedJob,
@@ -885,19 +1007,31 @@ async function handleTaskWorker(argv) {
       logFile: storedJob.logFile ?? null
     }
   );
-  await runTrackedJob(
-    {
-      ...storedJob,
-      workspaceRoot,
-      logFile
-    },
-    () =>
-      executeTaskRun({
-        ...request,
-        onProgress: progress
-      }),
-    { logFile }
-  );
+  try {
+    if (!cancelRequested) {
+      workerStarted = true;
+      await runTrackedJob(
+        {
+          ...storedJob,
+          workspaceRoot,
+          logFile
+        },
+        () =>
+          executeTaskRun({
+            ...request,
+            onProgress: progress
+          }),
+        { logFile }
+      );
+    }
+  } catch (error) {
+    if (!cancelRequested) throw error;
+  } finally {
+    if (cancelRequested) {
+      updateWorkerStatus("cancelled", "Cancelled by authenticated worker control.");
+    }
+    await controllerServer?.close();
+  }
 }
 
 async function handleStatus(argv) {
@@ -990,6 +1124,34 @@ async function handleCancel(argv) {
   const reference = positionals[0] ?? "";
   const { workspaceRoot, job } = resolveCancelableJob(cwd, reference, { env: process.env });
   const existing = readStoredJob(workspaceRoot, job.id) ?? {};
+
+  if (process.platform !== "win32") {
+    let outcome = "indeterminate";
+    try {
+      outcome = await sendWorkerCancel(workspaceRoot, validateWorkerControllerDescriptor(existing.controller ?? job.controller));
+    } catch {
+      const patch = {
+        status: "indeterminate",
+        phase: "indeterminate",
+        pid: null,
+        errorMessage: "Authenticated worker cancellation could not be confirmed."
+      };
+      writeJobFile(workspaceRoot, job.id, { ...existing, ...job, ...patch });
+      upsertJob(workspaceRoot, { id: job.id, ...patch });
+    }
+    const latest = readStoredJob(workspaceRoot, job.id) ?? {
+      ...job,
+      status: outcome === "accepted" ? "cancel_requested" : "indeterminate"
+    };
+    appendLogLine(job.logFile, outcome === "accepted" ? "Authenticated cancellation requested." : "Cancellation is indeterminate.");
+    outputCommandResult(
+      { jobId: job.id, status: latest.status, title: job.title, workerControlOutcome: outcome },
+      renderCancelReport(latest),
+      options.json
+    );
+    return;
+  }
+
   const threadId = existing.threadId ?? job.threadId ?? null;
   const turnId = existing.turnId ?? job.turnId ?? null;
 

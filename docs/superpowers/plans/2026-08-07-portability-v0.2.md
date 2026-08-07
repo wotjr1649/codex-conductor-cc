@@ -49,15 +49,15 @@
 
 ## Phase 6 — Pinned artifacts and separate CI
 
-1. Add RED registry/schema tests for exact tuple coverage, literal runner labels, immutable versions, asset URLs, digests, and required native trust checks.
-2. Add `ci/portability-profiles-v1.json`, its schema, and a minimal safe installer/validator under `scripts/`.
-3. Reject archive traversal, absolute paths, links, device entries, digest mismatch, and unexpected executable names before use.
-4. Add `.github/workflows/portability-ci.yml` with three independent non-Windows jobs and one terminal job. Keep the Windows workflow untouched.
-5. Emit commit- and runner-bound portability evidence only after all tuple tests and trust checks pass.
+1. Add RED registry/schema tests for exact tuple coverage, literal runner labels, immutable versions, asset URLs, and digests.
+2. Add `ci/portability-profiles-v1.json`, its schema, and a strict local validator.
+3. Keep runtime CI free of Codex/Claude acquisition; allow only the existing digest-verifying installer to acquire exact security scanners, with no direct/fallback downloads, caches, or published artifacts.
+4. Archive only the obsolete automatic trigger of the frozen P5 workflow, then add `.github/workflows/portability-ci.yml` with Windows plus three independent POSIX jobs, security and dependency-review jobs, and one terminal job.
+5. Emit commit- and runner-bound portability evidence only after all tuple tests pass; treat the vendor artifact catalog as reviewed compatibility metadata, not CI trust input.
 
 ## Phase 7 — Full verification and personal v0.2 release
 
-1. Run focused tests, all Windows frozen tests with pinned Node 24.18.1, the portability validator, version checks, and workflow/schema validation.
+1. Run focused tests, the current Windows v0.2 suite with pinned Node 24.18.1, the portability validator, version checks, and workflow/schema validation. Keep historical v0.1 snapshots as validator inputs rather than executing them against v0.2.
 2. Perform a security diff scan of runtime paths, authentication, process control, artifact extraction, and CI permissions. Fix every validated issue and rerun affected tests.
 3. Update fork-owned docs, changelog, marketplace/plugin/package versions to 0.2.0; state the exact supported tuple list and unsupported tuples.
 4. Review the final diff for unrelated changes, commit in logical units, and make one normal push to a new personal-fork branch.

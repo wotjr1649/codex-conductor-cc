@@ -446,10 +446,16 @@ export function renderStoredJobResult(job, storedJob) {
 }
 
 export function renderCancelReport(job) {
+  const result =
+    job.status === "cancelled"
+      ? `Cancelled ${job.id}.`
+      : job.status === "cancel_requested"
+        ? `Cancellation requested for ${job.id}.`
+        : `Cancellation outcome is indeterminate for ${job.id}.`;
   const lines = [
     "# Codex Cancel",
     "",
-    `Cancelled ${job.id}.`,
+    result,
     ""
   ];
 

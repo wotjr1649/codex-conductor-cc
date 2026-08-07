@@ -17,6 +17,7 @@ const STATE_FILE_NAME = "state.json";
 const JOBS_DIR_NAME = "jobs";
 const MAX_JOBS = 50;
 const JOB_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
+const CONTROLLER_KEYS = ["generation", "version", "workerId"];
 
 function nowIso() {
   return new Date().toISOString();
@@ -108,6 +109,20 @@ function assertJobRecord(cwd, job) {
   }
   assertJobId(job.id);
   assertManagedLogFile(cwd, job.logFile);
+  if (job.controller != null) {
+    const controller = job.controller;
+    if (
+      !controller ||
+      typeof controller !== "object" ||
+      Array.isArray(controller) ||
+      controller.version !== 1 ||
+      Object.keys(controller).sort().join("\0") !== CONTROLLER_KEYS.join("\0") ||
+      !JOB_ID.test(controller.workerId) ||
+      !JOB_ID.test(controller.generation)
+    ) {
+      throw new Error("Invalid worker controller state.");
+    }
+  }
 }
 
 function assertJobRecords(cwd, jobs) {
@@ -162,12 +177,6 @@ function pruneJobs(jobs) {
     .slice(0, MAX_JOBS);
 }
 
-function removeFileIfExists(filePath) {
-  if (filePath && fs.existsSync(filePath)) {
-    fs.unlinkSync(filePath);
-  }
-}
-
 function atomicWriteFile(filePath, content) {
   const temporary = `${filePath}.${process.pid}.${randomUUID()}.tmp`;
   try {
@@ -179,7 +188,7 @@ function atomicWriteFile(filePath, content) {
 }
 
 export function saveState(cwd, state) {
-  const previousJobs = loadState(cwd).jobs;
+  loadState(cwd);
   ensureStateDir(cwd);
   if (!Array.isArray(state.jobs)) throw new Error("Invalid state jobs.");
   assertJobRecords(cwd, state.jobs);
@@ -193,15 +202,7 @@ export function saveState(cwd, state) {
     jobs: nextJobs
   };
 
-  const retainedIds = new Set(nextJobs.map((job) => job.id));
-  for (const job of previousJobs) {
-    if (retainedIds.has(job.id)) {
-      continue;
-    }
-    removeJobFile(resolveJobFile(cwd, job.id));
-    removeFileIfExists(assertManagedLogFile(cwd, job.logFile));
-  }
-
+  // ponytail: retain unindexed artifacts; add generation-bound cleanup if disk usage matters.
   atomicWriteFile(resolveStateFile(cwd), `${JSON.stringify(nextState, null, 2)}\n`);
   return nextState;
 }
@@ -278,10 +279,37 @@ export function readJobFile(jobFile) {
   return payload;
 }
 
-function removeJobFile(jobFile) {
-  if (fs.existsSync(jobFile)) {
-    fs.unlinkSync(jobFile);
+export function removeSessionJobArtifacts(cwd, jobs, sessionId) {
+  if (!Array.isArray(jobs) || typeof sessionId !== "string" || !JOB_ID.test(sessionId)) {
+    throw new Error("Invalid session artifact cleanup request.");
   }
+  assertJobRecords(cwd, jobs);
+  const targets = [];
+  for (const job of jobs) {
+    if (job.sessionId !== sessionId) throw new Error("Session artifact identity mismatch.");
+    const jobFile = resolveJobFile(cwd, job.id);
+    if (!fs.existsSync(jobFile)) continue;
+    const stats = fs.lstatSync(jobFile);
+    if (!stats.isFile() || stats.isSymbolicLink()) throw new Error("Invalid session artifact file.");
+    const stored = readJobFile(jobFile);
+    assertJobRecord(cwd, stored);
+    for (const key of ["id", "sessionId", "status", "pid", "logFile"]) {
+      if (stored[key] !== job[key]) throw new Error("Session artifact identity mismatch.");
+    }
+    const files = [jobFile];
+    if (stored.logFile && fs.existsSync(stored.logFile)) {
+      const logStats = fs.lstatSync(stored.logFile);
+      if (!logStats.isFile() || logStats.isSymbolicLink()) {
+        throw new Error("Invalid session artifact file.");
+      }
+      files.push(stored.logFile);
+    }
+    targets.push(files);
+  }
+  for (const files of targets) {
+    for (const filePath of files) fs.unlinkSync(filePath);
+  }
+  return targets.length;
 }
 
 export function resolveJobLogFile(cwd, jobId) {

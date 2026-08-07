@@ -325,27 +325,6 @@ if (
   errors.push("P5E_LEDGER_RED: meaningful RED must remain in the ordered ledger");
 }
 const validationHead = resolveValidationHead();
-// PORTABILITY_CONTINUATION_BEGIN
-if (
-  gitProbe([
-    "merge-base",
-    "--is-ancestor",
-    "099afca5946debe5620411f2ab1d4aec388918ca",
-    validationHead
-  ]).status === 0
-) {
-  const { validatePortabilityRepository } = await import(
-    "./lib/portability-continuity.mjs"
-  );
-  errors.push(...validatePortabilityRepository(ROOT, validationHead));
-  if (errors.length === 0) {
-    process.stdout.write(
-      "P5 validation passed through the exact v0.1-to-v0.2 portability continuation.\n"
-    );
-    process.exit(0);
-  }
-}
-// PORTABILITY_CONTINUATION_END
 const boundSource = evidence?.source?.sourceCommit ?? "";
 const boundSourceType = spawnSync("git", ["cat-file", "-t", boundSource], {
   cwd: ROOT,
@@ -550,6 +529,43 @@ const binary = [
   .split(/\r?\n/)
   .filter((line) => line.startsWith("-\t-\t"));
 if (binary.length > 0) errors.push("P5E_BINARY: committed binary additions are forbidden");
+// PORTABILITY_CONTINUATION_BEGIN
+if (
+  gitProbe([
+    "merge-base",
+    "--is-ancestor",
+    "099afca5946debe5620411f2ab1d4aec388918ca",
+    validationHead
+  ]).status === 0
+) {
+  const {
+    filterLegacyP5ContinuationErrors,
+    validatePortabilityRepository
+  } = await import(
+    "./lib/portability-continuity.mjs"
+  );
+  const portabilityErrors = validatePortabilityRepository(ROOT, validationHead);
+  if (portabilityErrors.length === 0) {
+    const allowedPaths = [
+      ...gitLines([
+        "diff",
+        "--name-only",
+        `${boundSource}..099afca5946debe5620411f2ab1d4aec388918ca`
+      ]),
+      ...gitLines([
+        "diff",
+        "--name-only",
+        `099afca5946debe5620411f2ab1d4aec388918ca..${validationHead}`
+      ]),
+      ...uncommittedPaths
+    ];
+    const remainingErrors = filterLegacyP5ContinuationErrors(errors, allowedPaths);
+    errors.length = 0;
+    errors.push(...remainingErrors);
+  }
+  errors.push(...portabilityErrors);
+}
+// PORTABILITY_CONTINUATION_END
 
 if (errors.length > 0) {
   process.stderr.write(
