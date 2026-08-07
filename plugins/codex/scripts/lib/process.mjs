@@ -55,13 +55,17 @@ function looksLikeMissingProcessMessage(text) {
 }
 
 export function terminateProcessTree(pid, options = {}) {
-  if (!Number.isFinite(pid)) {
+  if (!Number.isSafeInteger(pid) || pid <= 0 || pid === process.pid) {
     return { attempted: false, delivered: false, method: null };
   }
 
   const platform = options.platform ?? process.platform;
   const runCommandImpl = options.runCommandImpl ?? runCommand;
   const killImpl = options.killImpl ?? process.kill.bind(process);
+
+  if (platform !== "win32") {
+    return { attempted: false, delivered: false, method: "unowned-posix-pid" };
+  }
 
   if (platform === "win32") {
     const result = runCommandImpl("taskkill", ["/PID", String(pid), "/T", "/F"], {
@@ -105,24 +109,62 @@ export function terminateProcessTree(pid, options = {}) {
     throw new Error(formatCommandFailure(result));
   }
 
-  try {
-    killImpl(-pid, "SIGTERM");
-    return { attempted: true, delivered: true, method: "process-group" };
-  } catch (error) {
-    if (error?.code !== "ESRCH") {
-      try {
-        killImpl(pid, "SIGTERM");
-        return { attempted: true, delivered: true, method: "process" };
-      } catch (innerError) {
-        if (innerError?.code === "ESRCH") {
-          return { attempted: true, delivered: false, method: "process" };
-        }
-        throw innerError;
-      }
-    }
+}
 
-    return { attempted: true, delivered: false, method: "process-group" };
+function childExited(child) {
+  return child.exitCode !== null || child.signalCode !== null;
+}
+
+function waitForChildExit(child, timeoutMs) {
+  if (childExited(child)) return Promise.resolve(true);
+  return new Promise((resolve) => {
+    const onExit = () => finish(true);
+    const timer = setTimeout(() => finish(childExited(child)), timeoutMs);
+    timer.unref?.();
+    const finish = (exited) => {
+      clearTimeout(timer);
+      child.off("exit", onExit);
+      resolve(exited);
+    };
+    child.once("exit", onExit);
+  });
+}
+
+export async function terminateOwnedPosixProcess(child, options = {}) {
+  const platform = options.platform ?? process.platform;
+  if (platform !== "linux" && platform !== "darwin") {
+    throw new Error(`Owned POSIX termination is unavailable on ${platform}.`);
   }
+  if (
+    !child ||
+    typeof child.once !== "function" ||
+    typeof child.off !== "function" ||
+    !Number.isSafeInteger(child.pid) ||
+    child.pid <= 0 ||
+    child.pid === process.pid
+  ) {
+    throw new Error("A retained child process handle is required.");
+  }
+  if (childExited(child)) return { attempted: false, delivered: false, phase: "exited" };
+
+  const gracefulMs = options.gracefulMs ?? 50;
+  const termMs = options.termMs ?? 2000;
+  const killMs = options.killMs ?? 1000;
+  const killImpl = options.killImpl ?? process.kill.bind(process);
+  if (await waitForChildExit(child, gracefulMs)) {
+    return { attempted: false, delivered: false, phase: "graceful" };
+  }
+
+  killImpl(-child.pid, "SIGTERM");
+  if (await waitForChildExit(child, termMs)) {
+    return { attempted: true, delivered: true, phase: "terminated" };
+  }
+
+  killImpl(-child.pid, "SIGKILL");
+  if (!(await waitForChildExit(child, killMs))) {
+    throw new Error("Owned POSIX process group did not exit after SIGKILL.");
+  }
+  return { attempted: true, delivered: true, phase: "killed" };
 }
 
 export function formatCommandFailure(result) {
