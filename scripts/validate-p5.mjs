@@ -325,6 +325,27 @@ if (
   errors.push("P5E_LEDGER_RED: meaningful RED must remain in the ordered ledger");
 }
 const validationHead = resolveValidationHead();
+// PORTABILITY_CONTINUATION_BEGIN
+if (
+  gitProbe([
+    "merge-base",
+    "--is-ancestor",
+    "099afca5946debe5620411f2ab1d4aec388918ca",
+    validationHead
+  ]).status === 0
+) {
+  const { validatePortabilityRepository } = await import(
+    "./lib/portability-continuity.mjs"
+  );
+  errors.push(...validatePortabilityRepository(ROOT, validationHead));
+  if (errors.length === 0) {
+    process.stdout.write(
+      "P5 validation passed through the exact v0.1-to-v0.2 portability continuation.\n"
+    );
+    process.exit(0);
+  }
+}
+// PORTABILITY_CONTINUATION_END
 const boundSource = evidence?.source?.sourceCommit ?? "";
 const boundSourceType = spawnSync("git", ["cat-file", "-t", boundSource], {
   cwd: ROOT,
