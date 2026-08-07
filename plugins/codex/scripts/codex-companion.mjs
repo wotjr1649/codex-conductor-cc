@@ -53,6 +53,7 @@ import {
   SESSION_ID_ENV
 } from "./lib/tracked-jobs.mjs";
 import { resolveWorkspaceRoot } from "./lib/workspace.mjs";
+import { assertSupportedRuntime } from "./lib/platform-policy.mjs";
 import {
   renderNativeReviewResult,
   renderReviewResult,
@@ -63,6 +64,8 @@ import {
   renderStatusReport,
   renderTaskResult
 } from "./lib/render.mjs";
+
+assertSupportedRuntime();
 
 const ROOT_DIR = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
 const REVIEW_SCHEMA = path.join(ROOT_DIR, "schemas", "review-output.schema.json");
