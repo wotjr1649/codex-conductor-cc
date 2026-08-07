@@ -74,6 +74,7 @@ const DEFAULT_STATUS_POLL_INTERVAL_MS = 2000;
 const VALID_REASONING_EFFORTS = new Set(["none", "minimal", "low", "medium", "high", "xhigh"]);
 const MODEL_ALIASES = new Map([["spark", "gpt-5.3-codex-spark"]]);
 const STOP_REVIEW_TASK_MARKER = "Run a stop-gate review of the previous Claude turn.";
+const WORKER_START_TOKEN = "start\n";
 
 function printUsage() {
   console.log(
@@ -673,15 +674,13 @@ async function runForegroundCommand(job, runner, options = {}) {
 
 function spawnDetachedTaskWorker(cwd, jobId) {
   const scriptPath = path.join(ROOT_DIR, "scripts", "codex-companion.mjs");
-  const child = spawn(process.execPath, [scriptPath, "task-worker", "--cwd", cwd, "--job-id", jobId], {
+  return spawn(process.execPath, [scriptPath, "task-worker", "--cwd", cwd, "--job-id", jobId, "--start-after-stdin"], {
     cwd,
     env: process.env,
     detached: true,
-    stdio: "ignore",
+    stdio: ["pipe", "ignore", "ignore"],
     windowsHide: true
   });
-  child.unref();
-  return child;
 }
 
 function enqueueBackgroundTask(cwd, job, request) {
@@ -689,6 +688,11 @@ function enqueueBackgroundTask(cwd, job, request) {
   appendLogLine(logFile, "Queued for background execution.");
 
   const child = spawnDetachedTaskWorker(cwd, job.id);
+  if (!Number.isSafeInteger(child.pid) || !child.stdin) {
+    child.stdin?.destroy();
+    child.unref();
+    throw new Error("Unable to start the background task worker.");
+  }
   const queuedRecord = {
     ...job,
     status: "queued",
@@ -697,8 +701,17 @@ function enqueueBackgroundTask(cwd, job, request) {
     logFile,
     request
   };
-  writeJobFile(job.workspaceRoot, job.id, queuedRecord);
-  upsertJob(job.workspaceRoot, queuedRecord);
+  try {
+    writeJobFile(job.workspaceRoot, job.id, queuedRecord);
+    upsertJob(job.workspaceRoot, queuedRecord);
+  } catch (error) {
+    child.stdin.destroy();
+    child.unref();
+    throw error;
+  }
+  child.stdin.on("error", () => {});
+  child.stdin.end(WORKER_START_TOKEN);
+  child.unref();
 
   return {
     payload: {
@@ -840,11 +853,15 @@ async function handleTransfer(argv) {
 
 async function handleTaskWorker(argv) {
   const { options } = parseCommandInput(argv, {
-    valueOptions: ["cwd", "job-id"]
+    valueOptions: ["cwd", "job-id"],
+    booleanOptions: ["start-after-stdin"]
   });
 
   if (!options["job-id"]) {
     throw new Error("Missing required --job-id for task-worker.");
+  }
+  if (options["start-after-stdin"] && fs.readFileSync(0, "utf8") !== WORKER_START_TOKEN) {
+    throw new Error("Background task worker did not receive its start signal.");
   }
 
   const cwd = resolveCommandCwd(options);

@@ -45,7 +45,7 @@ function writePidFile(pidFile) {
     return;
   }
   fs.mkdirSync(path.dirname(pidFile), { recursive: true });
-  fs.writeFileSync(pidFile, `${process.pid}\n`, "utf8");
+  fs.writeFileSync(pidFile, `${process.pid}\n`, { encoding: "utf8", mode: 0o600 });
 }
 
 async function main() {
@@ -246,7 +246,9 @@ async function main() {
     process.exit(0);
   });
 
-  server.listen(listenTarget.path);
+  server.listen(listenTarget.path, () => {
+    if (listenTarget.kind === "unix") fs.chmodSync(listenTarget.path, 0o600);
+  });
 }
 
 main().catch((error) => {

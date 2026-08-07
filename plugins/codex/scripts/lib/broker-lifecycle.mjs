@@ -6,14 +6,37 @@ import process from "node:process";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { createBrokerEndpoint, parseBrokerEndpoint } from "./broker-endpoint.mjs";
+import {
+  ensurePrivateDirectory,
+  ensurePrivateTree,
+  resolvePosixRuntimeRoot,
+  runtimeScopeId
+} from "./runtime-paths.mjs";
 import { resolveStateDir } from "./state.mjs";
 
 export const PID_FILE_ENV = "CODEX_COMPANION_APP_SERVER_PID_FILE";
 export const LOG_FILE_ENV = "CODEX_COMPANION_APP_SERVER_LOG_FILE";
 const BROKER_STATE_FILE = "broker.json";
 
-export function createBrokerSessionDir(prefix = "cxc-") {
-  return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+export function createBrokerSessionDir(prefix = "cxc-", options = {}) {
+  const platform = options.platform ?? process.platform;
+  if (platform === "win32") return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+  if (platform !== "linux" && platform !== "darwin") {
+    throw new Error(`Unsupported broker platform: ${platform}`);
+  }
+  if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,31}$/.test(prefix)) {
+    throw new Error("Invalid broker directory prefix.");
+  }
+  const uid = options.uid ?? process.getuid?.();
+  const root = resolvePosixRuntimeRoot({
+    baseDir: options.runtimeBase,
+    env: options.env ?? process.env,
+    uid
+  });
+  const runs = ensurePrivateTree(root, [runtimeScopeId(options.cwd), "runs"], { uid });
+  const sessionDir = fs.mkdtempSync(path.join(runs, prefix));
+  fs.chmodSync(sessionDir, 0o700);
+  return ensurePrivateDirectory(sessionDir, { uid });
 }
 
 function connectToEndpoint(endpoint) {
@@ -57,7 +80,7 @@ export async function sendBrokerShutdown(endpoint) {
 }
 
 export function spawnBrokerProcess({ scriptPath, cwd, endpoint, pidFile, logFile, env = process.env }) {
-  const logFd = fs.openSync(logFile, "a");
+  const logFd = fs.openSync(logFile, "a", 0o600);
   const child = spawn(process.execPath, [scriptPath, "serve", "--endpoint", endpoint, "--cwd", cwd, "--pid-file", pidFile], {
     cwd,
     env,
@@ -128,9 +151,19 @@ export async function ensureBrokerSession(cwd, options = {}) {
     clearBrokerSession(cwd);
   }
 
-  const sessionDir = createBrokerSessionDir();
+  const sessionDir = createBrokerSessionDir("broker-", {
+    platform: options.platform ?? process.platform,
+    cwd,
+    env: options.env ?? process.env
+  });
   const endpointFactory = options.createBrokerEndpoint ?? createBrokerEndpoint;
-  const endpoint = endpointFactory(sessionDir, options.platform);
+  let endpoint;
+  try {
+    endpoint = endpointFactory(sessionDir, options.platform);
+  } catch (error) {
+    fs.rmdirSync(sessionDir);
+    throw error;
+  }
   const pidFile = path.join(sessionDir, "broker.pid");
   const logFile = path.join(sessionDir, "broker.log");
   const scriptPath =

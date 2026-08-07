@@ -94,6 +94,14 @@ export function terminateProcessTree(pid, options = {}) {
       throw result.error;
     }
 
+    try {
+      killImpl(pid, 0);
+    } catch (error) {
+      if (error?.code === "ESRCH") {
+        return { attempted: true, delivered: false, method: "taskkill", result };
+      }
+    }
+
     throw new Error(formatCommandFailure(result));
   }
 

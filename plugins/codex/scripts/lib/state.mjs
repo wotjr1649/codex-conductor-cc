@@ -1,8 +1,13 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
+import {
+  ensurePrivateDirectory,
+  ensurePrivateTree,
+  resolvePosixRuntimeRoot
+} from "./runtime-paths.mjs";
 import { resolveWorkspaceRoot } from "./workspace.mjs";
 
 const STATE_VERSION = 1;
@@ -11,6 +16,7 @@ const FALLBACK_STATE_ROOT_DIR = path.join(os.tmpdir(), "codex-companion");
 const STATE_FILE_NAME = "state.json";
 const JOBS_DIR_NAME = "jobs";
 const MAX_JOBS = 50;
+const JOB_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 
 function nowIso() {
   return new Date().toISOString();
@@ -39,8 +45,20 @@ export function resolveStateDir(cwd) {
   const slug = slugSource.replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/^-+|-+$/g, "") || "workspace";
   const hash = createHash("sha256").update(canonicalWorkspaceRoot).digest("hex").slice(0, 16);
   const pluginDataDir = process.env[PLUGIN_DATA_ENV];
-  const stateRoot = pluginDataDir ? path.join(pluginDataDir, "state") : FALLBACK_STATE_ROOT_DIR;
-  return path.join(stateRoot, `${slug}-${hash}`);
+  if (process.platform === "win32") {
+    const stateRoot = pluginDataDir ? path.join(pluginDataDir, "state") : FALLBACK_STATE_ROOT_DIR;
+    return path.join(stateRoot, `${slug}-${hash}`);
+  }
+
+  const uid = process.getuid?.();
+  const stateRoot = pluginDataDir
+    ? ensurePrivateTree(
+        ensurePrivateDirectory(fs.realpathSync.native(pluginDataDir), { uid }),
+        ["state"],
+        { uid }
+      )
+    : ensurePrivateTree(resolvePosixRuntimeRoot({ uid }), ["state"], { uid });
+  return ensurePrivateTree(stateRoot, [`${slug}-${hash}`], { uid });
 }
 
 export function resolveStateFile(cwd) {
@@ -52,7 +70,81 @@ export function resolveJobsDir(cwd) {
 }
 
 export function ensureStateDir(cwd) {
-  fs.mkdirSync(resolveJobsDir(cwd), { recursive: true });
+  const jobsDir = resolveJobsDir(cwd);
+  if (process.platform === "win32") {
+    fs.mkdirSync(jobsDir, { recursive: true, mode: 0o700 });
+  } else {
+    ensurePrivateTree(path.dirname(jobsDir), [path.basename(jobsDir)], {
+      uid: process.getuid?.()
+    });
+  }
+}
+
+function assertJobId(jobId) {
+  if (typeof jobId !== "string" || !JOB_ID.test(jobId)) {
+    throw new Error("Invalid job id.");
+  }
+  return jobId;
+}
+
+function jobArtifactPath(cwd, jobId, extension) {
+  return path.join(resolveJobsDir(cwd), `${assertJobId(jobId)}.${extension}`);
+}
+
+function assertManagedLogFile(cwd, logFile) {
+  if (logFile == null) return null;
+  if (typeof logFile !== "string") throw new Error("Invalid state job log file.");
+  const basename = path.basename(logFile);
+  const stem = basename.endsWith(".log") ? basename.slice(0, -4) : "";
+  if (path.dirname(logFile) !== resolveJobsDir(cwd) || !JOB_ID.test(stem)) {
+    throw new Error("Invalid state job log file.");
+  }
+  return logFile;
+}
+
+function assertJobRecord(cwd, job) {
+  if (!job || typeof job !== "object" || Array.isArray(job)) {
+    throw new Error("Invalid state job record.");
+  }
+  assertJobId(job.id);
+  assertManagedLogFile(cwd, job.logFile);
+}
+
+function assertJobRecords(cwd, jobs) {
+  jobs.forEach((job) => assertJobRecord(cwd, job));
+  const logs = jobs.map((job) => job.logFile).filter(Boolean);
+  if (new Set(logs).size !== logs.length) throw new Error("Duplicate state job log file.");
+}
+
+function parseState(cwd, raw) {
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error("Invalid state file.");
+  }
+  if (
+    !parsed ||
+    typeof parsed !== "object" ||
+    Array.isArray(parsed) ||
+    parsed.version !== STATE_VERSION ||
+    !parsed.config ||
+    typeof parsed.config !== "object" ||
+    Array.isArray(parsed.config) ||
+    !Array.isArray(parsed.jobs)
+  ) {
+    throw new Error("Invalid state file.");
+  }
+  assertJobRecords(cwd, parsed.jobs);
+  return {
+    ...defaultState(),
+    ...parsed,
+    config: {
+      ...defaultState().config,
+      ...parsed.config
+    },
+    jobs: parsed.jobs
+  };
 }
 
 export function loadState(cwd) {
@@ -61,20 +153,7 @@ export function loadState(cwd) {
     return defaultState();
   }
 
-  try {
-    const parsed = JSON.parse(fs.readFileSync(stateFile, "utf8"));
-    return {
-      ...defaultState(),
-      ...parsed,
-      config: {
-        ...defaultState().config,
-        ...(parsed.config ?? {})
-      },
-      jobs: Array.isArray(parsed.jobs) ? parsed.jobs : []
-    };
-  } catch {
-    return defaultState();
-  }
+  return parseState(cwd, fs.readFileSync(stateFile, "utf8"));
 }
 
 function pruneJobs(jobs) {
@@ -89,9 +168,21 @@ function removeFileIfExists(filePath) {
   }
 }
 
+function atomicWriteFile(filePath, content) {
+  const temporary = `${filePath}.${process.pid}.${randomUUID()}.tmp`;
+  try {
+    fs.writeFileSync(temporary, content, { encoding: "utf8", mode: 0o600, flag: "wx" });
+    fs.renameSync(temporary, filePath);
+  } finally {
+    if (fs.existsSync(temporary)) fs.unlinkSync(temporary);
+  }
+}
+
 export function saveState(cwd, state) {
   const previousJobs = loadState(cwd).jobs;
   ensureStateDir(cwd);
+  if (!Array.isArray(state.jobs)) throw new Error("Invalid state jobs.");
+  assertJobRecords(cwd, state.jobs);
   const nextJobs = pruneJobs(state.jobs ?? []);
   const nextState = {
     version: STATE_VERSION,
@@ -108,10 +199,10 @@ export function saveState(cwd, state) {
       continue;
     }
     removeJobFile(resolveJobFile(cwd, job.id));
-    removeFileIfExists(job.logFile);
+    removeFileIfExists(assertManagedLogFile(cwd, job.logFile));
   }
 
-  fs.writeFileSync(resolveStateFile(cwd), `${JSON.stringify(nextState, null, 2)}\n`, "utf8");
+  atomicWriteFile(resolveStateFile(cwd), `${JSON.stringify(nextState, null, 2)}\n`);
   return nextState;
 }
 
@@ -166,12 +257,25 @@ export function getConfig(cwd) {
 export function writeJobFile(cwd, jobId, payload) {
   ensureStateDir(cwd);
   const jobFile = resolveJobFile(cwd, jobId);
-  fs.writeFileSync(jobFile, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
+  if (payload?.id !== jobId) throw new Error("Job file id does not match its path.");
+  assertJobRecord(cwd, payload);
+  atomicWriteFile(jobFile, `${JSON.stringify(payload, null, 2)}\n`);
   return jobFile;
 }
 
 export function readJobFile(jobFile) {
-  return JSON.parse(fs.readFileSync(jobFile, "utf8"));
+  const payload = JSON.parse(fs.readFileSync(jobFile, "utf8"));
+  const jobId = path.basename(jobFile, ".json");
+  if (payload?.id !== jobId) throw new Error("Job file id does not match its path.");
+  if (
+    payload.logFile != null &&
+    (path.dirname(payload.logFile) !== path.dirname(jobFile) ||
+      !JOB_ID.test(path.basename(payload.logFile, ".log")) ||
+      path.extname(payload.logFile) !== ".log")
+  ) {
+    throw new Error("Invalid job log file.");
+  }
+  return payload;
 }
 
 function removeJobFile(jobFile) {
@@ -181,11 +285,13 @@ function removeJobFile(jobFile) {
 }
 
 export function resolveJobLogFile(cwd, jobId) {
+  assertJobId(jobId);
   ensureStateDir(cwd);
-  return path.join(resolveJobsDir(cwd), `${jobId}.log`);
+  return jobArtifactPath(cwd, jobId, "log");
 }
 
 export function resolveJobFile(cwd, jobId) {
+  assertJobId(jobId);
   ensureStateDir(cwd);
-  return path.join(resolveJobsDir(cwd), `${jobId}.json`);
+  return jobArtifactPath(cwd, jobId, "json");
 }
