@@ -1007,6 +1007,7 @@ async function handleTaskWorker(argv) {
       logFile: storedJob.logFile ?? null
     }
   );
+  let workerFailure = null;
   try {
     if (!cancelRequested) {
       workerStarted = true;
@@ -1025,13 +1026,14 @@ async function handleTaskWorker(argv) {
       );
     }
   } catch (error) {
-    if (!cancelRequested) throw error;
+    workerFailure = { error };
   } finally {
+    await controllerServer?.close();
     if (cancelRequested) {
       updateWorkerStatus("cancelled", "Cancelled by authenticated worker control.");
     }
-    await controllerServer?.close();
   }
+  if (workerFailure && !cancelRequested) throw workerFailure.error;
 }
 
 async function handleStatus(argv) {

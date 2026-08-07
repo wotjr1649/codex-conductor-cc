@@ -196,8 +196,20 @@ export async function startWorkerControlServer(cwd, descriptor, capability, onCa
 
   return {
     async close() {
-      for (const socket of sockets) socket.destroy();
-      await new Promise((resolve) => server.close(resolve));
+      const closed = new Promise((resolve) => server.close(resolve));
+      let timeout;
+      // Drain a valid acknowledgement without letting a stalled local client pin the worker.
+      const graceful = await Promise.race([
+        closed.then(() => true),
+        new Promise((resolve) => {
+          timeout = setTimeout(() => resolve(false), 2000);
+        })
+      ]);
+      clearTimeout(timeout);
+      if (!graceful) {
+        for (const socket of sockets) socket.destroy();
+      }
+      await closed;
       if (fs.existsSync(controller.socketPath)) fs.unlinkSync(controller.socketPath);
       if (fs.existsSync(controller.capabilityFile)) fs.unlinkSync(controller.capabilityFile);
       fs.rmdirSync(controller.sessionDir);
