@@ -42,6 +42,7 @@ const EXACT_PATHS = new Set([
   "package-lock.json",
   "package.json",
   "plugins/codex/.claude-plugin/plugin.json",
+  "plugins/codex/CHANGELOG.md",
   "plugins/codex/README.md",
   "scripts/validate-p5.mjs",
   "scripts/validate-portability.mjs",

@@ -36,6 +36,7 @@ test("P6-CONTINUITY-001 binds the released v0.1 base and explicit path scope", (
     ".github/CODEOWNERS",
     "tests/state.test.mjs",
     "tests/portability/p5-continuity.test.mjs",
+    "plugins/codex/CHANGELOG.md",
     "plugins/codex/scripts/lib/platform-policy.mjs",
     ".github/workflows/portability-ci.yml",
     ".github/workflows/pull-request-ci.yml",
@@ -49,6 +50,7 @@ test("P6-CONTINUITY-001 binds the released v0.1 base and explicit path scope", (
     "tests/p5-matrix-profile.test.mjs",
     "evidence/manifests/p5/forged.json",
     "plugins/codex/hooks/hooks.json",
+    "plugins/codex/CHANGELOG.md.bak",
     "tests/portability/../p5-matrix-profile.test.mjs",
     "tests/portability/forged\nname.test.mjs",
     "/tests/portability/absolute.test.mjs"
