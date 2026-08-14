@@ -928,16 +928,35 @@ export function getCodexAvailability(cwd) {
 }
 
 export function getSessionRuntimeStatus(env = process.env, cwd = process.cwd()) {
-  const endpoint =
-    (process.platform === "win32" ? env?.[BROKER_ENDPOINT_ENV] : null) ??
-    loadBrokerSession(cwd)?.endpoint ??
-    null;
+  const envEndpoint = (process.platform === "win32" ? env?.[BROKER_ENDPOINT_ENV] : null) ?? null;
+  let storedEndpoint = null;
+  let brokerStateError = null;
+  if (!envEndpoint) {
+    try {
+      storedEndpoint = loadBrokerSession(cwd)?.endpoint ?? null;
+    } catch (error) {
+      // Recorded broker state that no longer resolves used to take the diagnostics down with
+      // it, so the one command that could report the breakage threw instead of reporting.
+      brokerStateError = error instanceof Error ? error.message : String(error);
+    }
+  }
+
+  const endpoint = envEndpoint ?? storedEndpoint;
   if (endpoint) {
     return {
       mode: "shared",
       label: "shared session",
       detail: "This Claude session is configured to reuse one shared Codex runtime.",
       endpoint
+    };
+  }
+
+  if (brokerStateError) {
+    return {
+      mode: "unusable",
+      label: "unusable shared runtime",
+      detail: `Recorded Codex broker state could not be read: ${brokerStateError} The next command will try to reclaim it.`,
+      endpoint: null
     };
   }
 

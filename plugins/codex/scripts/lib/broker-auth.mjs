@@ -117,9 +117,9 @@ export function createBrokerAuthProof(hello, challenge, auth) {
   };
 }
 
-/** @param {{ operation?: string, seenNonces?: Set<string> | null }} [options] */
+/** @param {{ operation?: string, seenNonces?: Set<string> | null, maxSeenNonces?: number }} [options] */
 export function verifyBrokerAuthProof(proof, hello, challenge, auth, options = {}) {
-  const { operation, seenNonces = null } = options;
+  const { operation, seenNonces = null, maxSeenNonces = 4096 } = options;
   const params = proof?.params;
   const replayKey = `${params?.clientNonce ?? ""}.${params?.serverNonce ?? ""}`;
   if (
@@ -134,6 +134,12 @@ export function verifyBrokerAuthProof(proof, hello, challenge, auth, options = {
     throw authenticationFailed();
   }
   seenNonces?.add(replayKey);
+  // Bound the replay set by evicting the oldest pair rather than letting it grow until every
+  // later authentication is refused. Evicting cannot open a replay: the pair contains a server
+  // nonce the broker draws fresh for each connection, so an evicted pair is never offered again.
+  if (seenNonces && seenNonces.size > maxSeenNonces) {
+    seenNonces.delete(seenNonces.values().next().value);
+  }
   return true;
 }
 

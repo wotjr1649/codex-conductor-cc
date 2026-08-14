@@ -14,6 +14,7 @@ import {
   sendBrokerShutdown,
   teardownBrokerSession
 } from "../plugins/codex/scripts/lib/broker-lifecycle.mjs";
+import { createBrokerEndpoint } from "../plugins/codex/scripts/lib/broker-endpoint.mjs";
 import { terminateProcessTree } from "../plugins/codex/scripts/lib/process.mjs";
 import { resolveStateDir } from "../plugins/codex/scripts/lib/state.mjs";
 
@@ -2359,9 +2360,15 @@ test("status reports shared session runtime when a lazy broker is active", () =>
 test("setup and status honor --cwd when reading shared session runtime", () => {
   const targetWorkspace = makeTempDir();
   const invocationWorkspace = makeTempDir();
+  const brokerSessionDir = makeTempDir("broker-");
+  const endpoint = createBrokerEndpoint(brokerSessionDir, "win32");
 
   saveBrokerSession(targetWorkspace, {
-    endpoint: "pipe:\\\\.\\pipe\\fake-broker"
+    endpoint,
+    logFile: path.join(brokerSessionDir, "broker.log"),
+    pid: null,
+    pidFile: path.join(brokerSessionDir, "broker.pid"),
+    sessionDir: brokerSessionDir
   });
 
   const status = run("node", [SCRIPT, "status", "--cwd", targetWorkspace], {
@@ -2376,5 +2383,5 @@ test("setup and status honor --cwd when reading shared session runtime", () => {
   assert.equal(setup.status, 0, setup.stderr);
   const payload = JSON.parse(setup.stdout);
   assert.equal(payload.sessionRuntime.mode, "shared");
-  assert.equal(payload.sessionRuntime.endpoint, "pipe:\\\\.\\pipe\\fake-broker");
+  assert.equal(payload.sessionRuntime.endpoint, endpoint);
 });

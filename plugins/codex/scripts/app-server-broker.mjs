@@ -29,6 +29,8 @@ const AUTH_OPERATIONS = new Set(["connect", "ready", "shutdown"]);
 const MAX_AUTH_FRAME_BYTES = 4096;
 const MAX_FRAME_BYTES = 8 * 1024 * 1024;
 const MAX_AUTHENTICATED_NONCES = 4096;
+const MAX_SOCKET_WRITE_BUFFER_BYTES = 8 * 1024 * 1024;
+const IDLE_SHUTDOWN_MS = 30 * 60 * 1000;
 
 function buildStreamThreadIds(method, params, result) {
   const threadIds = new Set();
@@ -47,6 +49,13 @@ function buildJsonRpcError(code, message, data) {
 
 function send(socket, message) {
   if (socket.destroyed) {
+    return;
+  }
+  // Nothing here waits for drain, so a client that stops reading would inflate the broker's
+  // write buffer without bound. Drop that connection instead: a lost connection now fails the
+  // client's turn rather than hanging it.
+  if (socket.writableLength > MAX_SOCKET_WRITE_BUFFER_BYTES) {
+    socket.destroy();
     return;
   }
   socket.write(`${JSON.stringify(message)}\n`);
@@ -117,6 +126,31 @@ async function main() {
   const authenticatedConnections = new Set();
   const seenNonces = new Set();
 
+  let idleTimer = null;
+
+  function clearIdleShutdown() {
+    if (idleTimer) {
+      clearTimeout(idleTimer);
+      idleTimer = null;
+    }
+  }
+
+  // Nothing else reclaims a broker whose session went away without stopping it — a crashed
+  // host, a SessionEnd hook that ran out of budget, a workspace nobody returns to.
+  function armIdleShutdown(target) {
+    clearIdleShutdown();
+    idleTimer = setTimeout(async () => {
+      idleTimer = null;
+      if (sockets.size > 0) {
+        return;
+      }
+      process.stderr.write("codex broker idle with no client; stopping.\n");
+      await shutdown(target);
+      process.exit(0);
+    }, IDLE_SHUTDOWN_MS);
+    idleTimer.unref?.();
+  }
+
   function clearSocketOwnership(socket) {
     if (activeRequestSocket === socket) {
       activeRequestSocket = null;
@@ -124,6 +158,15 @@ async function main() {
     if (activeStreamSocket === socket) {
       activeStreamSocket = null;
       activeStreamThreadIds = null;
+    }
+  }
+
+  function releaseSocket(socket) {
+    sockets.delete(socket);
+    authenticatedConnections.delete(socket);
+    clearSocketOwnership(socket);
+    if (sockets.size === 0) {
+      armIdleShutdown(server);
     }
   }
 
@@ -163,6 +206,7 @@ async function main() {
 
   const server = net.createServer((socket) => {
     sockets.add(socket);
+    clearIdleShutdown();
     socket.setEncoding("utf8");
     let buffer = "";
     let authenticated = listenTarget.kind === "pipe";
@@ -171,7 +215,11 @@ async function main() {
     let authChallenge = null;
     let authProof = null;
 
-    socket.on("data", async (chunk) => {
+    // This handler awaits, so two chunks could interleave over the shared buffer and slice it
+    // with a stale index. Serialize per connection rather than relying on no client ever
+    // pipelining requests.
+    let processing = Promise.resolve();
+    const handleChunk = async (chunk) => {
       buffer += chunk;
       const frameLimit = authenticated ? MAX_FRAME_BYTES : MAX_AUTH_FRAME_BYTES;
       if (Buffer.byteLength(buffer) > frameLimit) {
@@ -203,7 +251,7 @@ async function main() {
           try {
             if (message.method === "broker/hello" && message.id !== undefined && !authHello) {
               const operation = message.params?.operation;
-              if (!AUTH_OPERATIONS.has(operation) || seenNonces.size >= MAX_AUTHENTICATED_NONCES) {
+              if (!AUTH_OPERATIONS.has(operation)) {
                 throw new Error("Broker authentication failed.");
               }
               authHello = message;
@@ -214,7 +262,8 @@ async function main() {
             if (message.method === "broker/auth" && message.id !== undefined && authHello && authChallenge && !authProof) {
               verifyBrokerAuthProof(message, authHello, authChallenge, brokerAuth, {
                 operation: authHello.params.operation,
-                seenNonces
+                seenNonces,
+                maxSeenNonces: MAX_AUTHENTICATED_NONCES
               });
               authProof = message;
               authenticated = true;
@@ -332,18 +381,18 @@ async function main() {
           }
         }
       }
+    };
+
+    socket.on("data", (chunk) => {
+      processing = processing.then(() => handleChunk(chunk)).catch(() => {});
     });
 
     socket.on("close", () => {
-      sockets.delete(socket);
-      authenticatedConnections.delete(socket);
-      clearSocketOwnership(socket);
+      releaseSocket(socket);
     });
 
     socket.on("error", () => {
-      sockets.delete(socket);
-      authenticatedConnections.delete(socket);
-      clearSocketOwnership(socket);
+      releaseSocket(socket);
     });
   });
 
@@ -373,6 +422,7 @@ async function main() {
 
   server.listen(listenTarget.path, () => {
     if (listenTarget.kind === "unix") fs.chmodSync(listenTarget.path, 0o600);
+    armIdleShutdown(server);
   });
 }
 

@@ -185,8 +185,12 @@ async function handleSessionEnd(input) {
     }
   }
 
+  // teardownBrokerSession already encodes when the recorded session is gone: false on POSIX
+  // without a confirmed authenticated shutdown, and on Windows when the descriptor did not
+  // validate. Clearing the state file follows that answer rather than a second guess.
+  let brokerRemoved = !brokerEndpoint;
   if (brokerEndpoint) {
-    teardownBrokerSession({
+    brokerRemoved = teardownBrokerSession({
       ...brokerSession,
       endpoint: brokerEndpoint,
       pidFile,
@@ -197,7 +201,7 @@ async function handleSessionEnd(input) {
       authenticated: brokerStopped
     });
   }
-  if (!brokerEndpoint || brokerStopped) clearBrokerSession(cwd);
+  if (brokerRemoved) clearBrokerSession(cwd);
 }
 
 async function main() {
