@@ -533,18 +533,23 @@ export function validateScenarioRegistry(registry, root, profileRegistry) {
   ) {
     errors.push("P5E_SCENARIO_IDENTITY: exact P4 handoff binding is required");
   }
+  // Fifteen files and 192 tests as of v0.3: two files the program added (args, job-control) and
+  // eight tests added to files that were already here. The previous 13/167 was recorded when
+  // this validator was written and nothing cross-checked it against the tree, so the count
+  // silently understated coverage for two releases while the suite that reads it had no
+  // trigger. The numbers are measured by running each file and reading its own reported total.
   if (
-    registry.inheritedTestTotals?.files !== 13 ||
-    registry.inheritedTestTotals?.executedTests !== 167 ||
+    registry.inheritedTestTotals?.files !== 15 ||
+    registry.inheritedTestTotals?.executedTests !== 192 ||
     registry.inheritedTestTotals?.skippedTests !== 0 ||
     registry.inheritedTestTotals?.fileMappingDuplicates !== 0 ||
     registry.inheritedTestTotals?.fileMappingOmissions !== 0
   ) {
-    errors.push("P5E_TEST_TOTAL: inherited 167/167 zero-skip baseline changed");
+    errors.push("P5E_TEST_TOTAL: inherited 192/192 zero-skip baseline changed");
   }
   const inherited = registry.inheritedTests ?? [];
   const observedPaths = inherited.map(({ path: testPath }) => testPath);
-  if (inherited.length !== 13 || new Set(observedPaths).size !== 13) {
+  if (inherited.length !== 15 || new Set(observedPaths).size !== 15) {
     errors.push("P5E_TEST_DUPLICATE: every inherited test file must map exactly once");
   }
   const diskTests = fs
