@@ -210,6 +210,19 @@ test("hooks keep session-end cleanup and stop gating enabled", () => {
   assert.match(source, /session-lifecycle-hook\.mjs/);
 });
 
+test("the stop gate keeps budget to answer inside the declared hook timeout", () => {
+  const declaredSeconds = JSON.parse(read("hooks/hooks.json")).hooks.Stop[0].hooks[0].timeout;
+  const source = read("scripts/stop-review-gate-hook.mjs");
+  const mirrored = Number(/STOP_HOOK_TIMEOUT_MS = (\d+) \* 1000/.exec(source)?.[1]);
+  const reserve = Number(/STOP_REVIEW_RESERVE_MS = (\d+) \* 1000/.exec(source)?.[1]);
+
+  // The review used to be given exactly the hook's own timeout, so a timeout left no budget to
+  // emit the prepared decision and the gate fell open in silence.
+  assert.equal(mirrored, declaredSeconds);
+  assert.ok(reserve > 0, "the gate must reserve time to emit its decision");
+  assert.ok(reserve < declaredSeconds, "the reserve must leave time to review");
+});
+
 test("setup command can offer Codex install and still points users to codex login", () => {
   const setup = read("commands/setup.md");
   const readme = fs.readFileSync(path.join(ROOT, "README.md"), "utf8");

@@ -6,10 +6,30 @@ import process from "node:process";
 const SAFE_CMD_ARGUMENT = /^[A-Za-z0-9_./:=+@-]+$/;
 const CMD_META = /[\r\n"&|<>^%]/;
 
+// where.exe costs a process launch, and every git or codex call pays it. Cache per process,
+// keyed by everything the lookup depends on: the command, the directory where.exe searches
+// first, and the search variables. Successful lookups only — an absent binary can appear
+// while the process runs, which is exactly what `/codex:setup` does when it installs Codex
+// and rechecks, while a binary that resolved does not move.
+const resolvedExecutables = new Map();
+
+function whereCacheKey(command, options, env) {
+  return [
+    command,
+    options.cwd ?? "",
+    env.PATH ?? "",
+    env.Path ?? "",
+    env.PATHEXT ?? env.Pathext ?? ""
+  ].join("\u0000");
+}
+
 function resolveWithWhere(command, options) {
   const env = options.env ?? process.env;
   const systemRoot = env.SystemRoot ?? env.SYSTEMROOT ?? process.env.SystemRoot ?? process.env.SYSTEMROOT;
   if (!systemRoot) return null;
+  const cacheKey = whereCacheKey(command, options, env);
+  const cached = resolvedExecutables.get(cacheKey);
+  if (cached !== undefined) return cached;
   const whereExe = path.join(systemRoot, "System32", "where.exe");
   const result = spawnSync(whereExe, [command], {
     cwd: options.cwd,
@@ -19,10 +39,12 @@ function resolveWithWhere(command, options) {
     windowsHide: true
   });
   if (result.status !== 0) return null;
-  return String(result.stdout ?? "")
+  const resolved = String(result.stdout ?? "")
     .split(/\r?\n/)
     .map((value) => value.trim())
     .find((value) => /\.(?:exe|com|cmd|bat)$/i.test(value) && fs.existsSync(value)) ?? null;
+  if (resolved) resolvedExecutables.set(cacheKey, resolved);
+  return resolved;
 }
 
 export function resolveCommandInvocation(command, args = [], options = {}) {

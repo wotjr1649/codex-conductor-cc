@@ -53,10 +53,11 @@ import {
   SESSION_ID_ENV
 } from "./lib/tracked-jobs.mjs";
 import { resolveWorkspaceRoot } from "./lib/workspace.mjs";
-import { assertSupportedRuntime } from "./lib/platform-policy.mjs";
+import { assertSupportedRuntime, supportsWorkerControl } from "./lib/platform-policy.mjs";
 import {
   createWorkerController,
   discardUnstartedWorkerController,
+  discardWorkerController,
   sendWorkerCancel,
   startWorkerControlServer,
   validateWorkerControllerDescriptor
@@ -712,7 +713,7 @@ function enqueueBackgroundTask(cwd, job, request) {
   const { logFile } = createTrackedProgress(job);
   appendLogLine(logFile, "Queued for background execution.");
 
-  const controller = process.platform === "win32" ? null : createWorkerController(job.workspaceRoot);
+  const controller = supportsWorkerControl() ? createWorkerController(job.workspaceRoot) : null;
   const queuedRecord = {
     ...job,
     status: "queued",
@@ -787,6 +788,8 @@ async function handleReviewCommand(argv, config) {
   const { options, positionals } = parseCommandInput(argv, {
     valueOptions: ["base", "scope", "model", "cwd"],
     booleanOptions: ["json", "background", "wait"],
+    // The review focus is free-form prose, so a flag written inside it stays focus text.
+    optionsBeforePositionals: true,
     aliasMap: {
       m: "model"
     }
@@ -837,6 +840,8 @@ async function handleTask(argv) {
   const { options, positionals } = parseCommandInput(argv, {
     valueOptions: ["model", "effort", "cwd", "prompt-file"],
     booleanOptions: ["json", "write", "resume-last", "resume", "fresh", "background"],
+    // The prompt is free-form prose, so a flag written inside it stays prompt text.
+    optionsBeforePositionals: true,
     aliasMap: {
       m: "model"
     }
@@ -918,15 +923,60 @@ async function handleTaskWorker(argv) {
   if (!options["job-id"]) {
     throw new Error("Missing required --job-id for task-worker.");
   }
-  if (options["start-after-stdin"] && fs.readFileSync(0, "utf8") !== WORKER_START_TOKEN) {
-    throw new Error("Background task worker did not receive its start signal.");
+  const jobId = options["job-id"];
+  const cwd = resolveCommandCwd(options);
+  const workspaceRoot = resolveCommandWorkspace(options);
+
+  // Everything below fails before runTrackedJob owns the job's status, and this process writes its
+  // output to nowhere, so a bare throw left the job queued with no pid, no explanation, and its
+  // worker capability directory -- which holds a credential file -- still on disk.
+  function failPreflight(message) {
+    const patch = { status: "failed", phase: "failed", pid: null, errorMessage: message };
+    try {
+      const latest = readStoredJob(workspaceRoot, jobId);
+      if (latest) writeJobFile(workspaceRoot, jobId, { ...latest, ...patch });
+      upsertJob(workspaceRoot, { id: jobId, ...patch });
+      // Discard last, and only what this process owns. Last, because a credential directory left
+      // behind is a leak while removing it before the index agrees leaves a job the index still
+      // calls live with nothing left to control it. Owned, because one of the failures below is
+      // precisely that the stored controller is somebody else's.
+      const controller = latest?.controller;
+      if (
+        controller &&
+        controller.workerId === options["worker-id"] &&
+        controller.generation === options.generation
+      ) {
+        // Scoped to workspaceRoot, which is where enqueueBackgroundTask created it. Passing cwd
+        // resolves a different scope id whenever the command was run from a subdirectory, so the
+        // credential file this is meant to remove was left on disk and a spurious tree created
+        // under the wrong scope. Both sibling call sites already pass workspaceRoot.
+        discardWorkerController(workspaceRoot, controller);
+      }
+    } catch {
+      // The stored state may itself be why we are here.
+    }
+    return new Error(message);
+  }
+
+  if (options["start-after-stdin"]) {
+    let token = null;
+    // A read that throws is a missing start signal too, and letting it out here would skip the
+    // failure marking this function exists for.
+    try {
+      token = fs.readFileSync(0, "utf8");
+    } catch {
+      token = null;
+    }
+    if (token !== WORKER_START_TOKEN) {
+      throw failPreflight("Background task worker did not receive its start signal.");
+    }
   }
 
   let transferredCapability = null;
-  if (process.platform !== "win32") {
+  if (supportsWorkerControl()) {
     const controlFd = Number(options["control-fd"]);
     if (!Number.isSafeInteger(controlFd) || controlFd < 3) {
-      throw new Error("Background task worker did not receive its control capability.");
+      throw failPreflight("Background task worker did not receive its control capability.");
     }
     try {
       transferredCapability = fs.readFileSync(controlFd, "utf8").trim();
@@ -935,16 +985,14 @@ async function handleTaskWorker(argv) {
     }
   }
 
-  const cwd = resolveCommandCwd(options);
-  const workspaceRoot = resolveCommandWorkspace(options);
-  const storedJob = readStoredJob(workspaceRoot, options["job-id"]);
+  const storedJob = readStoredJob(workspaceRoot, jobId);
   if (!storedJob) {
-    throw new Error(`No stored job found for ${options["job-id"]}.`);
+    throw failPreflight(`No stored job found for ${jobId}.`);
   }
 
   const request = storedJob.request;
   if (!request || typeof request !== "object") {
-    throw new Error(`Stored job ${options["job-id"]} is missing its task request payload.`);
+    throw failPreflight(`Stored job ${jobId} is missing its task request payload.`);
   }
 
   let controllerServer = null;
@@ -963,10 +1011,10 @@ async function handleTaskWorker(argv) {
     upsertJob(workspaceRoot, { id: storedJob.id, ...patch });
   }
 
-  if (process.platform !== "win32") {
+  if (supportsWorkerControl()) {
     const descriptor = validateWorkerControllerDescriptor(storedJob.controller);
     if (descriptor.workerId !== options["worker-id"] || descriptor.generation !== options.generation) {
-      throw new Error("Background task worker controller identity did not match its state.");
+      throw failPreflight("Background task worker controller identity did not match its state.");
     }
     controllerServer = await startWorkerControlServer(workspaceRoot, descriptor, transferredCapability, async () => {
       const current = readStoredJob(workspaceRoot, storedJob.id) ?? storedJob;
@@ -1127,19 +1175,31 @@ async function handleCancel(argv) {
   const { workspaceRoot, job } = resolveCancelableJob(cwd, reference, { env: process.env });
   const existing = readStoredJob(workspaceRoot, job.id) ?? {};
 
-  if (process.platform !== "win32") {
+  if (supportsWorkerControl()) {
     let outcome = "indeterminate";
     try {
       outcome = await sendWorkerCancel(workspaceRoot, validateWorkerControllerDescriptor(existing.controller ?? job.controller));
     } catch {
-      const patch = {
-        status: "indeterminate",
-        phase: "indeterminate",
-        pid: null,
-        errorMessage: "Authenticated worker cancellation could not be confirmed."
-      };
-      writeJobFile(workspaceRoot, job.id, { ...existing, ...job, ...patch });
-      upsertJob(workspaceRoot, { id: job.id, ...patch });
+      // The call may have taken long enough for the worker to accept and record the
+      // cancellation, so re-read rather than writing back the snapshot taken before it. That
+      // narrows the window; it does not close it -- writeJobFile carries no compare-and-swap, so
+      // a worker committing between this read and the write below is still overwritten.
+      const current = readStoredJob(workspaceRoot, job.id) ?? { ...job, ...existing };
+      if (current.status === "queued" || current.status === "running") {
+        const patch = {
+          status: "indeterminate",
+          phase: "indeterminate",
+          pid: null,
+          errorMessage: "Authenticated worker cancellation could not be confirmed."
+        };
+        writeJobFile(workspaceRoot, job.id, { ...current, ...patch });
+        upsertJob(workspaceRoot, { id: job.id, ...patch });
+      } else if (current.status && current.status !== job.status) {
+        // The record moved on its own, so do not roll it back -- but do not leave the index
+        // behind either. The index is what every lookup reads, and it is what made a job that
+        // had already finished look cancelable in the first place.
+        upsertJob(workspaceRoot, { id: job.id, status: current.status });
+      }
     }
     const latest = readStoredJob(workspaceRoot, job.id) ?? {
       ...job,

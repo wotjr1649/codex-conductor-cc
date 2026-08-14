@@ -27,8 +27,11 @@ const currentValidator = baseValidator.replace("after\n", `${continuation}after\
 const legacyWorkflow = "name: Pull Request CI\n\non:\n  pull_request:\n\npermissions:\n  contents: read\n";
 const archivedWorkflow = legacyWorkflow.replace("on:\n  pull_request:\n", "on:\n  workflow_dispatch:\n");
 
-test("P6-CONTINUITY-001 binds the released v0.1 base and explicit path scope", () => {
-  assert.equal(PORTABILITY_BASE, "099afca5946debe5620411f2ab1d4aec388918ca");
+test("P6-CONTINUITY-001 binds the reviewed base and explicit path scope", () => {
+  // The reviewed v0.3 head. Advancing this is the closing act of a hardening program and is
+  // reviewed as the diff that does it -- which is why the constant is pinned here rather than
+  // merely read: changing it accidentally is exactly what the gate exists to stop.
+  assert.equal(PORTABILITY_BASE, "b547af57e07a64d25769c22223ef76be72f2dfa9");
   for (const relativePath of [
     "scripts/validate-p5.mjs",
     "scripts/validate-portability.mjs",
@@ -81,14 +84,22 @@ test("P6-CONTINUITY-001B runs continuation only at the final P5 frontier", () =>
   assert.doesNotMatch(validator.slice(begin, end), /process\.exit/);
 });
 
-test("P6-CONTINUITY-003 archives only the legacy workflow trigger", () => {
-  assert.deepEqual(validateLegacyWorkflowArchive(legacyWorkflow, archivedWorkflow), []);
+test("P6-CONTINUITY-003 refuses any change to the already archived workflow", () => {
+  // The base is the archived file now, so identity is the only acceptable state. The one-time
+  // trigger replacement this used to permit happened in v0.2 and is part of the base.
+  assert.deepEqual(validateLegacyWorkflowArchive(archivedWorkflow, archivedWorkflow), []);
+  // Restoring the trigger is still refused, which is what V2 has to route around.
   assert.match(
-    validateLegacyWorkflowArchive(legacyWorkflow, legacyWorkflow).join("\n"),
+    validateLegacyWorkflowArchive(archivedWorkflow, legacyWorkflow).join("\n"),
     /archive/i
   );
   assert.match(
-    validateLegacyWorkflowArchive(legacyWorkflow, `${archivedWorkflow}\n# drift\n`).join("\n"),
+    validateLegacyWorkflowArchive(archivedWorkflow, `${archivedWorkflow}\n# drift\n`).join("\n"),
+    /archive/i
+  );
+  // A base that is not archived is itself a failure: it means the recorded base predates v0.2.
+  assert.match(
+    validateLegacyWorkflowArchive(legacyWorkflow, archivedWorkflow).join("\n"),
     /archive/i
   );
 });
@@ -156,7 +167,9 @@ test("P6-CONTINUITY-005 recognizes only exact inherited CRLF text digests", () =
   );
 });
 
-test("P6-CONTINUITY-002 accepts only the marked insertion in the legacy validator", () => {
+test("P6-CONTINUITY-002 refuses any change to the legacy validator", () => {
+  // The base carries the continuation now, so the insertion allowance is spent and byte
+  // identity is the only acceptable state. Extending it again means another re-baseline.
   assert.deepEqual(
     validatePortabilityChangeSet({
       changedPaths: [
@@ -164,7 +177,7 @@ test("P6-CONTINUITY-002 accepts only the marked insertion in the legacy validato
         "scripts/validate-portability.mjs",
         "tests/portability/p5-continuity.test.mjs"
       ],
-      baseValidatorText: baseValidator,
+      baseValidatorText: currentValidator,
       currentValidatorText: currentValidator
     }),
     []
@@ -172,7 +185,7 @@ test("P6-CONTINUITY-002 accepts only the marked insertion in the legacy validato
   assert.deepEqual(
     validatePortabilityChangeSet({
       changedPaths: ["scripts/validate-p5.mjs"],
-      baseValidatorText: baseValidator.replaceAll("\n", "\r\n"),
+      baseValidatorText: currentValidator.replaceAll("\n", "\r\n"),
       currentValidatorText: currentValidator
     }),
     []
@@ -181,7 +194,7 @@ test("P6-CONTINUITY-002 accepts only the marked insertion in the legacy validato
   assert.ok(
     validatePortabilityChangeSet({
       changedPaths: ["scripts/validate-p5.mjs", "scripts/lib/p5-validation.mjs"],
-      baseValidatorText: baseValidator,
+      baseValidatorText: currentValidator,
       currentValidatorText: currentValidator
     }).some((entry) => entry.includes("P6E_SCOPE"))
   );
@@ -189,16 +202,28 @@ test("P6-CONTINUITY-002 accepts only the marked insertion in the legacy validato
   assert.ok(
     validatePortabilityChangeSet({
       changedPaths: ["scripts/validate-p5.mjs"],
-      baseValidatorText: baseValidator,
+      baseValidatorText: currentValidator,
       currentValidatorText: `${currentValidator}unmarked change\n`
     }).some((entry) => entry.includes("P6E_P5_ENTRYPOINT"))
   );
 
+  // Adding the marked block again is a change like any other now, and refused the same way.
   assert.ok(
     validatePortabilityChangeSet({
-      changedPaths: ["scripts/validate-portability.mjs"],
+      changedPaths: ["scripts/validate-p5.mjs"],
       baseValidatorText: baseValidator,
-      currentValidatorText: baseValidator
+      currentValidatorText: currentValidator
     }).some((entry) => entry.includes("P6E_P5_ENTRYPOINT"))
+  );
+
+  // A change set that does not touch the validator no longer has to: the requirement that it
+  // always appear belonged to the one-time insertion this replaced.
+  assert.deepEqual(
+    validatePortabilityChangeSet({
+      changedPaths: ["scripts/validate-portability.mjs"],
+      baseValidatorText: currentValidator,
+      currentValidatorText: currentValidator
+    }),
+    []
   );
 });

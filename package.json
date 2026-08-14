@@ -19,9 +19,11 @@
     "check-version": "node scripts/bump-version.mjs --check",
     "prebuild": "node scripts/generate-app-server-types.mjs",
     "build": "tsc -p tsconfig.app-server.json",
-    "test": "node --test --test-concurrency=1 --test-reporter=dot tests/broker-endpoint.test.mjs tests/bump-version.test.mjs tests/commands.test.mjs tests/generate-app-server-types.test.mjs tests/git.test.mjs tests/platform-policy.test.mjs tests/process.test.mjs tests/render.test.mjs tests/runtime.test.mjs tests/state.test.mjs tests/portability/*.test.mjs",
+    "test": "node --test --test-concurrency=1 --test-reporter=dot tests/args.test.mjs tests/broker-endpoint.test.mjs tests/bump-version.test.mjs tests/commands.test.mjs tests/generate-app-server-types.test.mjs tests/git.test.mjs tests/job-control.test.mjs tests/platform-policy.test.mjs tests/process.test.mjs tests/render.test.mjs tests/runtime.test.mjs tests/state.test.mjs tests/portability/*.test.mjs",
     "validate:p3": "node scripts/validate-p3.mjs",
-    "validate:p4": "node scripts/validate-p4.mjs"
+    "validate:p4": "node scripts/validate-p4.mjs",
+    "validate:p5": "node scripts/validate-p5.mjs",
+    "validate:portability": "node scripts/validate-portability.mjs"
   },
   "devDependencies": {
     "@types/node": "^25.5.0",

@@ -17,6 +17,16 @@ export function isSupportedRuntime({
   return Number.isInteger(nodeMajor) && nodeMajor >= 24 && SUPPORTED_KEYS.has(`${platform}/${arch}`);
 }
 
+// POSIX gives every background worker an authenticated control socket; Windows has no equivalent
+// and stops workers by process tree instead. Six call sites branch on that one capability, so it
+// gets a name. The other platform branches in this runtime are deliberately left alone: they test
+// the same variable but decide different things — process ownership, state layout, which
+// environment variables may be trusted — and reading them as one switch is how the broker nearly
+// lost the detached spawn it needs.
+export function supportsWorkerControl(platform = process.platform) {
+  return platform === "linux" || platform === "darwin";
+}
+
 export function assertSupportedRuntime(runtime) {
   const observed = runtime ?? {};
   const platform = observed.platform ?? process.platform;

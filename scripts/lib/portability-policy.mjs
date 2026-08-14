@@ -8,11 +8,13 @@ const EXPECTED_PROFILES = new Map([
 const ARTIFACT_KEYS = ["claudeCurrent", "claudeMinimum", "codexCurrent", "codexPrevious", "node"];
 const CURRENT_TEST_COMMAND = [
   "node --test --test-concurrency=1 --test-reporter=dot",
+  "tests/args.test.mjs",
   "tests/broker-endpoint.test.mjs",
   "tests/bump-version.test.mjs",
   "tests/commands.test.mjs",
   "tests/generate-app-server-types.test.mjs",
   "tests/git.test.mjs",
+  "tests/job-control.test.mjs",
   "tests/platform-policy.test.mjs",
   "tests/process.test.mjs",
   "tests/render.test.mjs",

@@ -4,7 +4,23 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { collectReviewContext, resolveReviewTarget } from "../plugins/codex/scripts/lib/git.mjs";
+import { resolveWorkspaceRoot } from "../plugins/codex/scripts/lib/workspace.mjs";
 import { initGitRepo, makeTempDir, run } from "./helpers.mjs";
+
+test("resolveWorkspaceRoot answers from cache for the life of the process", () => {
+  const repo = makeTempDir();
+  initGitRepo(repo);
+  const nested = path.join(repo, "src");
+  fs.mkdirSync(nested);
+
+  const workspaceRoot = resolveWorkspaceRoot(nested);
+  assert.notEqual(workspaceRoot, nested);
+
+  // Removing the repository would make an uncached lookup fall back to the directory itself.
+  // The cached answer stands instead: the boundary is fixed for this process.
+  fs.rmSync(path.join(repo, ".git"), { recursive: true, force: true });
+  assert.equal(resolveWorkspaceRoot(nested), workspaceRoot);
+});
 
 test("resolveReviewTarget prefers working tree when repo is dirty", () => {
   const cwd = makeTempDir();
@@ -193,4 +209,31 @@ test("collectReviewContext keeps untracked file content in lightweight working t
   assert.doesNotMatch(context.content, /TRACKED_MARKER_[AB]/);
   assert.match(context.content, /## Untracked Files/);
   assert.match(context.content, /UNTRACKED_RISK_MARKER/);
+});
+
+test("untracked files share the inline budget instead of bypassing it", () => {
+  const cwd = makeTempDir();
+  initGitRepo(cwd);
+  fs.writeFileSync(path.join(cwd, "app.js"), "export const value = 1;\n");
+  run("git", ["add", "app.js"], { cwd });
+  run("git", ["commit", "-m", "init"], { cwd });
+
+  const body = "x".repeat(4 * 1024);
+  for (let index = 0; index < 40; index += 1) {
+    fs.writeFileSync(path.join(cwd, `untracked-${index}.txt`), `${body}\n`);
+  }
+
+  const target = resolveReviewTarget(cwd, { scope: "working-tree" });
+  const context = collectReviewContext(cwd, target, {
+    maxInlineDiffBytes: 16 * 1024,
+    maxInlineFiles: 0
+  });
+
+  // 40 files at 4 KB each used to be inlined whole, because the byte guard only ever measured
+  // the tracked diff.
+  assert.ok(
+    context.content.length < 120 * 1024,
+    `expected a bounded review prompt, got ${context.content.length} characters`
+  );
+  assert.match(context.content, /more untracked file\(s\)/);
 });

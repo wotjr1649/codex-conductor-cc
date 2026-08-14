@@ -29,6 +29,49 @@ const CAPABILITY = /^[A-Za-z0-9_-]{43}$/;
 const POSIX_BROKER_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 const POSIX_BROKER_PHASES = new Set(["starting", "ready", "indeterminate"]);
 const POSIX_BROKER_STATE_KEYS = ["generation", "phase", "scopeId", "sessionId", "version"];
+const WINDOWS_BROKER_STATE_KEYS = ["endpoint", "logFile", "pid", "pidFile", "sessionDir"];
+const WINDOWS_SESSION_DIR_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
+const MAX_SHUTDOWN_RESPONSE_BYTES = 64 * 1024;
+// Matches the POSIX branch's authenticated shutdown window. Both run inside the SessionEnd
+// budget, so neither may wait on a broker that has stopped answering.
+const SHUTDOWN_ACK_TIMEOUT_MS = 1000;
+// ensureBrokerSession records the state and the capability before it spawns, and the child does
+// not write its pid until it has booted Node and loaded its module graph. Inside this window a
+// missing pid file means "not yet", not "dead".
+const BROKER_BOOT_GRACE_MS = 10000;
+
+// Windows broker state drives a process-tree kill and two unlinks, and it lives in a directory
+// any process running as this user can write. Validate it the way the POSIX descriptor is
+// validated: fix the key set, require the session directory to be one the plugin could have
+// created, and derive every other path from it rather than believing what the file says.
+export function validateWindowsBrokerDescriptor(descriptor) {
+  if (
+    !descriptor ||
+    typeof descriptor !== "object" ||
+    Array.isArray(descriptor) ||
+    Object.keys(descriptor).sort().join(",") !== WINDOWS_BROKER_STATE_KEYS.join(",") ||
+    typeof descriptor.sessionDir !== "string"
+  ) {
+    throw new Error("Invalid Windows broker state.");
+  }
+
+  const sessionDir = path.resolve(descriptor.sessionDir);
+  const pidIsUsable =
+    descriptor.pid === null ||
+    (Number.isSafeInteger(descriptor.pid) && descriptor.pid > 1 && descriptor.pid !== process.pid);
+  if (
+    path.dirname(sessionDir) !== path.resolve(os.tmpdir()) ||
+    !WINDOWS_SESSION_DIR_NAME.test(path.basename(sessionDir)) ||
+    descriptor.sessionDir !== sessionDir ||
+    descriptor.endpoint !== createBrokerEndpoint(sessionDir, "win32") ||
+    descriptor.pidFile !== path.join(sessionDir, "broker.pid") ||
+    descriptor.logFile !== path.join(sessionDir, "broker.log") ||
+    !pidIsUsable
+  ) {
+    throw new Error("Invalid Windows broker state.");
+  }
+  return descriptor;
+}
 
 export function validatePosixBrokerDescriptor(cwd, descriptor) {
   if (
@@ -214,20 +257,30 @@ export async function sendBrokerShutdown(sessionOrEndpoint) {
   const session = typeof sessionOrEndpoint === "string" ? { endpoint: sessionOrEndpoint } : sessionOrEndpoint;
   const target = parseBrokerEndpoint(session?.endpoint);
   if (target.kind === "pipe") {
-    await new Promise((resolve) => {
-      const socket = connectToEndpoint(session.endpoint);
-      socket.setEncoding("utf8");
-      socket.on("connect", () => {
-        socket.write(`${JSON.stringify({ id: 1, method: "broker/shutdown", params: {} })}\n`);
+    // Resolving on error or close used to report success, so a syntactically valid pipe name
+    // with nothing behind it read as "the broker stopped". Only an acknowledgement counts.
+    //
+    // Framed by readBrokerJsonLine rather than by hand, because the hand-rolled version settled
+    // only on error or close: a broker that accepted the connection and then stalled left this
+    // awaiting forever, and the SessionEnd hook awaits it. That helper bounds the wait, caps the
+    // frame, and removes its own listeners, which is what the POSIX branch below already used.
+    const socket = connectToEndpoint(session.endpoint);
+    socket.setEncoding("utf8");
+    try {
+      const connected = await new Promise((resolve) => {
+        socket.once("connect", () => resolve(true));
+        socket.once("error", () => resolve(false));
       });
-      socket.on("data", () => {
-        socket.end();
-        resolve();
-      });
-      socket.on("error", resolve);
-      socket.on("close", resolve);
-    });
-    return true;
+      if (!connected) return false;
+      const responsePromise = readBrokerJsonLine(socket, SHUTDOWN_ACK_TIMEOUT_MS, MAX_SHUTDOWN_RESPONSE_BYTES);
+      socket.write(`${JSON.stringify({ id: 1, method: "broker/shutdown", params: {} })}\n`);
+      const response = await responsePromise;
+      socket.end();
+      return response?.id === 1 && Boolean(response.result);
+    } catch {
+      socket.destroy();
+      return false;
+    }
   }
 
   const { socket, auth, transcript } = await connectAuthenticatedBrokerSession(session, "shutdown", 1000);
@@ -254,8 +307,12 @@ export function spawnBrokerProcess({ scriptPath, cwd, endpoint, pidFile, logFile
   const child = spawn(process.execPath, args, {
     cwd,
     env,
+    // Unlike the app-server spawn, which stays attached on Windows so its owner can kill the
+    // tree, the broker has to outlive the command that starts it. Measured on win32: an
+    // un-detached unref'd child dies with its parent, so this stays detached everywhere.
     detached: true,
     shell: false,
+    windowsHide: true,
     stdio: auth ? ["ignore", logFd, logFd, "pipe"] : ["ignore", logFd, logFd]
   });
   if (auth) {
@@ -280,7 +337,9 @@ export function loadBrokerSession(cwd) {
 
   try {
     const stored = JSON.parse(fs.readFileSync(stateFile, "utf8"));
-    return isPosix() ? derivePosixBrokerSession(cwd, validatePosixBrokerDescriptor(cwd, stored)) : stored;
+    return isPosix()
+      ? derivePosixBrokerSession(cwd, validatePosixBrokerDescriptor(cwd, stored))
+      : validateWindowsBrokerDescriptor(stored);
   } catch (error) {
     if (isPosix()) throw error;
     return null;
@@ -308,7 +367,7 @@ function writeBrokerState(cwd, payload, { exclusive = false } = {}) {
 export function saveBrokerSession(cwd, session, options = {}) {
   const payload = isPosix()
     ? createPosixBrokerDescriptor(cwd, session, session.phase)
-    : session;
+    : validateWindowsBrokerDescriptor(session);
   writeBrokerState(cwd, payload, options);
 }
 
@@ -330,28 +389,104 @@ async function isBrokerEndpointReady(session) {
   }
 }
 
+function isProcessAlive(pid) {
+  if (!Number.isSafeInteger(pid) || pid <= 1) return false;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return error?.code === "EPERM";
+  }
+}
+
+function recordedBrokerPid(pidFile) {
+  try {
+    const pid = Number(fs.readFileSync(pidFile, "utf8").trim());
+    return Number.isSafeInteger(pid) && pid > 1 ? pid : null;
+  } catch {
+    return null;
+  }
+}
+
+// A POSIX broker that died without completing the shutdown handshake used to wedge its
+// workspace: broker.json survived, and every later invocation marked it indeterminate and
+// threw. Reclaim the identity when the recorded process is gone, and only then — a broker that
+// is alive but unreachable still owns its endpoint. Pid reuse can make a dead broker look
+// alive, which leaves today's behaviour rather than reclaiming something in use.
+function brokerStateAgeMs(cwd) {
+  try {
+    return Date.now() - fs.statSync(resolveBrokerStateFile(cwd)).mtimeMs;
+  } catch {
+    return Number.POSITIVE_INFINITY;
+  }
+}
+
+function reclaimDeadPosixBrokerSession(cwd, session) {
+  const pid = recordedBrokerPid(session.pidFile);
+  // A missing pid file was read as death, so a second command arriving while the first broker
+  // was still booting reclaimed it: the capability file went with the session directory, and the
+  // broker then listened on a socket nothing could ever authenticate to, with no in-plugin path
+  // left to kill it. Recorded state that is both freshly written and still `starting` is a boot
+  // in progress; once the grace window passes, a broker that never recorded a pid is dead.
+  if (pid === null && session.phase === "starting" && brokerStateAgeMs(cwd) < BROKER_BOOT_GRACE_MS) {
+    return false;
+  }
+  if (pid !== null && isProcessAlive(pid)) {
+    return false;
+  }
+  try {
+    cleanupAuthenticatedPosixBrokerSession(session);
+  } catch {
+    // The artifacts may be partly gone already. The identity is worthless either way, and
+    // keeping the state file is what wedges the workspace.
+  }
+  clearBrokerSession(cwd);
+  return true;
+}
+
+// Broker state that no longer resolves is not a reason to fail every later command: the POSIX
+// session directory lives outside the home directory that holds broker.json, so losing it while
+// the file survives is the ordinary case, not an exotic one.
+function isUnusableBrokerState(error) {
+  // Any failure to resolve the stored state makes it unusable, and the answer is the same for
+  // all of them: clear it and start fresh. Enumerating two error kinds meant the rest rethrew --
+  // a truncated write leaves a SyntaxError carrying no `code`, and the runtime-path rejections
+  // reachable through derivePosixBrokerSession match neither predicate -- so every later command
+  // in that workspace threw again, which is the permanent wedge C1 exists to end.
+  return error instanceof Error;
+}
+
 export async function ensureBrokerSession(cwd, options = {}) {
-  const existing = loadBrokerSession(cwd);
+  let existing = null;
+  try {
+    existing = loadBrokerSession(cwd);
+  } catch (error) {
+    if (!isUnusableBrokerState(error)) throw error;
+    clearBrokerSession(cwd);
+  }
   if (existing && (await isBrokerEndpointReady(existing))) {
     return existing;
   }
 
   if (existing) {
     if (isPosix()) {
-      if (existing.phase !== "indeterminate") {
-        saveBrokerSession(cwd, { ...existing, phase: "indeterminate" });
+      if (!reclaimDeadPosixBrokerSession(cwd, existing)) {
+        if (existing.phase !== "indeterminate") {
+          saveBrokerSession(cwd, { ...existing, phase: "indeterminate" });
+        }
+        throw new Error("Existing POSIX broker identity could not be authenticated.");
       }
-      throw new Error("Existing POSIX broker identity could not be authenticated.");
+    } else {
+      teardownBrokerSession({
+        endpoint: existing.endpoint ?? null,
+        pidFile: existing.pidFile ?? null,
+        logFile: existing.logFile ?? null,
+        sessionDir: existing.sessionDir ?? null,
+        pid: existing.pid ?? null,
+        killProcess: options.killProcess ?? null
+      });
+      clearBrokerSession(cwd);
     }
-    teardownBrokerSession({
-      endpoint: existing.endpoint ?? null,
-      pidFile: existing.pidFile ?? null,
-      logFile: existing.logFile ?? null,
-      sessionDir: existing.sessionDir ?? null,
-      pid: existing.pid ?? null,
-      killProcess: options.killProcess ?? null
-    });
-    clearBrokerSession(cwd);
   }
 
   const sessionId = isPosix() ? `b-${randomBytes(8).toString("hex")}` : null;
@@ -464,11 +599,37 @@ function cleanupAuthenticatedPosixBrokerSession(session) {
   return true;
 }
 
-export function teardownBrokerSession({ endpoint = null, pidFile, logFile, sessionDir = null, pid = null, killProcess = null, authenticated = false, ...descriptor }) {
+function windowsTeardownTargets({ endpoint, logFile, pid, pidFile, sessionDir }) {
+  try {
+    validateWindowsBrokerDescriptor({ endpoint, logFile, pid: pid ?? null, pidFile, sessionDir });
+  } catch {
+    return null;
+  }
+  const resolved = path.resolve(sessionDir);
+  return {
+    sessionDir: resolved,
+    pidFile: path.join(resolved, "broker.pid"),
+    logFile: path.join(resolved, "broker.log")
+  };
+}
+
+export function teardownBrokerSession({ endpoint = null, pidFile = null, logFile = null, sessionDir = null, pid = null, killProcess = null, authenticated = false, ...descriptor }) {
   if (isPosix()) {
     if (!authenticated) return false;
     return cleanupAuthenticatedPosixBrokerSession({ endpoint, pidFile, logFile, sessionDir, ...descriptor });
   }
+
+  // Act only on a descriptor that validates, and only on the paths derived from its session
+  // directory. Anything else — a rewritten state file, or the environment-supplied fallback
+  // that nothing in this plugin ever populates — gets no kill and no unlink.
+  const targets = windowsTeardownTargets({ endpoint, logFile, pid, pidFile, sessionDir });
+  if (!targets) {
+    return false;
+  }
+  pidFile = targets.pidFile;
+  logFile = targets.logFile;
+  sessionDir = targets.sessionDir;
+
   if (Number.isFinite(pid) && killProcess) {
     try {
       killProcess(pid);

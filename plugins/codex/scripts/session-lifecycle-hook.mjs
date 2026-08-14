@@ -20,19 +20,20 @@ import {
   removeSessionJobArtifacts,
   resolveJobFile,
   resolveStateFile,
-  saveState,
+  updateState,
   upsertJob,
   writeJobFile
 } from "./lib/state.mjs";
 import { TRANSCRIPT_PATH_ENV } from "./lib/claude-session-transfer.mjs";
 import { resolveWorkspaceRoot } from "./lib/workspace.mjs";
-import { assertSupportedRuntime } from "./lib/platform-policy.mjs";
+import { assertSupportedRuntime, supportsWorkerControl } from "./lib/platform-policy.mjs";
 import { sendWorkerCancel, validateWorkerControllerDescriptor } from "./lib/worker-control.mjs";
 
 assertSupportedRuntime();
 
 export const SESSION_ID_ENV = "CODEX_COMPANION_SESSION_ID";
 const PLUGIN_DATA_ENV = "CLAUDE_PLUGIN_DATA";
+const SESSION_END_BUDGET_MS = 2500;
 
 function readHookInput() {
   const raw = fs.readFileSync(0, "utf8").trim();
@@ -47,13 +48,25 @@ function shellEscape(value) {
 }
 
 function appendEnvVar(name, value) {
-  if (!process.env.CLAUDE_ENV_FILE || value == null || value === "") {
+  const envFile = process.env.CLAUDE_ENV_FILE;
+  if (!envFile || value == null || value === "") {
     return;
   }
-  fs.appendFileSync(process.env.CLAUDE_ENV_FILE, `export ${name}=${shellEscape(value)}\n`, "utf8");
+  // SessionStart fires again on resume, clear and compact against the same env file, so a
+  // plain append grows it without bound with lines the shell would only re-apply.
+  const line = `export ${name}=${shellEscape(value)}\n`;
+  const existing = fs.existsSync(envFile) ? fs.readFileSync(envFile, "utf8") : "";
+  if (existing.includes(line)) {
+    return;
+  }
+  fs.appendFileSync(envFile, line, "utf8");
 }
 
-async function cleanupSessionJobs(cwd, sessionId) {
+function isJobSettled(job) {
+  return Boolean(job) && !["queued", "running", "cancel_requested"].includes(job.status);
+}
+
+async function cleanupSessionJobs(cwd, sessionId, deadline) {
   if (!cwd || !sessionId) {
     return [];
   }
@@ -70,25 +83,37 @@ async function cleanupSessionJobs(cwd, sessionId) {
     return [];
   }
 
-  if (process.platform !== "win32") {
+  if (supportsWorkerControl()) {
     const unresolved = [];
     for (const job of removedJobs) {
-      if (job.status !== "queued" && job.status !== "running" && job.status !== "cancel_requested") continue;
+      if (isJobSettled(job)) continue;
       let outcome = "indeterminate";
-      try {
-        outcome = await sendWorkerCancel(workspaceRoot, validateWorkerControllerDescriptor(job.controller));
-      } catch {
-        outcome = "indeterminate";
+      // Each attempt gets what is left of the shared deadline, not its own full window. The
+      // cancel exchange budgets two seconds to connect, one to authenticate and fifteen for the
+      // acknowledgement, so two jobs could spend half a minute against a hook the host allows
+      // about three seconds -- the C3 budget and the J2 acknowledgement window cancelling out.
+      if (Date.now() < deadline) {
+        try {
+          outcome = await sendWorkerCancel(
+            workspaceRoot,
+            validateWorkerControllerDescriptor(job.controller),
+            { deadline }
+          );
+        } catch {
+          outcome = "indeterminate";
+        }
       }
       if (outcome === "accepted") {
         const jobFile = resolveJobFile(workspaceRoot, job.id);
-        for (let attempt = 0; attempt < 30; attempt += 1) {
-          const current = fs.existsSync(jobFile) ? readJobFile(jobFile) : null;
-          if (current && !["queued", "running", "cancel_requested"].includes(current.status)) break;
+        const readCurrent = () => (fs.existsSync(jobFile) ? readJobFile(jobFile) : null);
+        // One deadline shared by every job, not three seconds each: two unresolved jobs used
+        // to outlast any budget the host allows this hook.
+        let settled = isJobSettled(readCurrent());
+        while (!settled && Date.now() < deadline) {
           await new Promise((resolve) => setTimeout(resolve, 100));
+          settled = isJobSettled(readCurrent());
         }
-        const current = fs.existsSync(jobFile) ? readJobFile(jobFile) : null;
-        if (current && !["queued", "running", "cancel_requested"].includes(current.status)) continue;
+        if (settled) continue;
       }
       const currentFile = resolveJobFile(workspaceRoot, job.id);
       const current = fs.existsSync(currentFile) ? readJobFile(currentFile) : job;
@@ -105,7 +130,6 @@ async function cleanupSessionJobs(cwd, sessionId) {
     return unresolved;
   }
 
-  removeSessionJobArtifacts(workspaceRoot, removedJobs, sessionId);
   for (const job of removedJobs) {
     const stillRunning = job.status === "queued" || job.status === "running";
     if (!stillRunning) {
@@ -118,10 +142,14 @@ async function cleanupSessionJobs(cwd, sessionId) {
     }
   }
 
-  saveState(workspaceRoot, {
-    ...state,
-    jobs: state.jobs.filter((job) => job.sessionId !== sessionId)
+  // Commit the index before deleting anything, and commit against what is on disk rather than
+  // the snapshot read at the top of this function. Deleting first left the index naming jobs
+  // whose files were gone whenever the host killed this hook part-way -- which it does -- and
+  // rewriting the snapshot erased whatever a concurrent session had added meanwhile.
+  updateState(workspaceRoot, (current) => {
+    current.jobs = current.jobs.filter((job) => job.sessionId !== sessionId);
   });
+  removeSessionJobArtifacts(workspaceRoot, removedJobs, sessionId);
   return [];
 }
 
@@ -132,9 +160,23 @@ function handleSessionStart(input) {
 }
 
 async function handleSessionEnd(input) {
+  // The host clamps a SessionEnd hook to about three seconds (upstream #582), and it starts
+  // counting when it spawns this process, not when this function runs. Bound the work well
+  // under that so cleanup finishes and reports instead of being killed part-way through.
+  const deadline = Date.now() - Math.round(process.uptime() * 1000) + SESSION_END_BUDGET_MS;
   const cwd = input.cwd || process.cwd();
+  let storedBrokerSession = null;
+  try {
+    storedBrokerSession = loadBrokerSession(cwd);
+  } catch {
+    // On POSIX this throws whenever broker.json survives but its session directory does not,
+    // and those two live in different roots, so one outlasting the other is ordinary rather
+    // than exceptional. Letting it escape skipped every step below and left the file for the
+    // next session to trip over -- the wedge C1 exists to end, re-armed by its own cleanup.
+    storedBrokerSession = null;
+  }
   const brokerSession =
-    loadBrokerSession(cwd) ??
+    storedBrokerSession ??
     (process.platform === "win32" && process.env[BROKER_ENDPOINT_ENV]
       ? {
           endpoint: process.env[BROKER_ENDPOINT_ENV],
@@ -148,11 +190,7 @@ async function handleSessionEnd(input) {
   const sessionDir = brokerSession?.sessionDir ?? null;
   const pid = brokerSession?.pid ?? null;
 
-  const unresolvedJobs = await cleanupSessionJobs(cwd, input.session_id || process.env[SESSION_ID_ENV]);
-  if (process.platform !== "win32" && unresolvedJobs.length > 0) {
-    if (brokerSession) saveBrokerSession(cwd, { ...brokerSession, phase: "indeterminate" });
-    throw new Error(`Authenticated worker shutdown is indeterminate for ${unresolvedJobs.length} job(s).`);
-  }
+  const unresolvedJobs = await cleanupSessionJobs(cwd, input.session_id || process.env[SESSION_ID_ENV], deadline);
 
   let brokerStopped = false;
   if (brokerEndpoint) {
@@ -166,8 +204,12 @@ async function handleSessionEnd(input) {
     }
   }
 
+  // teardownBrokerSession already encodes when the recorded session is gone: false on POSIX
+  // without a confirmed authenticated shutdown, and on Windows when the descriptor did not
+  // validate. Clearing the state file follows that answer rather than a second guess.
+  let brokerRemoved = !brokerEndpoint;
   if (brokerEndpoint) {
-    teardownBrokerSession({
+    brokerRemoved = teardownBrokerSession({
       ...brokerSession,
       endpoint: brokerEndpoint,
       pidFile,
@@ -178,7 +220,18 @@ async function handleSessionEnd(input) {
       authenticated: brokerStopped
     });
   }
-  if (!brokerEndpoint || brokerStopped) clearBrokerSession(cwd);
+  if (brokerRemoved) clearBrokerSession(cwd);
+
+  // Reported last. Throwing on unresolved jobs before the broker was even asked to stop left it
+  // running with its state file in place, which on POSIX is the wedge every command afterwards
+  // hits -- the cleanup failing in exactly the way it exists to prevent. The jobs themselves are
+  // already recorded indeterminate by cleanupSessionJobs; this only surfaces the count.
+  if (supportsWorkerControl() && unresolvedJobs.length > 0) {
+    if (brokerSession && !brokerRemoved) {
+      saveBrokerSession(cwd, { ...brokerSession, phase: "indeterminate" });
+    }
+    throw new Error(`Authenticated worker shutdown is indeterminate for ${unresolvedJobs.length} job(s).`);
+  }
 }
 
 async function main() {

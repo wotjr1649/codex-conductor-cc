@@ -16,8 +16,13 @@ const FALLBACK_STATE_ROOT_DIR = path.join(os.tmpdir(), "codex-companion");
 const STATE_FILE_NAME = "state.json";
 const JOBS_DIR_NAME = "jobs";
 const MAX_JOBS = 50;
+const MAX_UPDATE_ATTEMPTS = 3;
 const JOB_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 const CONTROLLER_KEYS = ["generation", "version", "workerId"];
+// The statuses that mean nothing will write to this job's files again. Everything else --
+// including `indeterminate`, which means a cancellation could not be confirmed -- may still
+// have a live worker behind it.
+const TERMINAL_JOB_STATUSES = new Set(["completed", "failed", "cancelled"]);
 
 function nowIso() {
   return new Date().toISOString();
@@ -92,23 +97,26 @@ function jobArtifactPath(cwd, jobId, extension) {
   return path.join(resolveJobsDir(cwd), `${assertJobId(jobId)}.${extension}`);
 }
 
-function assertManagedLogFile(cwd, logFile) {
+// The validators take an already-resolved jobs directory rather than a cwd. Resolving one
+// spawns git and, on POSIX, creates directories; doing that once per record turned every
+// state read into n+1 process launches and gave a validator a filesystem side effect.
+function assertManagedLogFile(jobsDir, logFile) {
   if (logFile == null) return null;
   if (typeof logFile !== "string") throw new Error("Invalid state job log file.");
   const basename = path.basename(logFile);
   const stem = basename.endsWith(".log") ? basename.slice(0, -4) : "";
-  if (path.dirname(logFile) !== resolveJobsDir(cwd) || !JOB_ID.test(stem)) {
+  if (path.dirname(logFile) !== jobsDir || !JOB_ID.test(stem)) {
     throw new Error("Invalid state job log file.");
   }
   return logFile;
 }
 
-function assertJobRecord(cwd, job) {
+function assertJobRecord(jobsDir, job) {
   if (!job || typeof job !== "object" || Array.isArray(job)) {
     throw new Error("Invalid state job record.");
   }
   assertJobId(job.id);
-  assertManagedLogFile(cwd, job.logFile);
+  assertManagedLogFile(jobsDir, job.logFile);
   if (job.controller != null) {
     const controller = job.controller;
     if (
@@ -125,13 +133,13 @@ function assertJobRecord(cwd, job) {
   }
 }
 
-function assertJobRecords(cwd, jobs) {
-  jobs.forEach((job) => assertJobRecord(cwd, job));
+function assertJobRecords(jobsDir, jobs) {
+  jobs.forEach((job) => assertJobRecord(jobsDir, job));
   const logs = jobs.map((job) => job.logFile).filter(Boolean);
   if (new Set(logs).size !== logs.length) throw new Error("Duplicate state job log file.");
 }
 
-function parseState(cwd, raw) {
+function parseState(jobsDir, raw) {
   let parsed;
   try {
     parsed = JSON.parse(raw);
@@ -150,7 +158,7 @@ function parseState(cwd, raw) {
   ) {
     throw new Error("Invalid state file.");
   }
-  assertJobRecords(cwd, parsed.jobs);
+  assertJobRecords(jobsDir, parsed.jobs);
   return {
     ...defaultState(),
     ...parsed,
@@ -162,13 +170,45 @@ function parseState(cwd, raw) {
   };
 }
 
-export function loadState(cwd) {
-  const stateFile = resolveStateFile(cwd);
-  if (!fs.existsSync(stateFile)) {
-    return defaultState();
+function readFileOrNull(filePath) {
+  try {
+    return fs.readFileSync(filePath, "utf8");
+  } catch (error) {
+    if (error.code === "ENOENT") return null;
+    throw error;
   }
+}
 
-  return parseState(cwd, fs.readFileSync(stateFile, "utf8"));
+export function loadState(cwd) {
+  const stored = readFileOrNull(resolveStateFile(cwd));
+  return stored === null ? defaultState() : parseState(resolveJobsDir(cwd), stored);
+}
+
+// A job dropped from the index is unreachable: every lookup goes through the index, so its files
+// are a leak rather than a record. Observed in production as one workspace holding no indexed jobs
+// and eight artifact files. Jobs that might still be written to are left alone, and orphans from
+// prunes that already happened are not swept -- that needs a generation-bound sweep which would
+// race a worker that has written its file but not yet indexed it.
+//
+// Call this only once the prune has been committed. See writeState.
+function removePrunedJobArtifacts(jobsDir, prunedJobs) {
+  for (const job of prunedJobs) {
+    // An allowlist, not a denylist, so a status nobody thought about here keeps its files.
+    // `indeterminate` is the case that made this matter: it means a cancellation could not be
+    // confirmed, which is to say the worker may still be running and appending to that log.
+    if (!TERMINAL_JOB_STATUSES.has(job.status)) {
+      continue;
+    }
+    for (const artifact of [path.join(jobsDir, `${job.id}.json`), path.join(jobsDir, `${job.id}.log`)]) {
+      try {
+        const stats = fs.lstatSync(artifact);
+        if (!stats.isFile() || stats.isSymbolicLink()) continue;
+        fs.unlinkSync(artifact);
+      } catch {
+        // Already gone, or not an ordinary file this plugin wrote.
+      }
+    }
+  }
 }
 
 function pruneJobs(jobs) {
@@ -177,21 +217,28 @@ function pruneJobs(jobs) {
     .slice(0, MAX_JOBS);
 }
 
-function atomicWriteFile(filePath, content) {
+// `expected` opts a write into a compare-and-swap: the rename only happens if the file still
+// holds the bytes the caller read. Omit it for an unconditional write.
+function atomicWriteFile(filePath, content, expected) {
   const temporary = `${filePath}.${process.pid}.${randomUUID()}.tmp`;
   try {
     fs.writeFileSync(temporary, content, { encoding: "utf8", mode: 0o600, flag: "wx" });
+    // ponytail: optimistic, not locked. A writer that lands between this check and the rename
+    // still wins; take a real lock file if contention ever shows up in practice.
+    if (expected !== undefined && readFileOrNull(filePath) !== expected) {
+      return false;
+    }
     fs.renameSync(temporary, filePath);
+    return true;
   } finally {
     if (fs.existsSync(temporary)) fs.unlinkSync(temporary);
   }
 }
 
-export function saveState(cwd, state) {
-  loadState(cwd);
+function writeState(cwd, state, expected) {
   ensureStateDir(cwd);
   if (!Array.isArray(state.jobs)) throw new Error("Invalid state jobs.");
-  assertJobRecords(cwd, state.jobs);
+  assertJobRecords(resolveJobsDir(cwd), state.jobs);
   const nextJobs = pruneJobs(state.jobs ?? []);
   const nextState = {
     version: STATE_VERSION,
@@ -202,15 +249,43 @@ export function saveState(cwd, state) {
     jobs: nextJobs
   };
 
-  // ponytail: retain unindexed artifacts; add generation-bound cleanup if disk usage matters.
-  atomicWriteFile(resolveStateFile(cwd), `${JSON.stringify(nextState, null, 2)}\n`);
+  const written = atomicWriteFile(resolveStateFile(cwd), `${JSON.stringify(nextState, null, 2)}\n`, expected);
+  if (!written) return null;
+
+  // Deletion goes after the commit, because only a committed prune is a fact. Deleting first left
+  // the files gone on an attempt that lost its compare-and-swap, while the index that won still
+  // pointed at them -- the exact opposite of what this cleanup is for. Dying between the rename
+  // and this leaves the files behind instead, which is the leak this replaced and is recoverable.
+  const retained = new Set(nextJobs.map((job) => job.id));
+  removePrunedJobArtifacts(
+    resolveJobsDir(cwd),
+    (state.jobs ?? []).filter((job) => !retained.has(job.id))
+  );
   return nextState;
 }
 
+export function saveState(cwd, state) {
+  // Reading the stored state back is the guard, not a leftover: it rejects any record whose
+  // log file sits outside the managed jobs directory, and pruning plus session cleanup act on
+  // those paths. Refuse to rewrite state that does not survive that read.
+  loadState(cwd);
+  return writeState(cwd, state);
+}
+
 export function updateState(cwd, mutate) {
-  const state = loadState(cwd);
-  mutate(state);
-  return saveState(cwd, state);
+  const stateFile = resolveStateFile(cwd);
+  const jobsDir = resolveJobsDir(cwd);
+  for (let attempt = 1; ; attempt += 1) {
+    // One read per attempt: parsing the stored bytes is the same guard saveState applies.
+    const stored = readFileOrNull(stateFile);
+    const state = stored === null ? defaultState() : parseState(jobsDir, stored);
+    mutate(state);
+    // The atomic write makes the write atomic, not the transaction. Commit against the bytes
+    // this attempt read so a concurrent writer's record is rebuilt on rather than overwritten.
+    // The final attempt commits unconditionally, which is what every attempt used to do.
+    const next = writeState(cwd, state, attempt < MAX_UPDATE_ATTEMPTS ? stored : undefined);
+    if (next) return next;
+  }
 }
 
 export function generateJobId(prefix = "job") {
@@ -259,7 +334,7 @@ export function writeJobFile(cwd, jobId, payload) {
   ensureStateDir(cwd);
   const jobFile = resolveJobFile(cwd, jobId);
   if (payload?.id !== jobId) throw new Error("Job file id does not match its path.");
-  assertJobRecord(cwd, payload);
+  assertJobRecord(resolveJobsDir(cwd), payload);
   atomicWriteFile(jobFile, `${JSON.stringify(payload, null, 2)}\n`);
   return jobFile;
 }
@@ -283,7 +358,8 @@ export function removeSessionJobArtifacts(cwd, jobs, sessionId) {
   if (!Array.isArray(jobs) || typeof sessionId !== "string" || !JOB_ID.test(sessionId)) {
     throw new Error("Invalid session artifact cleanup request.");
   }
-  assertJobRecords(cwd, jobs);
+  const jobsDir = resolveJobsDir(cwd);
+  assertJobRecords(jobsDir, jobs);
   const targets = [];
   for (const job of jobs) {
     if (job.sessionId !== sessionId) throw new Error("Session artifact identity mismatch.");
@@ -292,7 +368,7 @@ export function removeSessionJobArtifacts(cwd, jobs, sessionId) {
     const stats = fs.lstatSync(jobFile);
     if (!stats.isFile() || stats.isSymbolicLink()) throw new Error("Invalid session artifact file.");
     const stored = readJobFile(jobFile);
-    assertJobRecord(cwd, stored);
+    assertJobRecord(jobsDir, stored);
     for (const key of ["id", "sessionId", "status", "pid", "logFile"]) {
       if (stored[key] !== job[key]) throw new Error("Session artifact identity mismatch.");
     }
@@ -307,7 +383,15 @@ export function removeSessionJobArtifacts(cwd, jobs, sessionId) {
     targets.push(files);
   }
   for (const files of targets) {
-    for (const filePath of files) fs.unlinkSync(filePath);
+    for (const filePath of files) {
+      try {
+        fs.unlinkSync(filePath);
+      } catch {
+        // Every target was validated above; a failure here is the file already being gone or,
+        // on Windows, a worker still holding its log open. Neither is worth aborting a session
+        // teardown for, and the index has already been committed without these jobs.
+      }
+    }
   }
   return targets.length;
 }

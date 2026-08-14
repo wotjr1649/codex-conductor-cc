@@ -563,10 +563,19 @@ if (
     const portableDigestPaths = [
       ...findCrLfDigestPaths(ROOT, scenarios?.inheritedTests)
     ];
+    const registeredTests = new Set(
+      (scenarios?.inheritedTests ?? []).map(({ path: testPath }) => testPath)
+    );
+    const unregisteredTestPaths = fs
+      .readdirSync(path.join(ROOT, "tests"))
+      .filter((name) => name.endsWith(".test.mjs") && !name.startsWith("p5-"))
+      .map((name) => `tests/${name}`)
+      .filter((testPath) => !registeredTests.has(testPath));
     const remainingErrors = filterLegacyP5ContinuationErrors(
       errors,
       allowedPaths,
-      portableDigestPaths
+      portableDigestPaths,
+      unregisteredTestPaths
     );
     errors.length = 0;
     errors.push(...remainingErrors);

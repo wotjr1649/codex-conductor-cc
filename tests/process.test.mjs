@@ -1,7 +1,32 @@
+import fs from "node:fs";
+import path from "node:path";
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { terminateProcessTree } from "../plugins/codex/scripts/lib/process.mjs";
+import { resolveCommandInvocation, terminateProcessTree } from "../plugins/codex/scripts/lib/process.mjs";
+import { makeTempDir } from "./helpers.mjs";
+
+test(
+  "executable lookup caches what it resolved and nothing it failed to find",
+  { skip: process.platform !== "win32" ? "the executable lookup is Windows-only" : false },
+  () => {
+    const binDir = makeTempDir();
+    const command = "codex-conductor-lookup-probe";
+    const probe = path.join(binDir, `${command}.exe`);
+    const env = { ...process.env, PATH: `${binDir};${process.env.PATH}` };
+
+    // A missing binary must stay missing in the cache: `/codex:setup` installs Codex and
+    // rechecks availability inside one process.
+    assert.equal(resolveCommandInvocation(command, [], { env }).command, command);
+
+    fs.writeFileSync(probe, "");
+    assert.equal(resolveCommandInvocation(command, [], { env }).command, probe);
+
+    // A resolved binary is cached for the life of the process, so it does not move here.
+    fs.rmSync(probe);
+    assert.equal(resolveCommandInvocation(command, [], { env }).command, probe);
+  }
+);
 
 test("terminateProcessTree uses taskkill on Windows", () => {
   let captured = null;

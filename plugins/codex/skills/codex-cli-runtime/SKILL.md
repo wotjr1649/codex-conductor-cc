@@ -12,6 +12,7 @@ Primary helper:
 - `node "${CLAUDE_PLUGIN_ROOT}/scripts/codex-companion.mjs" task "<raw arguments>"`
 
 Execution rules:
+- Put every flag before the task text. Option parsing stops at the first word of the prompt, so a flag placed after it is kept as prompt text and has no effect.
 - The rescue subagent is a forwarder, not an orchestrator. Its only job is to invoke `task` once and return that stdout unchanged.
 - Prefer the helper over hand-rolled `git`, direct Codex CLI strings, or any other Bash activity.
 - Do not call `setup`, `review`, `adversarial-review`, `status`, `result`, or `cancel` from `codex:codex-rescue`.

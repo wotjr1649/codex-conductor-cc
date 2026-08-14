@@ -14,6 +14,7 @@ import {
   sendBrokerShutdown,
   teardownBrokerSession
 } from "../plugins/codex/scripts/lib/broker-lifecycle.mjs";
+import { createBrokerEndpoint } from "../plugins/codex/scripts/lib/broker-endpoint.mjs";
 import { terminateProcessTree } from "../plugins/codex/scripts/lib/process.mjs";
 import { resolveStateDir } from "../plugins/codex/scripts/lib/state.mjs";
 
@@ -742,10 +743,27 @@ test("session start hook exports the Claude session id, transcript path, and plu
   });
 
   assert.equal(result.status, 0, result.stderr);
-  assert.equal(
-    fs.readFileSync(envFile, "utf8"),
-    `export CODEX_COMPANION_SESSION_ID='sess-current'\nexport CODEX_COMPANION_TRANSCRIPT_PATH='${transcriptPath}'\nexport CLAUDE_PLUGIN_DATA='${pluginDataDir}'\n`
-  );
+  const expected = `export CODEX_COMPANION_SESSION_ID='sess-current'\nexport CODEX_COMPANION_TRANSCRIPT_PATH='${transcriptPath}'\nexport CLAUDE_PLUGIN_DATA='${pluginDataDir}'\n`;
+  assert.equal(fs.readFileSync(envFile, "utf8"), expected);
+
+  // SessionStart fires again on resume, clear and compact against the same env file.
+  const repeated = run("node", [SESSION_HOOK, "SessionStart"], {
+    cwd: repo,
+    env: {
+      ...process.env,
+      CLAUDE_ENV_FILE: envFile,
+      CLAUDE_PLUGIN_DATA: pluginDataDir
+    },
+    input: JSON.stringify({
+      hook_event_name: "SessionStart",
+      session_id: "sess-current",
+      transcript_path: transcriptPath,
+      cwd: repo
+    })
+  });
+
+  assert.equal(repeated.status, 0, repeated.stderr);
+  assert.equal(fs.readFileSync(envFile, "utf8"), expected);
 });
 
 test("write task output focuses on the Codex result without generic follow-up hints", () => {
@@ -938,6 +956,33 @@ test("task can finish after subagent work even if the parent turn/completed even
 
   assert.equal(result.status, 0, result.stderr);
   assert.equal(result.stdout, "Handled the requested task.\nTask prompt accepted.\n");
+});
+
+test("task fails instead of running forever when the app-server dies mid-turn", () => {
+  const repo = makeTempDir();
+  const binDir = makeTempDir();
+  installFakeCodex(binDir, "dies-mid-turn");
+  initGitRepo(repo);
+  fs.writeFileSync(path.join(repo, "README.md"), "hello\n");
+  run("git", ["add", "README.md"], { cwd: repo });
+  run("git", ["commit", "-m", "init"], { cwd: repo });
+
+  const result = run("node", [SCRIPT, "task", "investigate the failing test"], {
+    cwd: repo,
+    env: buildEnv(binDir),
+    timeoutMs: 60000
+  });
+
+  // The broker dies with its app-server, so its state file is stale from here on.
+  clearBrokerSession(repo);
+
+  assert.equal(result.error, undefined, "task never settled after the app-server died");
+  assert.equal(result.status, 1, result.stderr);
+  assert.match(result.stderr, /app-server/i);
+
+  const stateDir = resolveStateDir(repo);
+  const state = JSON.parse(fs.readFileSync(path.join(stateDir, "state.json"), "utf8"));
+  assert.equal(state.jobs[0].status, "failed");
 });
 
 test("task using the shared broker still completes when Codex spawns subagents", () => {
@@ -2315,9 +2360,15 @@ test("status reports shared session runtime when a lazy broker is active", () =>
 test("setup and status honor --cwd when reading shared session runtime", () => {
   const targetWorkspace = makeTempDir();
   const invocationWorkspace = makeTempDir();
+  const brokerSessionDir = makeTempDir("broker-");
+  const endpoint = createBrokerEndpoint(brokerSessionDir, "win32");
 
   saveBrokerSession(targetWorkspace, {
-    endpoint: "pipe:\\\\.\\pipe\\fake-broker"
+    endpoint,
+    logFile: path.join(brokerSessionDir, "broker.log"),
+    pid: null,
+    pidFile: path.join(brokerSessionDir, "broker.pid"),
+    sessionDir: brokerSessionDir
   });
 
   const status = run("node", [SCRIPT, "status", "--cwd", targetWorkspace], {
@@ -2332,5 +2383,5 @@ test("setup and status honor --cwd when reading shared session runtime", () => {
   assert.equal(setup.status, 0, setup.stderr);
   const payload = JSON.parse(setup.stdout);
   assert.equal(payload.sessionRuntime.mode, "shared");
-  assert.equal(payload.sessionRuntime.endpoint, "pipe:\\\\.\\pipe\\fake-broker");
+  assert.equal(payload.sessionRuntime.endpoint, endpoint);
 });

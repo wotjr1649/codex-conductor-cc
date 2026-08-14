@@ -29,6 +29,11 @@ const AUTH_OPERATIONS = new Set(["connect", "ready", "shutdown"]);
 const MAX_AUTH_FRAME_BYTES = 4096;
 const MAX_FRAME_BYTES = 8 * 1024 * 1024;
 const MAX_AUTHENTICATED_NONCES = 4096;
+const MAX_SOCKET_WRITE_BUFFER_BYTES = 8 * 1024 * 1024;
+const IDLE_SHUTDOWN_MS = 30 * 60 * 1000;
+// Above the longest budget any client grants itself -- the two-minute transcript import -- so the
+// client's deadline is always the one that decides. See where it is passed.
+const BROKER_REQUEST_TIMEOUT_MS = 3 * 60 * 1000;
 
 function buildStreamThreadIds(method, params, result) {
   const threadIds = new Set();
@@ -47,6 +52,13 @@ function buildJsonRpcError(code, message, data) {
 
 function send(socket, message) {
   if (socket.destroyed) {
+    return;
+  }
+  // Nothing here waits for drain, so a client that stops reading would inflate the broker's
+  // write buffer without bound. Drop that connection instead: a lost connection now fails the
+  // client's turn rather than hanging it.
+  if (socket.writableLength > MAX_SOCKET_WRITE_BUFFER_BYTES) {
+    socket.destroy();
     return;
   }
   socket.write(`${JSON.stringify(message)}\n`);
@@ -109,13 +121,46 @@ async function main() {
   }
   writePidFile(pidFile);
 
-  const appClient = await CodexAppServerClient.connect(cwd, { disableBroker: true });
+  const appClient = await CodexAppServerClient.connect(cwd, {
+    disableBroker: true,
+    // The broker must not give up before the client that asked it. A per-call timeoutMs does not
+    // survive the hop -- the wire message carries method and params and nothing else -- so a
+    // client granting itself two minutes for a transcript import was capped at this side's
+    // sixty-second default. The client still enforces its own deadline; this only stops the
+    // broker answering "timed out" first on a request the caller was still willing to wait for.
+    requestTimeoutMs: BROKER_REQUEST_TIMEOUT_MS
+  });
   let activeRequestSocket = null;
   let activeStreamSocket = null;
   let activeStreamThreadIds = null;
   const sockets = new Set();
   const authenticatedConnections = new Set();
   const seenNonces = new Set();
+
+  let idleTimer = null;
+
+  function clearIdleShutdown() {
+    if (idleTimer) {
+      clearTimeout(idleTimer);
+      idleTimer = null;
+    }
+  }
+
+  // Nothing else reclaims a broker whose session went away without stopping it — a crashed
+  // host, a SessionEnd hook that ran out of budget, a workspace nobody returns to.
+  function armIdleShutdown(target) {
+    clearIdleShutdown();
+    idleTimer = setTimeout(async () => {
+      idleTimer = null;
+      if (sockets.size > 0) {
+        return;
+      }
+      process.stderr.write("codex broker idle with no client; stopping.\n");
+      await shutdown(target);
+      process.exit(0);
+    }, IDLE_SHUTDOWN_MS);
+    idleTimer.unref?.();
+  }
 
   function clearSocketOwnership(socket) {
     if (activeRequestSocket === socket) {
@@ -124,6 +169,15 @@ async function main() {
     if (activeStreamSocket === socket) {
       activeStreamSocket = null;
       activeStreamThreadIds = null;
+    }
+  }
+
+  function releaseSocket(socket) {
+    sockets.delete(socket);
+    authenticatedConnections.delete(socket);
+    clearSocketOwnership(socket);
+    if (sockets.size === 0) {
+      armIdleShutdown(server);
     }
   }
 
@@ -163,6 +217,7 @@ async function main() {
 
   const server = net.createServer((socket) => {
     sockets.add(socket);
+    clearIdleShutdown();
     socket.setEncoding("utf8");
     let buffer = "";
     let authenticated = listenTarget.kind === "pipe";
@@ -171,7 +226,11 @@ async function main() {
     let authChallenge = null;
     let authProof = null;
 
-    socket.on("data", async (chunk) => {
+    // This handler awaits, so two chunks could interleave over the shared buffer and slice it
+    // with a stale index. Serialize per connection rather than relying on no client ever
+    // pipelining requests.
+    let processing = Promise.resolve();
+    const handleChunk = async (chunk) => {
       buffer += chunk;
       const frameLimit = authenticated ? MAX_FRAME_BYTES : MAX_AUTH_FRAME_BYTES;
       if (Buffer.byteLength(buffer) > frameLimit) {
@@ -203,7 +262,7 @@ async function main() {
           try {
             if (message.method === "broker/hello" && message.id !== undefined && !authHello) {
               const operation = message.params?.operation;
-              if (!AUTH_OPERATIONS.has(operation) || seenNonces.size >= MAX_AUTHENTICATED_NONCES) {
+              if (!AUTH_OPERATIONS.has(operation)) {
                 throw new Error("Broker authentication failed.");
               }
               authHello = message;
@@ -214,7 +273,8 @@ async function main() {
             if (message.method === "broker/auth" && message.id !== undefined && authHello && authChallenge && !authProof) {
               verifyBrokerAuthProof(message, authHello, authChallenge, brokerAuth, {
                 operation: authHello.params.operation,
-                seenNonces
+                seenNonces,
+                maxSeenNonces: MAX_AUTHENTICATED_NONCES
               });
               authProof = message;
               authenticated = true;
@@ -312,7 +372,11 @@ async function main() {
         try {
           const result = await appClient.request(message.method, message.params ?? {});
           send(socket, { id: message.id, result });
-          if (isStreaming) {
+          // Only claim the stream if this socket is still the active requester. A socket that
+          // closed during the await has already been released, and re-pinning it here made it
+          // the stream owner forever: every other client then got BROKER_BUSY until the idle
+          // timer fired half an hour later.
+          if (isStreaming && activeRequestSocket === socket) {
             activeStreamSocket = socket;
             activeStreamThreadIds = buildStreamThreadIds(message.method, message.params ?? {}, result);
           }
@@ -332,18 +396,28 @@ async function main() {
           }
         }
       }
+    };
+
+    socket.on("data", (chunk) => {
+      // Pause while this chunk waits its turn. Serializing alone kept every unread chunk alive
+      // in the promise chain's closures, where the frame-size guard -- which only ever measures
+      // `buffer` -- could not see them, so a client streaming into a broker stalled on a request
+      // could queue without bound. Pausing pushes the backpressure onto the socket instead.
+      socket.pause();
+      processing = processing
+        .then(() => handleChunk(chunk))
+        .catch(() => {})
+        .finally(() => {
+          if (!socket.destroyed) socket.resume();
+        });
     });
 
     socket.on("close", () => {
-      sockets.delete(socket);
-      authenticatedConnections.delete(socket);
-      clearSocketOwnership(socket);
+      releaseSocket(socket);
     });
 
     socket.on("error", () => {
-      sockets.delete(socket);
-      authenticatedConnections.delete(socket);
-      clearSocketOwnership(socket);
+      releaseSocket(socket);
     });
   });
 
@@ -357,8 +431,27 @@ async function main() {
     process.exit(0);
   });
 
+  // The broker multiplexes exactly one app-server. Once that app-server is gone the broker can
+  // never answer again — writes to the dead child are discarded and every request stays pending
+  // forever — so stop instead of holding client connections open.
+  appClient.exitPromise
+    .then(async () => {
+      if (appClient.closed) {
+        return;
+      }
+      process.stderr.write(
+        `codex app-server exited; stopping the broker.${appClient.exitError ? ` ${appClient.exitError.message}` : ""}\n`
+      );
+      await shutdown(server);
+      process.exit(1);
+    })
+    // A shutdown that throws here would surface as an unhandled rejection and leave the broker
+    // running with a dead app-server behind it, which is the state this handler exists to end.
+    .catch(() => process.exit(1));
+
   server.listen(listenTarget.path, () => {
     if (listenTarget.kind === "unix") fs.chmodSync(listenTarget.path, 0o600);
+    armIdleShutdown(server);
   });
 }
 

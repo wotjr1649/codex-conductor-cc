@@ -2,14 +2,23 @@ export function parseArgs(argv, config = {}) {
   const valueOptions = new Set(config.valueOptions ?? []);
   const booleanOptions = new Set(config.booleanOptions ?? []);
   const aliasMap = config.aliasMap ?? {};
+  const optionsBeforePositionals = config.optionsBeforePositionals ?? false;
   const options = {};
   const positionals = [];
   let passthrough = false;
+  let sawPositional = false;
 
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
 
     if (passthrough) {
+      positionals.push(token);
+      continue;
+    }
+
+    // Commands whose positionals are free-form prose stop parsing options once the
+    // prose starts, so a flag written inside a prompt stays prompt text.
+    if (optionsBeforePositionals && sawPositional) {
       positionals.push(token);
       continue;
     }
@@ -21,11 +30,14 @@ export function parseArgs(argv, config = {}) {
 
     if (!token.startsWith("-") || token === "-") {
       positionals.push(token);
+      sawPositional = true;
       continue;
     }
 
     if (token.startsWith("--")) {
-      const [rawKey, inlineValue] = token.slice(2).split("=", 2);
+      const equalsIndex = token.indexOf("=", 2);
+      const rawKey = equalsIndex === -1 ? token.slice(2) : token.slice(2, equalsIndex);
+      const inlineValue = equalsIndex === -1 ? undefined : token.slice(equalsIndex + 1);
       const key = aliasMap[rawKey] ?? rawKey;
 
       if (booleanOptions.has(key)) {
@@ -46,6 +58,7 @@ export function parseArgs(argv, config = {}) {
       }
 
       positionals.push(token);
+      sawPositional = true;
       continue;
     }
 
@@ -68,6 +81,7 @@ export function parseArgs(argv, config = {}) {
     }
 
     positionals.push(token);
+    sawPositional = true;
   }
 
   return { options, positionals };
@@ -81,12 +95,17 @@ export function splitRawArgumentString(raw) {
 
   for (const character of raw) {
     if (escaping) {
+      // Only `\"` and `\\` are escapes; anything else keeps the backslash so that
+      // Windows paths and regex fragments survive tokenization.
+      if (character !== "\"" && character !== "\\") {
+        current += "\\";
+      }
       current += character;
       escaping = false;
       continue;
     }
 
-    if (character === "\\") {
+    if (character === "\\" && quote === "\"") {
       escaping = true;
       continue;
     }
