@@ -254,8 +254,12 @@ export function spawnBrokerProcess({ scriptPath, cwd, endpoint, pidFile, logFile
   const child = spawn(process.execPath, args, {
     cwd,
     env,
+    // Unlike the app-server spawn, which stays attached on Windows so its owner can kill the
+    // tree, the broker has to outlive the command that starts it. Measured on win32: an
+    // un-detached unref'd child dies with its parent, so this stays detached everywhere.
     detached: true,
     shell: false,
+    windowsHide: true,
     stdio: auth ? ["ignore", logFd, logFd, "pipe"] : ["ignore", logFd, logFd]
   });
   if (auth) {

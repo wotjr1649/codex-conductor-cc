@@ -742,10 +742,27 @@ test("session start hook exports the Claude session id, transcript path, and plu
   });
 
   assert.equal(result.status, 0, result.stderr);
-  assert.equal(
-    fs.readFileSync(envFile, "utf8"),
-    `export CODEX_COMPANION_SESSION_ID='sess-current'\nexport CODEX_COMPANION_TRANSCRIPT_PATH='${transcriptPath}'\nexport CLAUDE_PLUGIN_DATA='${pluginDataDir}'\n`
-  );
+  const expected = `export CODEX_COMPANION_SESSION_ID='sess-current'\nexport CODEX_COMPANION_TRANSCRIPT_PATH='${transcriptPath}'\nexport CLAUDE_PLUGIN_DATA='${pluginDataDir}'\n`;
+  assert.equal(fs.readFileSync(envFile, "utf8"), expected);
+
+  // SessionStart fires again on resume, clear and compact against the same env file.
+  const repeated = run("node", [SESSION_HOOK, "SessionStart"], {
+    cwd: repo,
+    env: {
+      ...process.env,
+      CLAUDE_ENV_FILE: envFile,
+      CLAUDE_PLUGIN_DATA: pluginDataDir
+    },
+    input: JSON.stringify({
+      hook_event_name: "SessionStart",
+      session_id: "sess-current",
+      transcript_path: transcriptPath,
+      cwd: repo
+    })
+  });
+
+  assert.equal(repeated.status, 0, repeated.stderr);
+  assert.equal(fs.readFileSync(envFile, "utf8"), expected);
 });
 
 test("write task output focuses on the Codex result without generic follow-up hints", () => {

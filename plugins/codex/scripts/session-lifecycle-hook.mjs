@@ -33,6 +33,7 @@ assertSupportedRuntime();
 
 export const SESSION_ID_ENV = "CODEX_COMPANION_SESSION_ID";
 const PLUGIN_DATA_ENV = "CLAUDE_PLUGIN_DATA";
+const SESSION_END_BUDGET_MS = 2500;
 
 function readHookInput() {
   const raw = fs.readFileSync(0, "utf8").trim();
@@ -47,13 +48,25 @@ function shellEscape(value) {
 }
 
 function appendEnvVar(name, value) {
-  if (!process.env.CLAUDE_ENV_FILE || value == null || value === "") {
+  const envFile = process.env.CLAUDE_ENV_FILE;
+  if (!envFile || value == null || value === "") {
     return;
   }
-  fs.appendFileSync(process.env.CLAUDE_ENV_FILE, `export ${name}=${shellEscape(value)}\n`, "utf8");
+  // SessionStart fires again on resume, clear and compact against the same env file, so a
+  // plain append grows it without bound with lines the shell would only re-apply.
+  const line = `export ${name}=${shellEscape(value)}\n`;
+  const existing = fs.existsSync(envFile) ? fs.readFileSync(envFile, "utf8") : "";
+  if (existing.includes(line)) {
+    return;
+  }
+  fs.appendFileSync(envFile, line, "utf8");
 }
 
-async function cleanupSessionJobs(cwd, sessionId) {
+function isJobSettled(job) {
+  return Boolean(job) && !["queued", "running", "cancel_requested"].includes(job.status);
+}
+
+async function cleanupSessionJobs(cwd, sessionId, deadline) {
   if (!cwd || !sessionId) {
     return [];
   }
@@ -82,13 +95,15 @@ async function cleanupSessionJobs(cwd, sessionId) {
       }
       if (outcome === "accepted") {
         const jobFile = resolveJobFile(workspaceRoot, job.id);
-        for (let attempt = 0; attempt < 30; attempt += 1) {
-          const current = fs.existsSync(jobFile) ? readJobFile(jobFile) : null;
-          if (current && !["queued", "running", "cancel_requested"].includes(current.status)) break;
+        const readCurrent = () => (fs.existsSync(jobFile) ? readJobFile(jobFile) : null);
+        // One deadline shared by every job, not three seconds each: two unresolved jobs used
+        // to outlast any budget the host allows this hook.
+        let settled = isJobSettled(readCurrent());
+        while (!settled && Date.now() < deadline) {
           await new Promise((resolve) => setTimeout(resolve, 100));
+          settled = isJobSettled(readCurrent());
         }
-        const current = fs.existsSync(jobFile) ? readJobFile(jobFile) : null;
-        if (current && !["queued", "running", "cancel_requested"].includes(current.status)) continue;
+        if (settled) continue;
       }
       const currentFile = resolveJobFile(workspaceRoot, job.id);
       const current = fs.existsSync(currentFile) ? readJobFile(currentFile) : job;
@@ -132,6 +147,10 @@ function handleSessionStart(input) {
 }
 
 async function handleSessionEnd(input) {
+  // The host clamps a SessionEnd hook to about three seconds (upstream #582), and it starts
+  // counting when it spawns this process, not when this function runs. Bound the work well
+  // under that so cleanup finishes and reports instead of being killed part-way through.
+  const deadline = Date.now() - Math.round(process.uptime() * 1000) + SESSION_END_BUDGET_MS;
   const cwd = input.cwd || process.cwd();
   const brokerSession =
     loadBrokerSession(cwd) ??
@@ -148,7 +167,7 @@ async function handleSessionEnd(input) {
   const sessionDir = brokerSession?.sessionDir ?? null;
   const pid = brokerSession?.pid ?? null;
 
-  const unresolvedJobs = await cleanupSessionJobs(cwd, input.session_id || process.env[SESSION_ID_ENV]);
+  const unresolvedJobs = await cleanupSessionJobs(cwd, input.session_id || process.env[SESSION_ID_ENV], deadline);
   if (process.platform !== "win32" && unresolvedJobs.length > 0) {
     if (brokerSession) saveBrokerSession(cwd, { ...brokerSession, phase: "indeterminate" });
     throw new Error(`Authenticated worker shutdown is indeterminate for ${unresolvedJobs.length} job(s).`);
