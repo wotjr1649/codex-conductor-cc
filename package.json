@@ -9,10 +9,13 @@
     "node": ">=24.0.0"
   },
   "os": [
-    "win32"
+    "win32",
+    "linux",
+    "darwin"
   ],
   "cpu": [
-    "x64"
+    "x64",
+    "arm64"
   ],
   "scripts": {
     "bump-version": "node scripts/bump-version.mjs",

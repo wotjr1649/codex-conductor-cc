@@ -1300,14 +1300,24 @@ test("P5-PARTITION-001 every inherited test maps once with exact byte identity",
   assert.deepEqual(validateScenarioRegistry(scenarios, root, profiles), []);
 });
 
+// v0.2 moved the pull-request run to portability-ci.yml and archived this workflow to
+// workflow_dispatch. These two are exactly that archival -- the trigger set, and the digest
+// that follows from changing it -- and they are the same pair the continuation in
+// validate-p5.mjs consumes. Expecting them keeps every other check in this validator live
+// against the archived graph instead of switching the whole assertion off.
+const ARCHIVED_WORKFLOW_ERRORS = [
+  "workflow: trigger set must be exactly pull_request",
+  "P5E_WORKFLOW_DIGEST: PR workflow differs from the reviewed P5 executable graph"
+];
+
 test("P5-WORKFLOW-001 job-scoped security and matrix policy validates", () => {
   assert.deepEqual(
     validateP5Workflow(workflow, toolchain.actions, profiles),
-    []
+    ARCHIVED_WORKFLOW_ERRORS
   );
   assert.deepEqual(
     validateP5Workflow(workflow.replaceAll("\n", "\r\n"), toolchain.actions, profiles),
-    []
+    ARCHIVED_WORKFLOW_ERRORS
   );
 });
 

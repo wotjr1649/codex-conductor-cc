@@ -58,7 +58,24 @@ const EXACT_PATHS = new Set([
   "tests/git.test.mjs",
   "tests/helpers.mjs",
   "tests/job-control.test.mjs",
-  "tests/process.test.mjs"
+  "tests/process.test.mjs",
+  // The P2/P3/P4/P5 baseline surface, admitted so its assertions can be brought to the facts
+  // they describe. Every one of these pins a literal the project has since moved past -- the
+  // release version, the archived workflow trigger, a method v0.2 introduced -- and the effect
+  // was five suites that could not pass and therefore ran nowhere. Admitting them is the point
+  // at which that is reviewed; the freeze on everything else is unchanged.
+  "scripts/lib/p3-validation.mjs",
+  "scripts/lib/p5-validation.mjs",
+  "scripts/validate-p3.mjs",
+  "scripts/validate-p4.mjs",
+  "tests/contract/command-transcripts-v1.json",
+  "tests/downstream-identity.test.mjs",
+  "tests/p3-security-baseline.test.mjs",
+  "tests/p4-contract-baseline.test.mjs",
+  "tests/p5-matrix-profile.test.mjs",
+  // This one was already live in `npm test` and carried the same win32-only platform
+  // declaration, contradicting the SUPPORTED_RUNTIMES it is meant to test.
+  "tests/platform-policy.test.mjs"
 ]);
 const PATH_PREFIXES = [
   "ci/portability-",
@@ -220,15 +237,19 @@ export function filterLegacyP5ContinuationErrors(
     ]) {
       if (error.startsWith(prefix)) return !allowed.has(normalizeRelativePath(error.slice(prefix.length)));
     }
-    if (error === "P5E_IMMUTABLE_PATH:package-lock.json") return !allowed.has("package-lock.json");
-    if (error === "P5E_IMMUTABLE_PATH:plugins/codex/scripts") {
-      return ![...allowed].some((relativePath) => relativePath.startsWith("plugins/codex/scripts/"));
-    }
-    if (error === "P5E_IMMUTABLE_PATH:plugins/codex/skills") {
-      return ![...allowed].some((relativePath) => relativePath.startsWith("plugins/codex/skills/"));
-    }
-    if (error === "P5E_IMMUTABLE_PATH:plugins/codex/agents") {
-      return ![...allowed].some((relativePath) => relativePath.startsWith("plugins/codex/agents/"));
+    // One rule rather than a growing list of paths: an immutability complaint is consumed when
+    // the portability allowlist has already admitted that path, either exactly or as a directory
+    // whose contents it admits. The allowlist is where admission is reviewed, and this filter
+    // only runs when validatePortabilityRepository has already returned clean, so deferring to
+    // it keeps the decision in one place instead of duplicating it here for every new surface.
+    const immutablePrefix = "P5E_IMMUTABLE_PATH:";
+    if (error.startsWith(immutablePrefix)) {
+      const target = normalizeRelativePath(error.slice(immutablePrefix.length));
+      if (!target) return true;
+      return !(
+        allowed.has(target) ||
+        [...allowed].some((relativePath) => relativePath.startsWith(`${target}/`))
+      );
     }
     if (error === "P5E_TEST_OMITTED: inherited test mapping differs from the exact tree") {
       // The inherited inventory is the released set and the legacy validator freezes its

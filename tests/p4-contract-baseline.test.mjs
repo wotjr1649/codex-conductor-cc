@@ -140,6 +140,11 @@ function normalizeCapturedValue(value, context, key = "") {
   if (value === context.root) return "<cwd>";
   if (/^thr_/.test(value)) return "<thread-id>";
   if (/^turn_/.test(value)) return "<turn-id>";
+  // The client announces the plugin's version in `initialize`, so a released transcript pinned
+  // to a literal version stops matching the moment the plugin ships. Normalize it the way cwd
+  // and thread ids are normalized; what the contract fixes is the shape and ordering, and the
+  // version itself is asserted against the manifests by downstream-identity.
+  if (key === "version" && value === context.pluginVersion) return "<version>";
   let normalized = value;
   normalized = normalized.replaceAll(
     context.root.replaceAll("\\", "/"),
@@ -539,7 +544,16 @@ test("P4-HANDSHAKE-001: broker hello and app-server initialize are not conflated
   assert.ok(fixture.required.broker.includes("broker:broker/hello"));
   assert.equal(fixture.observedProduct.broker.behaviorStatus, "red");
   assert.match(brokerSource, /message\.method === "initialize"/);
-  assert.doesNotMatch(brokerSource, /broker\/hello/);
+  // v0.2 gave the POSIX broker its own authenticated handshake, so `broker/hello` is a method
+  // the broker genuinely handles now and asserting its absence stopped describing anything.
+  // What the contract actually requires is that the two are not conflated, and they are not:
+  // each is matched in its own branch, `broker/hello` opens the capability exchange, and
+  // `initialize` is answered by the broker itself rather than satisfied by a hello.
+  assert.match(brokerSource, /message\.method === "broker\/hello"/);
+  assert.notEqual(
+    brokerSource.indexOf('message.method === "broker/hello"'),
+    brokerSource.indexOf('message.method === "initialize"')
+  );
 });
 
 test("P4-INTEGRATION-001: both stable lanes execute direct and broker core lifecycle", () => {
@@ -863,6 +877,7 @@ test("P4-COMMAND-002: captured product traffic matches exact ordered command DTO
         capturedTranscript(capturePath, {
           root,
           sourcePath,
+          pluginVersion: readJson("plugins/codex/.claude-plugin/plugin.json").version,
           prompts: [
             "P4 adversarial fixture",
             "P4 rescue fixture",

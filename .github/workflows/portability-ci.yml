@@ -114,11 +114,23 @@ jobs:
             tests/job-control.test.mjs tests/process.test.mjs tests/render.test.mjs \
             tests/state.test.mjs
 
-      # Windows-only: this suite drives taskkill against processes it owns. It is the one
-      # baseline suite of the five that passes today, so it is the one that can have a trigger.
-      - name: Run Windows resource baseline
+      # The baseline suites, which had no trigger anywhere until their assertions were brought to
+      # the facts they describe. Windows-only because they pin this host: p4-contract-baseline
+      # requires win32/x64 on the exact Node above, p5-windows-resource drives taskkill, and
+      # p3-security-baseline exercises the PowerShell tool installer.
+      #
+      # p5-matrix-profile is still absent: P5-PARTITION-001 needs the inherited-test registry
+      # rebuilt against v0.3, which is its own piece of work and is recorded as such.
+      - name: Run baseline suites
         if: ${{ matrix.platform == 'win32' }}
-        run: node --test --test-concurrency=1 tests/p5-windows-resource.test.mjs
+        run: |
+          node --test --test-concurrency=1 \
+            tests/downstream-identity.test.mjs tests/p3-security-baseline.test.mjs \
+            tests/p4-contract-baseline.test.mjs tests/p5-windows-resource.test.mjs
+
+      - name: Validate the P3 repository baseline
+        if: ${{ matrix.platform == 'win32' }}
+        run: node scripts/validate-p3.mjs
 
       - name: Verify clean source
         if: ${{ !cancelled() }}

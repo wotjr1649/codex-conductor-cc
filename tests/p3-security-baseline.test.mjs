@@ -197,10 +197,17 @@ test("PR workflow rejects mutable tools and privileged untrusted execution", asy
     /actions\/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294\s+#\s+v5\.0\.0/
   );
   assert.match(workflow, /node\s+scripts\/validate-p3\.mjs/);
-  assert.deepEqual(validateWorkflowText(workflow, manifest.actions), []);
+  // v0.2 moved the pull-request workflow to portability-ci.yml and archived this one to
+  // workflow_dispatch, so the trigger complaint is that archival rather than drift. Expecting
+  // exactly it keeps every other check in this validator live against the archived graph.
+  const archivedErrors = validateWorkflowText(workflow, manifest.actions);
+  assert.deepEqual(archivedErrors, ["workflow: trigger set must be exactly pull_request"]);
 
   const unsafeMutations = [
-    workflow.replace("  pull_request:", "  pull_request:\n  push:"),
+    // The trigger mutation that used to lead this list is gone. The validator already refuses
+    // this workflow's trigger set, so adding another trigger produces no new error and the
+    // negative proved nothing. Live pull-request triggers are checked by
+    // validatePortabilityWorkflow against portability-ci.yml instead.
     workflow.replace("  contents: read", "  contents: write"),
     workflow.replace(
       "actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd",
@@ -210,7 +217,12 @@ test("PR workflow rejects mutable tools and privileged untrusted execution", asy
     `${workflow}\n# negative fixture\nuses: ./synthetic-local-action\n`
   ];
   for (const mutation of unsafeMutations) {
-    assert.ok(validateWorkflowText(mutation, manifest.actions).length > 0);
+    // Measured against the archived baseline, not against zero: with one error already
+    // expected, `length > 0` would have passed for a mutation the validator ignored.
+    assert.ok(
+      validateWorkflowText(mutation, manifest.actions).length > archivedErrors.length,
+      mutation.slice(0, 80)
+    );
   }
 });
 
@@ -436,9 +448,13 @@ test("P3 preserves immutable P2 product identities", () => {
   const plugin = readJson("plugins/codex/.claude-plugin/plugin.json");
 
   assert.equal(packageJson.name, "codex-conductor-cc");
-  assert.equal(packageJson.version, "0.1.0");
   assert.equal(plugin.name, "codex");
-  assert.equal(plugin.version, "0.1.0");
+  // The identity that has to hold is that the two manifests agree, not that they hold the
+  // version this file was written against. Pinning the literal made the check fail on the
+  // release it was meant to survive; downstream-identity asserts the same relation across all
+  // six places bump-version updates.
+  assert.match(plugin.version, /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/);
+  assert.equal(packageJson.version, plugin.version);
   assert.equal(
     downstream.upstreamBase,
     "db52e28f4d9ded852ab3942cea316258ae4ef346"

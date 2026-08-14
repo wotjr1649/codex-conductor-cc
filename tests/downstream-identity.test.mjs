@@ -17,13 +17,15 @@ const DOWNSTREAM_MAINTAINER = {
 
 const PROTECTED_TREES = {
   "plugins/codex/commands": "01dee9ba76393439e179c5676ea92e538358d86b",
-  "plugins/codex/agents": "e3d07a2c1a1acf9a986ecccd7e2b1c865b9da709",
-  "plugins/codex/skills": "1272de32547df5bb365e114feb590bfa002e53c1",
+  "plugins/codex/agents": "13e8295580d649307acae7d11dba42fe1e8f71ae",
+  "plugins/codex/skills": "a5b2af7397eb8678489a9659b7af61f68a7dfd47",
   "plugins/codex/hooks": "39821e61e8b99bf415b7b05098b97d545fd377af"
 };
 
 const PROTECTED_BLOBS = new Map([
-  ["plugins/codex/agents/codex-rescue.md", "7009ec86a091285eb2a2ab8b1b634c7d63925261"],
+  // Updated in v0.3: the rescue contract gained the flag-ordering rule, without which a
+  // write-capable rescue ran read-only and reported success. See tests/args.test.mjs.
+  ["plugins/codex/agents/codex-rescue.md", "ea2a1285ff7ebde5f623f5c72938445b76b014cb"],
   ["plugins/codex/commands/adversarial-review.md", "da440ab4d397e3eee6b11ae5eac2ff92ef82e04e"],
   ["plugins/codex/commands/cancel.md", "a1472b836ad00084f1e56f8e8ebc0466cc59fac6"],
   ["plugins/codex/commands/rescue.md", "56de9555d6e4b8c8ec142df187cceed3ab4da590"],
@@ -33,7 +35,7 @@ const PROTECTED_BLOBS = new Map([
   ["plugins/codex/commands/status.md", "8f70663d1a99ed871befa6120f4219971ba52469"],
   ["plugins/codex/commands/transfer.md", "42170e51d35ed6d2679418d0d7459c0c759b9e68"],
   ["plugins/codex/hooks/hooks.json", "19e33b818d143aa7bdb666ffc00f93de8f275eab"],
-  ["plugins/codex/skills/codex-cli-runtime/SKILL.md", "0e91bfb50e41f79a291e8ea764f48a65d0caba04"],
+  ["plugins/codex/skills/codex-cli-runtime/SKILL.md", "e1560bb2a663ce626dc7c759636790c8569ca7b4"],
   ["plugins/codex/skills/codex-result-handling/SKILL.md", "e1896548000387055a583e342467c9575b00bdaa"],
   ["plugins/codex/skills/gpt-5-4-prompting/SKILL.md", "16669d92d0116d8eaf705d58c58845cfa0bdccb1"],
   [
@@ -90,12 +92,17 @@ test("downstream manifests expose the fixed P2 identity", () => {
   assert.equal(packageLock.name, packageJson.name);
   assert.equal(packageLock.packages[""].name, packageJson.name);
 
-  assert.equal(packageJson.version, "0.1.0");
-  assert.equal(packageLock.version, "0.1.0");
-  assert.equal(packageLock.packages[""].version, "0.1.0");
-  assert.equal(marketplace.metadata.version, "0.1.0");
-  assert.equal(marketplacePlugin.version, "0.1.0");
-  assert.equal(plugin.version, "0.1.0");
+  // These six are exactly what scripts/bump-version.mjs updates in one pass, so the identity
+  // P2 was protecting is that they never disagree -- not that they hold one literal. Pinning
+  // the literal froze the release itself: every one of these went stale the moment v0.2
+  // shipped, and the suite that would have said so had already lost its trigger.
+  const version = plugin.version;
+  assert.match(version, /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/);
+  assert.equal(packageJson.version, version);
+  assert.equal(packageLock.version, version);
+  assert.equal(packageLock.packages[""].version, version);
+  assert.equal(marketplace.metadata.version, version);
+  assert.equal(marketplacePlugin.version, version);
 
   assert.equal(marketplace.name, "codex-conductor");
   assert.equal(marketplacePlugin.name, "codex");
@@ -116,8 +123,12 @@ test("downstream manifests expose the fixed P2 identity", () => {
   assert.equal(packageJson.private, true);
   assert.equal(packageJson.license, "Apache-2.0");
   assert.deepEqual(packageJson.engines, { node: ">=24.0.0" });
-  assert.deepEqual(packageJson.os, ["win32"]);
-  assert.deepEqual(packageJson.cpu, ["x64"]);
+  // The four tuples ci/portability-profiles-v1.json declares runtime-supported, which the
+  // workflow runs and the worker-control subsystem exists for. Declaring win32 alone made
+  // `npm ci` refuse to install on the other three with EBADPLATFORM, so the portability legs
+  // could not install what they were testing.
+  assert.deepEqual(packageJson.os, ["win32", "linux", "darwin"]);
+  assert.deepEqual(packageJson.cpu, ["x64", "arm64"]);
   assert.equal(packageLock.packages[""].license, packageJson.license);
   assert.deepEqual(packageLock.packages[""].engines, packageJson.engines);
   assert.deepEqual(packageLock.packages[""].os, packageJson.os);
@@ -143,7 +154,7 @@ test("downstream version and upstreamBase are independently readable", () => {
   };
 
   assert.deepEqual(identity, {
-    version: "0.1.0",
+    version: readJson("plugins/codex/.claude-plugin/plugin.json").version,
     upstreamBase: UPSTREAM_BASE
   });
   assert.equal(downstream.upstreamRepository, "openai/codex-plugin-cc");
@@ -168,6 +179,6 @@ test("P2 preserves baseline command, agent, skill, and hook paths, blobs, and tr
   const canonical = expectedFiles.map((relativePath) => `${relativePath}\t${PROTECTED_BLOBS.get(relativePath)}\n`).join("");
   assert.equal(
     crypto.createHash("sha256").update(canonical, "utf8").digest("hex"),
-    "b24fec394e331f6b550dfdb614be07ec19955c9f95288951afbcac4e4c8d0473"
+    "409e9af56531c5124b690a66f53ed20d06be5a4f2d8a404a2a0d2c2ef5b4fd64"
   );
 });
