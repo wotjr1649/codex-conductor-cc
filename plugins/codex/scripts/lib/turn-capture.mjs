@@ -28,9 +28,7 @@
  *   reviewText: string,
  *   reasoningSummary: string[],
  *   error: unknown,
- *   messages: Array<{ lifecycle: string, phase: string | null, text: string }>,
  *   fileChanges: ThreadItem[],
- *   commandExecutions: ThreadItem[],
  *   onProgress: ProgressReporter | null
  * }} TurnCaptureState
  */
@@ -116,13 +114,17 @@ function extractReasoningSections(value) {
   return [];
 }
 
+// Called once per reasoning item, with the result persisted into the job payload each time. A
+// membership scan per element made that quadratic in the sections accumulated so far.
 function mergeReasoningSections(existingSections, nextSections) {
-  const merged = [];
-  for (const section of [...existingSections, ...nextSections]) {
+  const merged = [...existingSections];
+  const seen = new Set(merged);
+  for (const section of nextSections) {
     const normalized = normalizeReasoningText(section);
-    if (!normalized || merged.includes(normalized)) {
+    if (!normalized || seen.has(normalized)) {
       continue;
     }
+    seen.add(normalized);
     merged.push(normalized);
   }
   return merged;
@@ -277,9 +279,7 @@ function createTurnCaptureState(threadId, options = {}) {
     reviewText: "",
     reasoningSummary: [],
     error: null,
-    messages: [],
     fileChanges: [],
-    commandExecutions: [],
     onProgress: options.onProgress ?? null
   };
 }
@@ -377,11 +377,8 @@ function recordItem(state, item, lifecycle, threadId = null) {
   }
 
   if (item.type === "agentMessage") {
-    state.messages.push({
-      lifecycle,
-      phase: item.phase ?? null,
-      text: item.text ?? ""
-    });
+    // Every assistant message used to be retained here at full length, once when it started and
+    // again when it completed, and nothing ever read the list.
     if (item.text) {
       if (!threadId || threadId === state.threadId) {
         state.lastAgentMessage = item.text;
@@ -440,9 +437,8 @@ function recordItem(state, item, lifecycle, threadId = null) {
     return;
   }
 
-  if (item.type === "commandExecution" && lifecycle === "completed") {
-    state.commandExecutions.push(item);
-  }
+  // Completed command executions were accumulated and handed back in the turn result, where no
+  // caller has ever read them. Their output is the largest thing a turn produces.
 }
 
 function applyTurnNotification(state, message) {

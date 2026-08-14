@@ -28,9 +28,7 @@
  *   reviewText: string,
  *   reasoningSummary: string[],
  *   error: unknown,
- *   messages: Array<{ lifecycle: string, phase: string | null, text: string }>,
  *   fileChanges: ThreadItem[],
- *   commandExecutions: ThreadItem[],
  *   onProgress: ProgressReporter | null
  * }} TurnCaptureState
  */
@@ -57,6 +55,8 @@ const DEFAULT_CONTINUE_PROMPT =
   "Continue from the current thread state. Pick the next highest-value step and follow through until the task is resolved.";
 const EXTERNAL_AGENT_IMPORT_COMPLETED = "externalAgentConfig/import/completed";
 const EXTERNAL_AGENT_IMPORT_TIMEOUT_MS = 2 * 60 * 1000;
+const IMPORT_LEDGER_POLL_MS = 100;
+const IMPORT_LEDGER_TIMEOUT_MS = 5000;
 
 function cleanCodexStderr(stderr) {
   return stderr
@@ -596,7 +596,18 @@ export async function importExternalAgentSession(cwd, options = {}) {
       }
       throw error;
     }
-    const threadId = importedThreadIdForSource(options.sourcePath);
+    // The completion notification does not promise the ledger has been flushed, and that ledger
+    // holds the only handle to the imported thread. Nothing enforces the ordering, so wait for it
+    // rather than reporting a successful import as a failure and losing the thread.
+    let threadId = importedThreadIdForSource(options.sourcePath);
+    for (
+      let waited = 0;
+      !threadId && waited < IMPORT_LEDGER_TIMEOUT_MS;
+      waited += IMPORT_LEDGER_POLL_MS
+    ) {
+      await new Promise((resolve) => setTimeout(resolve, IMPORT_LEDGER_POLL_MS));
+      threadId = importedThreadIdForSource(options.sourcePath);
+    }
     if (!threadId) {
       const stderr = cleanCodexStderr(client.stderr);
       throw new Error(
@@ -672,8 +683,7 @@ export async function runAppServerTurn(cwd, options = {}) {
       error: turnState.error,
       stderr: cleanCodexStderr(client.stderr),
       fileChanges: turnState.fileChanges,
-      touchedFiles: collectTouchedFiles(turnState.fileChanges),
-      commandExecutions: turnState.commandExecutions
+      touchedFiles: collectTouchedFiles(turnState.fileChanges)
     };
   });
 }
