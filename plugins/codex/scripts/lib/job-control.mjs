@@ -58,13 +58,36 @@ function isProgressBlockTitle(line) {
   );
 }
 
+// A status poll runs every two seconds for up to four minutes and only ever wants the last few
+// lines, while the log grows without bound because progress appends whole assistant messages.
+// Read the tail instead of the file.
+const MAX_PROGRESS_TAIL_BYTES = 64 * 1024;
+
+function readLogTail(logFile) {
+  const handle = fs.openSync(logFile, "r");
+  try {
+    const size = fs.fstatSync(handle).size;
+    if (size <= MAX_PROGRESS_TAIL_BYTES) {
+      return fs.readFileSync(handle, "utf8");
+    }
+    const buffer = Buffer.allocUnsafe(MAX_PROGRESS_TAIL_BYTES);
+    const read = fs.readSync(handle, buffer, 0, MAX_PROGRESS_TAIL_BYTES, size - MAX_PROGRESS_TAIL_BYTES);
+    const text = buffer.subarray(0, read).toString("utf8");
+    // The first line in the window is cut in half, which is also where a split multi-byte
+    // character would land. Drop it.
+    const newline = text.indexOf("\n");
+    return newline === -1 ? "" : text.slice(newline + 1);
+  } finally {
+    fs.closeSync(handle);
+  }
+}
+
 export function readJobProgressPreview(logFile, maxLines = DEFAULT_MAX_PROGRESS_LINES) {
   if (!logFile || !fs.existsSync(logFile)) {
     return [];
   }
 
-  const lines = fs
-    .readFileSync(logFile, "utf8")
+  const lines = readLogTail(logFile)
     .split(/\r?\n/)
     .map((line) => line.trimEnd())
     .filter(Boolean)
@@ -188,6 +211,10 @@ export function readStoredJob(workspaceRoot, jobId) {
   return readJobFile(jobFile);
 }
 
+// Returning null lets each caller say what it actually means: a job that exists but is still
+// running, a reference that matches nothing, or no jobs at all. Throwing here collapsed all three
+// into "no job found" and left those branches unreachable. Ambiguity still throws, because that is
+// a distinct user error with a distinct fix.
 function matchJobReference(jobs, reference, predicate = () => true) {
   const filtered = jobs.filter(predicate);
   if (!reference) {
@@ -207,7 +234,7 @@ function matchJobReference(jobs, reference, predicate = () => true) {
     throw new Error(`Job reference "${reference}" is ambiguous. Use a longer job id.`);
   }
 
-  throw new Error(`No job found for "${reference}". Run /codex:status to list known jobs.`);
+  return null;
 }
 
 export function buildStatusSnapshot(cwd, options = {}) {
@@ -224,9 +251,14 @@ export function buildStatusSnapshot(cwd, options = {}) {
   const latestFinishedRaw = jobs.find((job) => job.status !== "queued" && job.status !== "running") ?? null;
   const latestFinished = latestFinishedRaw ? enrichJob(latestFinishedRaw, { maxProgressLines }) : null;
 
-  const recent = (options.all ? jobs : jobs.slice(0, maxJobs))
-    .filter((job) => job.status !== "queued" && job.status !== "running" && job.id !== latestFinished?.id)
-    .map((job) => enrichJob(job, { maxProgressLines }));
+  // Select first, then cap. Capping first meant eight active jobs emptied the recent list while
+  // dozens of finished ones sat behind them.
+  const finished = jobs.filter(
+    (job) => job.status !== "queued" && job.status !== "running" && job.id !== latestFinished?.id
+  );
+  const recent = (options.all ? finished : finished.slice(0, maxJobs)).map((job) =>
+    enrichJob(job, { maxProgressLines })
+  );
 
   return {
     workspaceRoot,

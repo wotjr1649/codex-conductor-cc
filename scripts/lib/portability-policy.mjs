@@ -14,6 +14,7 @@ const CURRENT_TEST_COMMAND = [
   "tests/commands.test.mjs",
   "tests/generate-app-server-types.test.mjs",
   "tests/git.test.mjs",
+  "tests/job-control.test.mjs",
   "tests/platform-policy.test.mjs",
   "tests/process.test.mjs",
   "tests/render.test.mjs",

@@ -58,6 +58,7 @@ const EXACT_PATHS = new Set([
   "tests/fake-codex-fixture.mjs",
   "tests/git.test.mjs",
   "tests/helpers.mjs",
+  "tests/job-control.test.mjs",
   "tests/process.test.mjs"
 ]);
 const PATH_PREFIXES = [
