@@ -85,7 +85,7 @@
     {
       "path": "tests/git.test.mjs",
       "declaredCount": 10,
-      "sha256": "3248cdd686d28f552346b3afa6256ce6b232f19fc381fc5d6b1ad828a4ab1854",
+      "sha256": "4ff0874bef4d89d744c0268532d69c859f8b66c3cae20dd6583433b8a77424ad",
       "profileId": "unit"
     },
     {
