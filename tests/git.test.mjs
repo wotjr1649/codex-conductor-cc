@@ -4,7 +4,23 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { collectReviewContext, resolveReviewTarget } from "../plugins/codex/scripts/lib/git.mjs";
+import { resolveWorkspaceRoot } from "../plugins/codex/scripts/lib/workspace.mjs";
 import { initGitRepo, makeTempDir, run } from "./helpers.mjs";
+
+test("resolveWorkspaceRoot answers from cache for the life of the process", () => {
+  const repo = makeTempDir();
+  initGitRepo(repo);
+  const nested = path.join(repo, "src");
+  fs.mkdirSync(nested);
+
+  const workspaceRoot = resolveWorkspaceRoot(nested);
+  assert.notEqual(workspaceRoot, nested);
+
+  // Removing the repository would make an uncached lookup fall back to the directory itself.
+  // The cached answer stands instead: the boundary is fixed for this process.
+  fs.rmSync(path.join(repo, ".git"), { recursive: true, force: true });
+  assert.equal(resolveWorkspaceRoot(nested), workspaceRoot);
+});
 
 test("resolveReviewTarget prefers working tree when repo is dirty", () => {
   const cwd = makeTempDir();

@@ -5,7 +5,16 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { makeTempDir } from "./helpers.mjs";
-import { resolveJobFile, resolveJobLogFile, resolveStateDir, resolveStateFile, saveState } from "../plugins/codex/scripts/lib/state.mjs";
+import {
+  loadState,
+  resolveJobFile,
+  resolveJobLogFile,
+  resolveStateDir,
+  resolveStateFile,
+  saveState,
+  updateState,
+  upsertJob
+} from "../plugins/codex/scripts/lib/state.mjs";
 
 test("resolveStateDir uses a temp-backed per-workspace directory", () => {
   const workspace = makeTempDir();
@@ -38,6 +47,53 @@ test("resolveStateDir uses CLAUDE_PLUGIN_DATA when it is provided", () => {
       process.env.CLAUDE_PLUGIN_DATA = previousPluginDataDir;
     }
   }
+});
+
+test("updateState rebuilds on a competing write instead of overwriting it", () => {
+  const workspace = makeTempDir();
+  saveState(workspace, { version: 1, config: { stopReviewGate: false }, jobs: [] });
+
+  let injected = false;
+  updateState(workspace, (state) => {
+    if (!injected) {
+      injected = true;
+      // Stand in for a second process committing between this attempt's read and its write.
+      saveState(workspace, {
+        version: 1,
+        config: { stopReviewGate: false },
+        jobs: [{ id: "job-other", status: "running", updatedAt: "2026-01-01T00:00:00.000Z" }]
+      });
+    }
+    state.jobs.push({ id: "job-mine", status: "queued", updatedAt: "2026-01-02T00:00:00.000Z" });
+  });
+
+  assert.deepEqual(
+    loadState(workspace).jobs.map((job) => job.id).sort(),
+    ["job-mine", "job-other"]
+  );
+});
+
+test("a write refuses stored state whose log file escapes the managed jobs directory", () => {
+  const workspace = makeTempDir();
+  const stateFile = resolveStateFile(workspace);
+  const outside = path.join(workspace, "escape.log");
+  fs.mkdirSync(path.dirname(stateFile), { recursive: true });
+  fs.writeFileSync(outside, "keep\n", "utf8");
+  fs.writeFileSync(
+    stateFile,
+    `${JSON.stringify({
+      version: 1,
+      config: { stopReviewGate: false },
+      jobs: [{ id: "job-escaped", status: "completed", logFile: outside }]
+    })}\n`,
+    "utf8"
+  );
+
+  // Reading the stored state back is what stops a rewrite from adopting an unmanaged path
+  // that pruning and session cleanup would later act on. Both write paths apply it.
+  assert.throws(() => saveState(workspace, { version: 1, config: {}, jobs: [] }), /log file/i);
+  assert.throws(() => upsertJob(workspace, { id: "job-new", status: "queued" }), /log file/i);
+  assert.equal(fs.readFileSync(outside, "utf8"), "keep\n");
 });
 
 test("saveState prunes the index without deleting dropped job artifacts", () => {
