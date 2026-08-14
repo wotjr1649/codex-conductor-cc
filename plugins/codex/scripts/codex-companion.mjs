@@ -787,6 +787,8 @@ async function handleReviewCommand(argv, config) {
   const { options, positionals } = parseCommandInput(argv, {
     valueOptions: ["base", "scope", "model", "cwd"],
     booleanOptions: ["json", "background", "wait"],
+    // The review focus is free-form prose, so a flag written inside it stays focus text.
+    optionsBeforePositionals: true,
     aliasMap: {
       m: "model"
     }
@@ -837,6 +839,8 @@ async function handleTask(argv) {
   const { options, positionals } = parseCommandInput(argv, {
     valueOptions: ["model", "effort", "cwd", "prompt-file"],
     booleanOptions: ["json", "write", "resume-last", "resume", "fresh", "background"],
+    // The prompt is free-form prose, so a flag written inside it stays prompt text.
+    optionsBeforePositionals: true,
     aliasMap: {
       m: "model"
     }
