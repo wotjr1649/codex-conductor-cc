@@ -8,7 +8,7 @@ import {
   validatePortabilityWorkflow
 } from "./portability-policy.mjs";
 
-export const PORTABILITY_BASE = "099afca5946debe5620411f2ab1d4aec388918ca";
+export const PORTABILITY_BASE = "b547af57e07a64d25769c22223ef76be72f2dfa9";
 
 const ENTRYPOINT = "scripts/validate-p5.mjs";
 const LEGACY_WORKFLOW = ".github/workflows/pull-request-ci.yml";
@@ -16,8 +16,6 @@ const LEGACY_ARCHIVE_P5_ERRORS = [
   "workflow: trigger set must be exactly pull_request",
   "P5E_WORKFLOW_DIGEST: PR workflow differs from the reviewed P5 executable graph"
 ];
-const BEGIN = "// PORTABILITY_CONTINUATION_BEGIN\n";
-const END = "// PORTABILITY_CONTINUATION_END\n";
 const PORTABILITY_CODEOWNER_LINES = [
   "/.github/workflows/ @wotjr1649",
   "/plugins/codex/scripts/ @wotjr1649",
@@ -104,20 +102,6 @@ export function validatePortabilityCodeowners(text) {
     .map((line) => `P6E_CODEOWNERS: missing ${line}`);
 }
 
-function stripContinuation(text) {
-  const begin = text.indexOf(BEGIN);
-  const end = text.indexOf(END, begin + BEGIN.length);
-  if (
-    begin < 0 ||
-    end < 0 ||
-    text.indexOf(BEGIN, begin + BEGIN.length) !== -1 ||
-    text.indexOf(END, end + END.length) !== -1
-  ) {
-    return null;
-  }
-  return text.slice(0, begin) + text.slice(end + END.length);
-}
-
 export function validatePortabilityChangeSet({
   changedPaths,
   baseValidatorText,
@@ -139,11 +123,12 @@ export function validatePortabilityChangeSet({
       errors.push(`P6E_SCOPE:${relativePath}`);
     }
   }
-  if (
-    !normalizedPaths.includes(ENTRYPOINT) ||
-    stripContinuation(canonicalCurrent) !== canonicalBase
-  ) {
-    errors.push("P6E_P5_ENTRYPOINT: legacy validator may contain only the marked continuation");
+  // The base carries the continuation block now, so the allowance this used to grant -- the
+  // released validator plus exactly the marked block -- is spent, and byte identity is the only
+  // acceptable state. Extending the continuation again means another re-baseline, which is the
+  // point: each extension is reviewed as the diff that moves the base.
+  if (normalizedPaths.includes(ENTRYPOINT) && canonicalCurrent !== canonicalBase) {
+    errors.push("P6E_P5_ENTRYPOINT: legacy validator may not change without a re-baseline");
   }
   return errors;
 }
@@ -151,9 +136,12 @@ export function validatePortabilityChangeSet({
 export function validateLegacyWorkflowArchive(baseText, currentText) {
   const base = String(baseText ?? "").replaceAll("\r\n", "\n");
   const current = String(currentText ?? "").replaceAll("\r\n", "\n");
-  const trigger = "on:\n  pull_request:\n";
-  if (base.split(trigger).length !== 2 || current !== base.replace(trigger, "on:\n  workflow_dispatch:\n")) {
-    return ["P6E_LEGACY_WORKFLOW_ARCHIVE: only the pull_request trigger may be archived"];
+  // The archived state is the base now. The one-time transformation this used to permit --
+  // replacing the released `pull_request` trigger with `workflow_dispatch` -- happened in v0.2,
+  // so the only acceptable state is byte identity against a base that is already archived.
+  // Restoring the trigger still fails, which is what V2 has to route around.
+  if (!base.includes("on:\n  workflow_dispatch:\n") || current !== base) {
+    return ["P6E_LEGACY_WORKFLOW_ARCHIVE: the archived workflow may not change"];
   }
   return [];
 }
