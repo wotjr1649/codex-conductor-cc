@@ -22,12 +22,27 @@ test("resolveStateDir uses a temp-backed per-workspace directory", {
   skip: process.platform === "win32" ? false : "POSIX resolves the state root elsewhere"
 }, () => {
   const workspace = makeTempDir();
+  // CLAUDE_PLUGIN_DATA has to be cleared, not merely left alone: this plugin's own SessionStart
+  // hook exports it, so running the suite inside a Claude Code session sent this assertion to
+  // the plugin data root and failed a test that is fine everywhere else.
+  const previousPluginDataDir = process.env.CLAUDE_PLUGIN_DATA;
+  delete process.env.CLAUDE_PLUGIN_DATA;
+  try {
+    assertTempBackedStateDir(workspace);
+  } finally {
+    if (previousPluginDataDir != null) {
+      process.env.CLAUDE_PLUGIN_DATA = previousPluginDataDir;
+    }
+  }
+});
+
+function assertTempBackedStateDir(workspace) {
   const stateDir = resolveStateDir(workspace);
 
   assert.equal(stateDir.startsWith(os.tmpdir()), true);
   assert.match(path.basename(stateDir), /.+-[a-f0-9]{16}$/);
   assert.match(stateDir, new RegExp(`^${os.tmpdir().replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`));
-});
+}
 
 test("resolveStateDir uses CLAUDE_PLUGIN_DATA when it is provided", () => {
   const workspace = makeTempDir();

@@ -147,24 +147,36 @@ function sourceContentSha256(sourcePath) {
   return crypto.createHash("sha256").update(fs.readFileSync(sourcePath)).digest("hex");
 }
 
-function importedThreadIdForSource(sourcePath) {
-  const ledgerPath = path.join(resolveCodexHome(), "external_agent_session_imports.json");
-  if (!fs.existsSync(ledgerPath)) {
+function sourceFingerprint(sourcePath) {
+  const canonicalSource = fs.realpathSync(sourcePath);
+  return { canonicalSource, contentSha256: sourceContentSha256(canonicalSource) };
+}
+
+// `fingerprint` lets the poll below hash the transcript once instead of once per attempt.
+function importedThreadIdForSource(sourcePath, fingerprint = null) {
+  try {
+    const ledgerPath = path.join(resolveCodexHome(), "external_agent_session_imports.json");
+    if (!fs.existsSync(ledgerPath)) {
+      return null;
+    }
+    const { canonicalSource, contentSha256 } = fingerprint ?? sourceFingerprint(sourcePath);
+    const ledger = readJsonFile(ledgerPath);
+    const records = Array.isArray(ledger?.records) ? ledger.records : [];
+    const match = records
+      .filter(
+        (record) =>
+          record?.source_path === canonicalSource &&
+          record?.content_sha256 === contentSha256 &&
+          typeof record?.imported_thread_id === "string"
+      )
+      .at(-1);
+    return match?.imported_thread_id ?? null;
+  } catch {
+    // Codex writes this ledger while the caller polls it, so a torn read means "not recorded
+    // yet", not "the import failed". Letting it out turned a successful import into a failure
+    // that also lost the only handle to the thread. The caller's timeout decides instead.
     return null;
   }
-  const ledger = readJsonFile(ledgerPath);
-  const canonicalSource = fs.realpathSync(sourcePath);
-  const contentSha256 = sourceContentSha256(canonicalSource);
-  const records = Array.isArray(ledger?.records) ? ledger.records : [];
-  const match = records
-    .filter(
-      (record) =>
-        record?.source_path === canonicalSource &&
-        record?.content_sha256 === contentSha256 &&
-        typeof record?.imported_thread_id === "string"
-    )
-    .at(-1);
-  return match?.imported_thread_id ?? null;
 }
 
 function externalAgentSessionMigration(sourcePath, cwd) {
@@ -599,14 +611,17 @@ export async function importExternalAgentSession(cwd, options = {}) {
     // The completion notification does not promise the ledger has been flushed, and that ledger
     // holds the only handle to the imported thread. Nothing enforces the ordering, so wait for it
     // rather than reporting a successful import as a failure and losing the thread.
-    let threadId = importedThreadIdForSource(options.sourcePath);
+    // Fingerprint once. Recomputing it per attempt re-hashed the whole transcript up to fifty
+    // times while waiting on a file that had not changed.
+    const fingerprint = sourceFingerprint(options.sourcePath);
+    let threadId = importedThreadIdForSource(options.sourcePath, fingerprint);
     for (
       let waited = 0;
       !threadId && waited < IMPORT_LEDGER_TIMEOUT_MS;
       waited += IMPORT_LEDGER_POLL_MS
     ) {
       await new Promise((resolve) => setTimeout(resolve, IMPORT_LEDGER_POLL_MS));
-      threadId = importedThreadIdForSource(options.sourcePath);
+      threadId = importedThreadIdForSource(options.sourcePath, fingerprint);
     }
     if (!threadId) {
       const stderr = cleanCodexStderr(client.stderr);

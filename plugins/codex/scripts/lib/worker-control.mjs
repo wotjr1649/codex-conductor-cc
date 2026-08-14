@@ -27,6 +27,8 @@ const CAPABILITY = /^[A-Za-z0-9_-]{43}$/;
 const DESCRIPTOR_KEYS = ["generation", "version", "workerId"];
 const MAX_NONCES = 4096;
 const OUTCOMES = new Set(["accepted", "indeterminate"]);
+const CONNECT_TIMEOUT_MS = 2000;
+const AUTH_TIMEOUT_MS = 1000;
 const CANCEL_ACK_TIMEOUT_MS = 15000;
 
 export function validateWorkerControllerDescriptor(descriptor) {
@@ -171,7 +173,8 @@ export async function startWorkerControlServer(cwd, descriptor, capability, onCa
     socket.setEncoding("utf8");
     void (async () => {
       try {
-        if (seenNonces.size >= MAX_NONCES) throw new Error("Worker authentication capacity reached.");
+        // No capacity refusal here: verifyBrokerAuthProof bounds the replay set by evicting the
+        // oldest pair, and a hard refusal at the same size meant that eviction could never run.
         const hello = await readBrokerJsonLine(socket, 1000);
         if (hello?.id !== "broker-auth-hello" || hello?.params?.operation !== "worker-cancel") {
           throw new Error("Worker authentication failed.");
@@ -183,7 +186,8 @@ export async function startWorkerControlServer(cwd, descriptor, capability, onCa
         if (proof?.id !== "broker-auth-proof") throw new Error("Worker authentication failed.");
         verifyBrokerAuthProof(proof, hello, challenge, controller.auth, {
           operation: "worker-cancel",
-          seenNonces
+          seenNonces,
+          maxSeenNonces: MAX_NONCES
         });
         send(socket, { id: proof.id, result: createBrokerAuthReady(proof, controller.auth) });
 
@@ -252,17 +256,23 @@ async function connectWorker(socketPath, timeoutMs) {
   throw new Error("Worker control connection timed out.");
 }
 
-export async function sendWorkerCancel(cwd, descriptor, timeoutMs = 2000) {
+// `deadline` is an absolute timestamp the whole exchange must finish inside. Callers that have
+// their own budget -- the SessionEnd hook has about three seconds for every job it owns -- pass
+// one, and each step then gets whatever is left rather than its own full window. Without it the
+// three windows are independent and the worst case is their sum.
+export async function sendWorkerCancel(cwd, descriptor, { deadline } = {}) {
   const controller = loadWorkerController(cwd, descriptor);
-  const socket = await connectWorker(controller.socketPath, timeoutMs);
+  const budget = (fallback) =>
+    deadline === undefined ? fallback : Math.max(0, Math.min(fallback, deadline - Date.now()));
+  const socket = await connectWorker(controller.socketPath, budget(CONNECT_TIMEOUT_MS));
   try {
     const transcript = await authenticateBrokerSocket(socket, controller.auth, {
       operation: "worker-cancel",
-      timeoutMs: 1000
+      timeoutMs: budget(AUTH_TIMEOUT_MS)
     });
     // The worker's handler polls for thread identity and can spawn an app-server to interrupt the
     // turn, so a two-second window gave up before it could answer.
-    const responsePromise = readBrokerJsonLine(socket, CANCEL_ACK_TIMEOUT_MS);
+    const responsePromise = readBrokerJsonLine(socket, budget(CANCEL_ACK_TIMEOUT_MS));
     socket.write(`${JSON.stringify({ id: 1, method: "worker/cancel", params: {} })}\n`);
     const response = await responsePromise;
     const outcome = response?.result?.outcome;

@@ -946,7 +946,11 @@ async function handleTaskWorker(argv) {
         controller.workerId === options["worker-id"] &&
         controller.generation === options.generation
       ) {
-        discardWorkerController(cwd, controller);
+        // Scoped to workspaceRoot, which is where enqueueBackgroundTask created it. Passing cwd
+        // resolves a different scope id whenever the command was run from a subdirectory, so the
+        // credential file this is meant to remove was left on disk and a spurious tree created
+        // under the wrong scope. Both sibling call sites already pass workspaceRoot.
+        discardWorkerController(workspaceRoot, controller);
       }
     } catch {
       // The stored state may itself be why we are here.

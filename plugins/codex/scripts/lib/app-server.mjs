@@ -32,6 +32,10 @@ export const BROKER_BUSY_RPC_CODE = -32001;
 // Every request this client makes is control plane: a turn's work arrives as notifications, and
 // turn/start answers as soon as the turn exists. Slow calls pass their own budget instead.
 const DEFAULT_REQUEST_TIMEOUT_MS = 60 * 1000;
+// How long after `exit` to keep waiting for `close`, which is what guarantees stdout has drained.
+// Long enough for readline to emit what is already buffered, short enough that a `close` which
+// will never come costs a fraction of a second instead of a request timeout.
+const EXIT_DRAIN_GRACE_MS = 250;
 const MAX_RETAINED_STDERR_BYTES = 64 * 1024;
 const MAX_LINE_BUFFER_BYTES = 8 * 1024 * 1024;
 
@@ -166,6 +170,11 @@ class AppServerClientBase {
     // What is left is one unterminated line. The socket side is capped and this was not.
     if (Buffer.byteLength(this.lineBuffer) > MAX_LINE_BUFFER_BYTES) {
       this.lineBuffer = "";
+      // Mark the client closed as well as settling what is pending. handleExit alone left
+      // request()'s guard passing, so a call made afterwards was added to `pending` that
+      // handleExit -- already past its exitResolved check -- would never visit again, and it
+      // hung to its own timeout against a transport nobody was reading.
+      this.closed = true;
       this.handleExit(createProtocolError("codex app-server sent a line larger than this client will buffer."));
     }
   }
@@ -267,7 +276,18 @@ class SpawnedCodexAppServerClient extends AppServerClientBase {
       this.handleExit(error);
     });
 
-    this.proc.on("exit", (code, signal) => {
+    // Prefer `close` over `exit`, but do not depend on it. `exit` fires when the process ends,
+    // which can be before readline has emitted the lines still sitting in stdout's buffer, and a
+    // turn whose `turn/completed` was in that buffer got reported as a lost connection instead of
+    // the success it was. `close` waits for stdio to drain -- except that a grandchild which
+    // inherited the pipes keeps it from ever firing, and then every pending request runs to its
+    // own timeout. So `exit` arms a short drain window and whichever arrives first settles.
+    let exitSettled = false;
+    let drainTimer = null;
+    const settleExit = (code, signal) => {
+      if (exitSettled) return;
+      exitSettled = true;
+      if (drainTimer) clearTimeout(drainTimer);
       const stderr = this.stderr.trim();
       const detail =
         code === 0
@@ -276,7 +296,13 @@ class SpawnedCodexAppServerClient extends AppServerClientBase {
               `codex app-server exited unexpectedly (${signal ? `signal ${signal}` : `exit ${code}`}).${stderr ? `\n${stderr}` : ""}`
             );
       this.handleExit(detail);
+    };
+
+    this.proc.on("exit", (code, signal) => {
+      drainTimer = setTimeout(() => settleExit(code, signal), EXIT_DRAIN_GRACE_MS);
+      drainTimer.unref?.();
     });
+    this.proc.on("close", (code, signal) => settleExit(code, signal));
 
     this.readline = readline.createInterface({ input: this.proc.stdout });
     this.readline.on("line", (line) => {

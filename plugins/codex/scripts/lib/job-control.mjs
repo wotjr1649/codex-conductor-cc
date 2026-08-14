@@ -62,16 +62,19 @@ function isProgressBlockTitle(line) {
 // lines, while the log grows without bound because progress appends whole assistant messages.
 // Read the tail instead of the file.
 const MAX_PROGRESS_TAIL_BYTES = 64 * 1024;
+// The ceiling the widening loop stops at, so a pathological log cannot turn a status poll into a
+// full read of an unbounded file.
+const MAX_PROGRESS_PREVIEW_BYTES = 1024 * 1024;
 
-function readLogTail(logFile) {
+function readLogTail(logFile, windowBytes) {
   const handle = fs.openSync(logFile, "r");
   try {
     const size = fs.fstatSync(handle).size;
-    if (size <= MAX_PROGRESS_TAIL_BYTES) {
+    if (size <= windowBytes) {
       return fs.readFileSync(handle, "utf8");
     }
-    const buffer = Buffer.allocUnsafe(MAX_PROGRESS_TAIL_BYTES);
-    const read = fs.readSync(handle, buffer, 0, MAX_PROGRESS_TAIL_BYTES, size - MAX_PROGRESS_TAIL_BYTES);
+    const buffer = Buffer.allocUnsafe(windowBytes);
+    const read = fs.readSync(handle, buffer, 0, windowBytes, size - windowBytes);
     const text = buffer.subarray(0, read).toString("utf8");
     // The first line in the window is cut in half, which is also where a split multi-byte
     // character would land. Drop it.
@@ -83,19 +86,38 @@ function readLogTail(logFile) {
 }
 
 export function readJobProgressPreview(logFile, maxLines = DEFAULT_MAX_PROGRESS_LINES) {
-  if (!logFile || !fs.existsSync(logFile)) {
+  if (!logFile) {
     return [];
   }
 
-  const lines = readLogTail(logFile)
-    .split(/\r?\n/)
-    .map((line) => line.trimEnd())
-    .filter(Boolean)
-    .filter((line) => line.startsWith("["))
-    .map(stripLogPrefix)
-    .filter((line) => line && !isProgressBlockTitle(line));
+  // Widen the window when it lands entirely inside one appended body. Progress writes raw
+  // assistant messages, so a tail that happens to sit in the middle of a long one contains no
+  // prefixed line at all and the preview came back empty while the job was reporting fine.
+  // Stop as soon as the window covers the whole file, since nothing more can appear.
+  for (let window = MAX_PROGRESS_TAIL_BYTES; window <= MAX_PROGRESS_PREVIEW_BYTES; window *= 4) {
+    let text;
+    try {
+      text = readLogTail(logFile, window);
+    } catch {
+      // The log can be pruned between this call and the read -- artifact cleanup deletes it as
+      // the job leaves the index -- and a status poll must not die of it.
+      return [];
+    }
 
-  return lines.slice(-maxLines);
+    const lines = text
+      .split(/\r?\n/)
+      .map((line) => line.trimEnd())
+      .filter(Boolean)
+      .filter((line) => line.startsWith("["))
+      .map(stripLogPrefix)
+      .filter((line) => line && !isProgressBlockTitle(line));
+
+    if (lines.length > 0 || Buffer.byteLength(text) < window) {
+      return lines.slice(-maxLines);
+    }
+  }
+
+  return [];
 }
 
 function formatElapsedDuration(startValue, endValue = null) {
@@ -301,6 +323,19 @@ export function resolveResultJob(cwd, reference) {
   const active = matchJobReference(jobs, reference, (job) => job.status === "queued" || job.status === "running");
   if (active) {
     throw new Error(`Job ${active.id} is still ${active.status}. Check /codex:status and try again once it finishes.`);
+  }
+
+  // Neither predicate above covered these two, so a job status listed happily by /codex:status
+  // was reported here as not existing at all -- the same class of lie J3 removed from the
+  // matcher, left behind in the statuses it does not name.
+  const cancelling = matchJobReference(jobs, reference, (job) => job.status === "cancel_requested");
+  if (cancelling) {
+    throw new Error(`Job ${cancelling.id} is being cancelled. Check /codex:status and try again once it settles.`);
+  }
+
+  const unresolved = matchJobReference(jobs, reference, (job) => job.status === "indeterminate");
+  if (unresolved) {
+    throw new Error(`Job ${unresolved.id} ended indeterminate, so no result was recorded. Check /codex:status.`);
   }
 
   if (reference) {

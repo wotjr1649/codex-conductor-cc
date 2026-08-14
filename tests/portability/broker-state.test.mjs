@@ -122,9 +122,16 @@ test("P6-BROKER-STATE-005 rewritten Windows broker state is dropped, not adopted
     "utf8"
   );
 
-  assert.equal(loadBrokerSession(workspace), null);
-  // Diagnostics keep working rather than adopting the endpoint or dying on the state file.
-  assert.equal(getSessionRuntimeStatus({}, workspace).mode, "direct");
-
-  fs.rmSync(workspace, { recursive: true, force: true });
+  try {
+    assert.equal(loadBrokerSession(workspace), null);
+    // Diagnostics keep working rather than adopting the endpoint or dying on the state file.
+    assert.equal(getSessionRuntimeStatus({}, workspace).mode, "direct");
+  } finally {
+    // The state directory is not inside the workspace. With CLAUDE_PLUGIN_DATA set -- which this
+    // plugin's own SessionStart hook exports -- it lives under the plugin data root, so removing
+    // only the workspace left this hostile broker.json, which names the user's home directory as
+    // its session directory, sitting in the real state root after the run.
+    fs.rmSync(stateDir, { recursive: true, force: true });
+    fs.rmSync(workspace, { recursive: true, force: true });
+  }
 });

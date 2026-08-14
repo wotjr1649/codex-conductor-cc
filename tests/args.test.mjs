@@ -53,6 +53,16 @@ test("a flag written before the prompt is still parsed as an option", () => {
   assert.deepEqual(positionals, ["fix", "the", "failing", "build"]);
 });
 
+test("a flag appended after the prompt stays prompt text", () => {
+  // The other half of the rule, and the one a caller can get wrong without noticing: writing
+  // `task "..." --write` produces a read-only run whose prompt happens to end in "--write". The
+  // rescue agent's contract has to put flags first for exactly this reason.
+  const { options, positionals } = parseRawCommand("fix the failing build --write", TASK_CONFIG);
+
+  assert.equal(options.write, undefined);
+  assert.ok(positionals.includes("--write"), "the flag token must survive as prompt text");
+});
+
 test("a value option inside prompt prose does not swallow the following word", () => {
   const { options, positionals } = parseRawCommand(
     "explain the --model selection logic",

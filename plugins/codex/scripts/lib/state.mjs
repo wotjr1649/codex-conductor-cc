@@ -19,6 +19,10 @@ const MAX_JOBS = 50;
 const MAX_UPDATE_ATTEMPTS = 3;
 const JOB_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 const CONTROLLER_KEYS = ["generation", "version", "workerId"];
+// The statuses that mean nothing will write to this job's files again. Everything else --
+// including `indeterminate`, which means a cancellation could not be confirmed -- may still
+// have a live worker behind it.
+const TERMINAL_JOB_STATUSES = new Set(["completed", "failed", "cancelled"]);
 
 function nowIso() {
   return new Date().toISOString();
@@ -189,7 +193,10 @@ export function loadState(cwd) {
 // Call this only once the prune has been committed. See writeState.
 function removePrunedJobArtifacts(jobsDir, prunedJobs) {
   for (const job of prunedJobs) {
-    if (["queued", "running", "cancel_requested"].includes(job.status)) {
+    // An allowlist, not a denylist, so a status nobody thought about here keeps its files.
+    // `indeterminate` is the case that made this matter: it means a cancellation could not be
+    // confirmed, which is to say the worker may still be running and appending to that log.
+    if (!TERMINAL_JOB_STATUSES.has(job.status)) {
       continue;
     }
     for (const artifact of [path.join(jobsDir, `${job.id}.json`), path.join(jobsDir, `${job.id}.log`)]) {
@@ -376,7 +383,15 @@ export function removeSessionJobArtifacts(cwd, jobs, sessionId) {
     targets.push(files);
   }
   for (const files of targets) {
-    for (const filePath of files) fs.unlinkSync(filePath);
+    for (const filePath of files) {
+      try {
+        fs.unlinkSync(filePath);
+      } catch {
+        // Every target was validated above; a failure here is the file already being gone or,
+        // on Windows, a worker still holding its log open. Neither is worth aborting a session
+        // teardown for, and the index has already been committed without these jobs.
+      }
+    }
   }
   return targets.length;
 }

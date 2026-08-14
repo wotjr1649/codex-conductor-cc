@@ -52,6 +52,7 @@ const EXACT_PATHS = new Set([
   // The v0.3 hardening program's surface, admitted one path at a time so that the diff which
   // admits it is the review. Everything not listed here still has to match the released base
   // byte-for-byte, and the base itself does not move.
+  "plugins/codex/agents/codex-rescue.md",
   "plugins/codex/skills/codex-cli-runtime/SKILL.md",
   "tests/args.test.mjs",
   "tests/commands.test.mjs",
@@ -237,6 +238,9 @@ export function filterLegacyP5ContinuationErrors(
     }
     if (error === "P5E_IMMUTABLE_PATH:plugins/codex/skills") {
       return ![...allowed].some((relativePath) => relativePath.startsWith("plugins/codex/skills/"));
+    }
+    if (error === "P5E_IMMUTABLE_PATH:plugins/codex/agents") {
+      return ![...allowed].some((relativePath) => relativePath.startsWith("plugins/codex/agents/"));
     }
     if (error === "P5E_TEST_OMITTED: inherited test mapping differs from the exact tree") {
       // The inherited inventory is the released set and the legacy validator freezes its
