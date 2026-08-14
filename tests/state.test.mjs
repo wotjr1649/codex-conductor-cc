@@ -37,13 +37,14 @@ test("resolveStateDir uses CLAUDE_PLUGIN_DATA when it is provided", () => {
 
   try {
     const stateDir = resolveStateDir(workspace);
+    // The POSIX branch canonicalizes the plugin data directory before building under it, and on
+    // macOS the temp directory is reached through the /var -> /private/var symlink, so the
+    // expected root is the resolved one. Canonicalizing is the guard, not an accident.
+    const expectedRoot = path.join(fs.realpathSync.native(pluginDataDir), "state");
 
-    assert.equal(stateDir.startsWith(path.join(pluginDataDir, "state")), true);
+    assert.equal(stateDir.startsWith(expectedRoot), true);
     assert.match(path.basename(stateDir), /.+-[a-f0-9]{16}$/);
-    assert.match(
-      stateDir,
-      new RegExp(`^${path.join(pluginDataDir, "state").replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`)
-    );
+    assert.match(stateDir, new RegExp(`^${expectedRoot.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`));
   } finally {
     if (previousPluginDataDir == null) {
       delete process.env.CLAUDE_PLUGIN_DATA;
