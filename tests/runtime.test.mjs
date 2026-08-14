@@ -940,6 +940,33 @@ test("task can finish after subagent work even if the parent turn/completed even
   assert.equal(result.stdout, "Handled the requested task.\nTask prompt accepted.\n");
 });
 
+test("task fails instead of running forever when the app-server dies mid-turn", () => {
+  const repo = makeTempDir();
+  const binDir = makeTempDir();
+  installFakeCodex(binDir, "dies-mid-turn");
+  initGitRepo(repo);
+  fs.writeFileSync(path.join(repo, "README.md"), "hello\n");
+  run("git", ["add", "README.md"], { cwd: repo });
+  run("git", ["commit", "-m", "init"], { cwd: repo });
+
+  const result = run("node", [SCRIPT, "task", "investigate the failing test"], {
+    cwd: repo,
+    env: buildEnv(binDir),
+    timeoutMs: 60000
+  });
+
+  // The broker dies with its app-server, so its state file is stale from here on.
+  clearBrokerSession(repo);
+
+  assert.equal(result.error, undefined, "task never settled after the app-server died");
+  assert.equal(result.status, 1, result.stderr);
+  assert.match(result.stderr, /app-server/i);
+
+  const stateDir = resolveStateDir(repo);
+  const state = JSON.parse(fs.readFileSync(path.join(stateDir, "state.json"), "utf8"));
+  assert.equal(state.jobs[0].status, "failed");
+});
+
 test("task using the shared broker still completes when Codex spawns subagents", () => {
   const repo = makeTempDir();
   const binDir = makeTempDir();

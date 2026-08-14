@@ -307,6 +307,9 @@ function createTurnCaptureState(threadId, options = {}) {
     resolveCompletion = resolve;
     rejectCompletion = reject;
   });
+  // failTurn can settle this before captureTurn awaits it, so keep the rejection handled:
+  // an unhandled rejection would take the whole process down instead of failing the turn.
+  completion.catch(() => {});
 
   return {
     threadId,
@@ -368,6 +371,16 @@ function completeTurn(state, turn = null, options = {}) {
   }
 
   state.resolveCompletion(state);
+}
+
+function failTurn(state, error) {
+  if (state.completed) {
+    return;
+  }
+
+  clearCompletionTimer(state);
+  state.completed = true;
+  state.rejectCompletion(error);
 }
 
 function scheduleInferredCompletion(state) {
@@ -559,6 +572,17 @@ function applyTurnNotification(state, message) {
 async function captureTurn(client, threadId, startRequest, options = {}) {
   const state = createTurnCaptureState(threadId, options);
   const previousHandler = client.notificationHandler;
+
+  // turn/start returns long before the turn ends, so once it has answered no pending request
+  // is left for handleExit to reject. Completion then arrives only from turn/completed or the
+  // inference timer, and a connection lost in between would leave this turn running forever.
+  client.exitPromise.then(() => {
+    const detail = client.exitError?.message ?? null;
+    failTurn(
+      state,
+      new Error(`The Codex app-server connection closed before the turn completed.${detail ? `\n${detail}` : ""}`)
+    );
+  });
 
   client.setNotificationHandler((message) => {
     if (!state.turnId) {

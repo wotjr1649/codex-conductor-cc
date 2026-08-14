@@ -357,6 +357,20 @@ async function main() {
     process.exit(0);
   });
 
+  // The broker multiplexes exactly one app-server. Once that app-server is gone the broker can
+  // never answer again — writes to the dead child are discarded and every request stays pending
+  // forever — so stop instead of holding client connections open.
+  appClient.exitPromise.then(async () => {
+    if (appClient.closed) {
+      return;
+    }
+    process.stderr.write(
+      `codex app-server exited; stopping the broker.${appClient.exitError ? ` ${appClient.exitError.message}` : ""}\n`
+    );
+    await shutdown(server);
+    process.exit(1);
+  });
+
   server.listen(listenTarget.path, () => {
     if (listenTarget.kind === "unix") fs.chmodSync(listenTarget.path, 0o600);
   });

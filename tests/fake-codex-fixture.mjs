@@ -576,6 +576,13 @@ rl.on("line", (line) => {
           break;
         }
 
+        if (BEHAVIOR === "dies-mid-turn") {
+          // turn/start is already answered, so no request is left pending. Die before
+          // turn/completed ever arrives.
+          setTimeout(() => process.exit(1), 50);
+          break;
+        }
+
         const items = [
           ...(BEHAVIOR === "with-reasoning"
             ? [
