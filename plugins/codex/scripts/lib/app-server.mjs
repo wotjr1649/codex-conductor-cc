@@ -29,6 +29,12 @@ const PLUGIN_MANIFEST = JSON.parse(fs.readFileSync(PLUGIN_MANIFEST_URL, "utf8"))
 export const BROKER_ENDPOINT_ENV = "CODEX_COMPANION_APP_SERVER_ENDPOINT";
 export const BROKER_BUSY_RPC_CODE = -32001;
 
+// Every request this client makes is control plane: a turn's work arrives as notifications, and
+// turn/start answers as soon as the turn exists. Slow calls pass their own budget instead.
+const DEFAULT_REQUEST_TIMEOUT_MS = 60 * 1000;
+const MAX_RETAINED_STDERR_BYTES = 64 * 1024;
+const MAX_LINE_BUFFER_BYTES = 8 * 1024 * 1024;
+
 /** @type {ClientInfo} */
 const DEFAULT_CLIENT_INFO = {
   title: "Codex Conductor",
@@ -90,17 +96,45 @@ class AppServerClientBase {
    * @param {import("./app-server-protocol").AppServerRequestParams<M>} params
    * @returns {Promise<import("./app-server-protocol").AppServerResponse<M>>}
    */
-  request(method, params) {
+  request(method, params, options = {}) {
     if (this.closed) {
       throw new Error("codex app-server client is closed.");
     }
 
     const id = this.nextId;
     this.nextId += 1;
+    const timeoutMs = options.timeoutMs ?? this.options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
 
     return new Promise((resolve, reject) => {
-      this.pending.set(id, { resolve, reject, method });
-      this.sendMessage({ id, method, params });
+      // A pending request used to settle only on a matching response or on process exit, so an
+      // app-server that stayed alive and silent held it for the life of the process.
+      const timer = setTimeout(() => {
+        if (!this.pending.delete(id)) {
+          return;
+        }
+        reject(createProtocolError(`codex app-server did not answer ${method} within ${timeoutMs} ms.`));
+      }, timeoutMs);
+      timer.unref?.();
+
+      this.pending.set(id, {
+        method,
+        resolve(value) {
+          clearTimeout(timer);
+          resolve(value);
+        },
+        reject(error) {
+          clearTimeout(timer);
+          reject(error);
+        }
+      });
+
+      try {
+        this.sendMessage({ id, method, params });
+      } catch (error) {
+        this.pending.delete(id);
+        clearTimeout(timer);
+        reject(error);
+      }
     });
   }
 
@@ -111,6 +145,15 @@ class AppServerClientBase {
     this.sendMessage({ method, params });
   }
 
+  appendStderr(chunk) {
+    this.stderr += chunk;
+    // The broker's client lives as long as the broker, so retained stderr cannot be allowed to
+    // grow with the child's chattiness. Keep the tail: it is what explains an exit.
+    if (this.stderr.length > MAX_RETAINED_STDERR_BYTES) {
+      this.stderr = this.stderr.slice(-MAX_RETAINED_STDERR_BYTES);
+    }
+  }
+
   handleChunk(chunk) {
     this.lineBuffer += chunk;
     let newlineIndex = this.lineBuffer.indexOf("\n");
@@ -119,6 +162,11 @@ class AppServerClientBase {
       this.lineBuffer = this.lineBuffer.slice(newlineIndex + 1);
       this.handleLine(line);
       newlineIndex = this.lineBuffer.indexOf("\n");
+    }
+    // What is left is one unterminated line. The socket side is capped and this was not.
+    if (Buffer.byteLength(this.lineBuffer) > MAX_LINE_BUFFER_BYTES) {
+      this.lineBuffer = "";
+      this.handleExit(createProtocolError("codex app-server sent a line larger than this client will buffer."));
     }
   }
 
@@ -212,7 +260,7 @@ class SpawnedCodexAppServerClient extends AppServerClientBase {
     this.proc.stderr.setEncoding("utf8");
 
     this.proc.stderr.on("data", (chunk) => {
-      this.stderr += chunk;
+      this.appendStderr(chunk);
     });
 
     this.proc.on("error", (error) => {

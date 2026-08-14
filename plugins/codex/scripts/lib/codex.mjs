@@ -50,6 +50,7 @@ const DEFAULT_CONTINUE_PROMPT =
   "Continue from the current thread state. Pick the next highest-value step and follow through until the task is resolved.";
 const EXTERNAL_AGENT_IMPORT_COMPLETED = "externalAgentConfig/import/completed";
 const EXTERNAL_AGENT_IMPORT_TIMEOUT_MS = 2 * 60 * 1000;
+const MAX_BUFFERED_NOTIFICATIONS = 1024;
 
 function cleanCodexStderr(stderr) {
   return stderr
@@ -586,6 +587,15 @@ async function captureTurn(client, threadId, startRequest, options = {}) {
 
   client.setNotificationHandler((message) => {
     if (!state.turnId) {
+      // Buffering waits for the turn id, which only the start response carries. Without a cap
+      // a turn that never gets one buffers everything, including its own completion.
+      if (state.bufferedNotifications.length >= MAX_BUFFERED_NOTIFICATIONS) {
+        failTurn(
+          state,
+          new Error("The Codex app-server sent more notifications than this turn will hold before identifying itself.")
+        );
+        return;
+      }
       state.bufferedNotifications.push(message);
       return;
     }
@@ -625,6 +635,10 @@ async function captureTurn(client, threadId, startRequest, options = {}) {
 
     if (response.turn?.status && response.turn.status !== "inProgress") {
       completeTurn(state, response.turn);
+    } else if (!state.turnId) {
+      // Every later notification would buffer instead of being applied, so an unidentified
+      // turn hangs silently. Say so instead.
+      failTurn(state, new Error("The Codex app-server started a turn without an id, so its notifications cannot be matched."));
     }
 
     return await state.completion;
@@ -726,12 +740,9 @@ async function requestExternalAgentSessionImport(client, params) {
   const previousHandler = client.notificationHandler;
   let timeout = null;
   let resolveCompleted;
-  let rejectCompleted;
-  const completed = new Promise((resolve, reject) => {
+  const completed = new Promise((resolve) => {
     resolveCompleted = resolve;
-    rejectCompleted = reject;
   });
-  void completed.catch(() => {});
 
   client.setNotificationHandler((message) => {
     if (message.method === EXTERNAL_AGENT_IMPORT_COMPLETED) {
@@ -740,13 +751,28 @@ async function requestExternalAgentSessionImport(client, params) {
     }
     previousHandler?.(message);
   });
-  timeout = setTimeout(() => {
-    rejectCompleted(new Error("Timed out waiting for Codex to finish importing the Claude session."));
-  }, EXTERNAL_AGENT_IMPORT_TIMEOUT_MS);
+
+  // One deadline over the whole import. The old timer bounded only the wait for the completion
+  // notification and was armed behind an unbounded request, so a request that never answered
+  // left the rejection with nothing awaiting it and the call hung regardless.
+  const deadline = new Promise((_resolve, reject) => {
+    timeout = setTimeout(
+      () => reject(new Error("Timed out waiting for Codex to finish importing the Claude session.")),
+      EXTERNAL_AGENT_IMPORT_TIMEOUT_MS
+    );
+    timeout.unref?.();
+  });
 
   try {
-    await client.request("externalAgentConfig/import", params);
-    await completed;
+    await Promise.race([
+      (async () => {
+        await client.request("externalAgentConfig/import", params, {
+          timeoutMs: EXTERNAL_AGENT_IMPORT_TIMEOUT_MS
+        });
+        await completed;
+      })(),
+      deadline
+    ]);
   } finally {
     clearTimeout(timeout);
     client.setNotificationHandler(previousHandler ?? null);
