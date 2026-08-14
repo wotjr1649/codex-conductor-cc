@@ -210,3 +210,30 @@ test("collectReviewContext keeps untracked file content in lightweight working t
   assert.match(context.content, /## Untracked Files/);
   assert.match(context.content, /UNTRACKED_RISK_MARKER/);
 });
+
+test("untracked files share the inline budget instead of bypassing it", () => {
+  const cwd = makeTempDir();
+  initGitRepo(cwd);
+  fs.writeFileSync(path.join(cwd, "app.js"), "export const value = 1;\n");
+  run("git", ["add", "app.js"], { cwd });
+  run("git", ["commit", "-m", "init"], { cwd });
+
+  const body = "x".repeat(4 * 1024);
+  for (let index = 0; index < 40; index += 1) {
+    fs.writeFileSync(path.join(cwd, `untracked-${index}.txt`), `${body}\n`);
+  }
+
+  const target = resolveReviewTarget(cwd, { scope: "working-tree" });
+  const context = collectReviewContext(cwd, target, {
+    maxInlineDiffBytes: 16 * 1024,
+    maxInlineFiles: 0
+  });
+
+  // 40 files at 4 KB each used to be inlined whole, because the byte guard only ever measured
+  // the tracked diff.
+  assert.ok(
+    context.content.length < 120 * 1024,
+    `expected a bounded review prompt, got ${context.content.length} characters`
+  );
+  assert.match(context.content, /more untracked file\(s\)/);
+});
