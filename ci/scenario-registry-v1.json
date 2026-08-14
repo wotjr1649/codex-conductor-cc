@@ -127,7 +127,7 @@
     {
       "path": "tests/state.test.mjs",
       "declaredCount": 3,
-      "sha256": "86233c2499c7b48a36e03ffe6461c34267be3d23df6ea4de6a944243c7548e94",
+      "sha256": "65444c93766b3434e3678e47ed781555ae0245e3a46e409c883a588c8de469c0",
       "profileId": "unit"
     }
   ],

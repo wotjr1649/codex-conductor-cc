@@ -163,3 +163,47 @@ test("saveState removes the artifacts of jobs it prunes from the index", () => {
       .sort()
   );
 });
+
+test("a write that loses its compare-and-swap leaves the winner's job artifacts alone", () => {
+  const workspace = makeTempDir();
+  const seed = (name, minute) => {
+    const jobId = `job-${name}`;
+    const at = new Date(Date.UTC(2026, 0, 1, 0, minute, 0)).toISOString();
+    const logFile = resolveJobLogFile(workspace, jobId);
+    fs.writeFileSync(logFile, `log ${jobId}\n`, "utf8");
+    fs.writeFileSync(resolveJobFile(workspace, jobId), JSON.stringify({ id: jobId }), "utf8");
+    return { id: jobId, status: "completed", logFile, updatedAt: at, createdAt: at };
+  };
+
+  // Exactly the retention limit, so one more record prunes the oldest.
+  saveState(workspace, {
+    version: 1,
+    config: { stopReviewGate: false },
+    jobs: Array.from({ length: 50 }, (_, index) => seed(index, index))
+  });
+
+  let injected = false;
+  updateState(workspace, (state) => {
+    if (!injected) {
+      injected = true;
+      // A second process commits between this attempt's read and its write, and what it commits
+      // touches the oldest job -- which is what a worker recording progress does. This attempt
+      // loses its compare-and-swap and is abandoned.
+      saveState(workspace, {
+        version: 1,
+        config: { stopReviewGate: false },
+        jobs: loadState(workspace).jobs.map((job) =>
+          job.id === "job-0"
+            ? { ...job, updatedAt: new Date(Date.UTC(2026, 0, 1, 1, 0, 0)).toISOString() }
+            : job
+        )
+      });
+    }
+    state.jobs.unshift(seed("new", 59));
+  });
+
+  // job-0 survived the prune that actually committed, so nothing may have deleted its files.
+  assert.equal(loadState(workspace).jobs.some((job) => job.id === "job-0"), true);
+  assert.equal(fs.existsSync(resolveJobFile(workspace, "job-0")), true);
+  assert.equal(fs.existsSync(resolveJobLogFile(workspace, "job-0")), true);
+});

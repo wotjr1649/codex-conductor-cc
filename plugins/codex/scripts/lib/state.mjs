@@ -185,6 +185,8 @@ export function loadState(cwd) {
 // and eight artifact files. Jobs that might still be written to are left alone, and orphans from
 // prunes that already happened are not swept -- that needs a generation-bound sweep which would
 // race a worker that has written its file but not yet indexed it.
+//
+// Call this only once the prune has been committed. See writeState.
 function removePrunedJobArtifacts(jobsDir, prunedJobs) {
   for (const job of prunedJobs) {
     if (["queued", "running", "cancel_requested"].includes(job.status)) {
@@ -231,11 +233,6 @@ function writeState(cwd, state, expected) {
   if (!Array.isArray(state.jobs)) throw new Error("Invalid state jobs.");
   assertJobRecords(resolveJobsDir(cwd), state.jobs);
   const nextJobs = pruneJobs(state.jobs ?? []);
-  const retained = new Set(nextJobs.map((job) => job.id));
-  removePrunedJobArtifacts(
-    resolveJobsDir(cwd),
-    (state.jobs ?? []).filter((job) => !retained.has(job.id))
-  );
   const nextState = {
     version: STATE_VERSION,
     config: {
@@ -245,9 +242,19 @@ function writeState(cwd, state, expected) {
     jobs: nextJobs
   };
 
-  // ponytail: retain unindexed artifacts; add generation-bound cleanup if disk usage matters.
   const written = atomicWriteFile(resolveStateFile(cwd), `${JSON.stringify(nextState, null, 2)}\n`, expected);
-  return written ? nextState : null;
+  if (!written) return null;
+
+  // Deletion goes after the commit, because only a committed prune is a fact. Deleting first left
+  // the files gone on an attempt that lost its compare-and-swap, while the index that won still
+  // pointed at them -- the exact opposite of what this cleanup is for. Dying between the rename
+  // and this leaves the files behind instead, which is the leak this replaced and is recoverable.
+  const retained = new Set(nextJobs.map((job) => job.id));
+  removePrunedJobArtifacts(
+    resolveJobsDir(cwd),
+    (state.jobs ?? []).filter((job) => !retained.has(job.id))
+  );
+  return nextState;
 }
 
 export function saveState(cwd, state) {
