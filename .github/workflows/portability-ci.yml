@@ -92,6 +92,26 @@ jobs:
           npm test
           exit $LASTEXITCODE
 
+      # Until now the unit suite ran on win32 only, so every POSIX-only path in state, job
+      # control, git and argument handling was reviewed but never executed. The portability
+      # tests above are repeated inside `npm test`; they cost about a second, and the frozen
+      # policy requires that separate step to stay.
+      #
+      # This must stay BELOW the Windows suite. P6-POLICY-002 proves the gate still guards the
+      # frozen Windows block by rewriting the first `npm test` and the first `npm ci` in this
+      # file; putting either string above the block would silently retarget that proof.
+      - name: Run current POSIX suite
+        if: ${{ matrix.platform != 'win32' }}
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm test
+
+      # Windows-only: this suite drives taskkill against processes it owns. It is the one
+      # baseline suite of the five that passes today, so it is the one that can have a trigger.
+      - name: Run Windows resource baseline
+        if: ${{ matrix.platform == 'win32' }}
+        run: node --test --test-concurrency=1 tests/p5-windows-resource.test.mjs
+
       - name: Verify clean source
         if: ${{ !cancelled() }}
         run: git diff --exit-code HEAD -- .
