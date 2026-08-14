@@ -6,6 +6,7 @@ import {
   mkdtempSync,
   readFileSync,
   readdirSync,
+  realpathSync,
   rmSync,
   writeFileSync
 } from "node:fs";
@@ -51,7 +52,12 @@ function assertCode(expectedCode) {
 }
 
 function makeP4TempRoot(label) {
-  return mkdtempSync(path.join(os.tmpdir(), `codex-p4-${label}-`));
+  // Resolved, because the captured transcripts are normalized by string-matching this path and
+  // the product reports whatever the OS canonicalizes it to. On a hosted Windows runner
+  // os.tmpdir() comes back through a short 8.3 name, so the raw value never matched what the
+  // CLI recorded and `cwd` survived normalization as a literal path. Local temp directories
+  // happen not to differ, which is why this only ever failed where nothing ran it.
+  return realpathSync.native(mkdtempSync(path.join(os.tmpdir(), `codex-p4-${label}-`)));
 }
 
 function installP4FakeCodex(root) {

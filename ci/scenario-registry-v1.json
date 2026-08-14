@@ -97,7 +97,7 @@
     {
       "path": "tests/p4-contract-baseline.test.mjs",
       "declaredCount": 40,
-      "sha256": "250ea3c39a0f9088e9a421ea24549579359a94bf09daf154534aabcfb058319d",
+      "sha256": "8d4edbb35984db7361e5befa9dbf15881fe225f99f70bb891d464e508a7e177c",
       "profileId": "core-contract"
     },
     {
