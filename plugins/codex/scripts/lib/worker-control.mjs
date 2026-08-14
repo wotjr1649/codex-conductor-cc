@@ -27,6 +27,7 @@ const CAPABILITY = /^[A-Za-z0-9_-]{43}$/;
 const DESCRIPTOR_KEYS = ["generation", "version", "workerId"];
 const MAX_NONCES = 4096;
 const OUTCOMES = new Set(["accepted", "indeterminate"]);
+const CANCEL_ACK_TIMEOUT_MS = 15000;
 
 export function validateWorkerControllerDescriptor(descriptor) {
   if (
@@ -116,6 +117,23 @@ export function createWorkerController(cwd) {
   fs.writeFileSync(paths.capabilityFile, `${capability}\n`, { encoding: "utf8", flag: "wx", mode: 0o600 });
   fs.chmodSync(paths.capabilityFile, 0o600);
   return { descriptor, ...paths, auth: workerAuth(descriptor, capability) };
+}
+
+// A worker that dies before it starts its control server leaves the directory the enqueue side
+// created, credential file and all, with nobody holding the handle that would clean it up.
+export function discardWorkerController(cwd, descriptor) {
+  if (!supportsWorkerControl()) {
+    return false;
+  }
+  try {
+    const paths = controlPaths(cwd, descriptor);
+    if (fs.existsSync(paths.socketPath)) fs.unlinkSync(paths.socketPath);
+    if (fs.existsSync(paths.capabilityFile)) fs.unlinkSync(paths.capabilityFile);
+    fs.rmdirSync(paths.sessionDir);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function discardUnstartedWorkerController(controller) {
@@ -242,7 +260,9 @@ export async function sendWorkerCancel(cwd, descriptor, timeoutMs = 2000) {
       operation: "worker-cancel",
       timeoutMs: 1000
     });
-    const responsePromise = readBrokerJsonLine(socket, 2000);
+    // The worker's handler polls for thread identity and can spawn an app-server to interrupt the
+    // turn, so a two-second window gave up before it could answer.
+    const responsePromise = readBrokerJsonLine(socket, CANCEL_ACK_TIMEOUT_MS);
     socket.write(`${JSON.stringify({ id: 1, method: "worker/cancel", params: {} })}\n`);
     const response = await responsePromise;
     const outcome = response?.result?.outcome;

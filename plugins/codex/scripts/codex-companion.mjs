@@ -57,6 +57,7 @@ import { assertSupportedRuntime, supportsWorkerControl } from "./lib/platform-po
 import {
   createWorkerController,
   discardUnstartedWorkerController,
+  discardWorkerController,
   sendWorkerCancel,
   startWorkerControlServer,
   validateWorkerControllerDescriptor
@@ -922,15 +923,37 @@ async function handleTaskWorker(argv) {
   if (!options["job-id"]) {
     throw new Error("Missing required --job-id for task-worker.");
   }
+  const jobId = options["job-id"];
+  const cwd = resolveCommandCwd(options);
+  const workspaceRoot = resolveCommandWorkspace(options);
+
+  // Everything below fails before runTrackedJob owns the job's status, and this process writes its
+  // output to nowhere, so a bare throw left the job queued with no pid, no explanation, and its
+  // worker capability directory -- which holds a credential file -- still on disk.
+  function failPreflight(message) {
+    const patch = { status: "failed", phase: "failed", pid: null, errorMessage: message };
+    try {
+      const latest = readStoredJob(workspaceRoot, jobId);
+      if (latest) {
+        writeJobFile(workspaceRoot, jobId, { ...latest, ...patch });
+        if (latest.controller) discardWorkerController(cwd, latest.controller);
+      }
+      upsertJob(workspaceRoot, { id: jobId, ...patch });
+    } catch {
+      // The stored state may itself be why we are here.
+    }
+    return new Error(message);
+  }
+
   if (options["start-after-stdin"] && fs.readFileSync(0, "utf8") !== WORKER_START_TOKEN) {
-    throw new Error("Background task worker did not receive its start signal.");
+    throw failPreflight("Background task worker did not receive its start signal.");
   }
 
   let transferredCapability = null;
   if (supportsWorkerControl()) {
     const controlFd = Number(options["control-fd"]);
     if (!Number.isSafeInteger(controlFd) || controlFd < 3) {
-      throw new Error("Background task worker did not receive its control capability.");
+      throw failPreflight("Background task worker did not receive its control capability.");
     }
     try {
       transferredCapability = fs.readFileSync(controlFd, "utf8").trim();
@@ -939,16 +962,14 @@ async function handleTaskWorker(argv) {
     }
   }
 
-  const cwd = resolveCommandCwd(options);
-  const workspaceRoot = resolveCommandWorkspace(options);
-  const storedJob = readStoredJob(workspaceRoot, options["job-id"]);
+  const storedJob = readStoredJob(workspaceRoot, jobId);
   if (!storedJob) {
-    throw new Error(`No stored job found for ${options["job-id"]}.`);
+    throw failPreflight(`No stored job found for ${jobId}.`);
   }
 
   const request = storedJob.request;
   if (!request || typeof request !== "object") {
-    throw new Error(`Stored job ${options["job-id"]} is missing its task request payload.`);
+    throw failPreflight(`Stored job ${jobId} is missing its task request payload.`);
   }
 
   let controllerServer = null;
@@ -970,7 +991,7 @@ async function handleTaskWorker(argv) {
   if (supportsWorkerControl()) {
     const descriptor = validateWorkerControllerDescriptor(storedJob.controller);
     if (descriptor.workerId !== options["worker-id"] || descriptor.generation !== options.generation) {
-      throw new Error("Background task worker controller identity did not match its state.");
+      throw failPreflight("Background task worker controller identity did not match its state.");
     }
     controllerServer = await startWorkerControlServer(workspaceRoot, descriptor, transferredCapability, async () => {
       const current = readStoredJob(workspaceRoot, storedJob.id) ?? storedJob;
@@ -1136,14 +1157,20 @@ async function handleCancel(argv) {
     try {
       outcome = await sendWorkerCancel(workspaceRoot, validateWorkerControllerDescriptor(existing.controller ?? job.controller));
     } catch {
-      const patch = {
-        status: "indeterminate",
-        phase: "indeterminate",
-        pid: null,
-        errorMessage: "Authenticated worker cancellation could not be confirmed."
-      };
-      writeJobFile(workspaceRoot, job.id, { ...existing, ...job, ...patch });
-      upsertJob(workspaceRoot, { id: job.id, ...patch });
+      // The call may have taken long enough for the worker to accept and record the
+      // cancellation. Re-read before writing: the snapshot taken before the call would roll a
+      // newer record backwards and report a successful cancellation as indeterminate.
+      const current = readStoredJob(workspaceRoot, job.id) ?? { ...job, ...existing };
+      if (current.status === "queued" || current.status === "running") {
+        const patch = {
+          status: "indeterminate",
+          phase: "indeterminate",
+          pid: null,
+          errorMessage: "Authenticated worker cancellation could not be confirmed."
+        };
+        writeJobFile(workspaceRoot, job.id, { ...current, ...patch });
+        upsertJob(workspaceRoot, { id: job.id, ...patch });
+      }
     }
     const latest = readStoredJob(workspaceRoot, job.id) ?? {
       ...job,

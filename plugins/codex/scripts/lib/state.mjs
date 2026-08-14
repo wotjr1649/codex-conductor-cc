@@ -180,6 +180,28 @@ export function loadState(cwd) {
   return stored === null ? defaultState() : parseState(resolveJobsDir(cwd), stored);
 }
 
+// A job dropped from the index is unreachable: every lookup goes through the index, so its files
+// are a leak rather than a record. Observed in production as one workspace holding no indexed jobs
+// and eight artifact files. Jobs that might still be written to are left alone, and orphans from
+// prunes that already happened are not swept -- that needs a generation-bound sweep which would
+// race a worker that has written its file but not yet indexed it.
+function removePrunedJobArtifacts(jobsDir, prunedJobs) {
+  for (const job of prunedJobs) {
+    if (["queued", "running", "cancel_requested"].includes(job.status)) {
+      continue;
+    }
+    for (const artifact of [path.join(jobsDir, `${job.id}.json`), path.join(jobsDir, `${job.id}.log`)]) {
+      try {
+        const stats = fs.lstatSync(artifact);
+        if (!stats.isFile() || stats.isSymbolicLink()) continue;
+        fs.unlinkSync(artifact);
+      } catch {
+        // Already gone, or not an ordinary file this plugin wrote.
+      }
+    }
+  }
+}
+
 function pruneJobs(jobs) {
   return [...jobs]
     .sort((left, right) => String(right.updatedAt ?? "").localeCompare(String(left.updatedAt ?? "")))
@@ -209,6 +231,11 @@ function writeState(cwd, state, expected) {
   if (!Array.isArray(state.jobs)) throw new Error("Invalid state jobs.");
   assertJobRecords(resolveJobsDir(cwd), state.jobs);
   const nextJobs = pruneJobs(state.jobs ?? []);
+  const retained = new Set(nextJobs.map((job) => job.id));
+  removePrunedJobArtifacts(
+    resolveJobsDir(cwd),
+    (state.jobs ?? []).filter((job) => !retained.has(job.id))
+  );
   const nextState = {
     version: STATE_VERSION,
     config: {

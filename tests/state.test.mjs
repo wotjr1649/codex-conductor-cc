@@ -96,7 +96,7 @@ test("a write refuses stored state whose log file escapes the managed jobs direc
   assert.equal(fs.readFileSync(outside, "utf8"), "keep\n");
 });
 
-test("saveState prunes the index without deleting dropped job artifacts", () => {
+test("saveState removes the artifacts of jobs it prunes from the index", () => {
   const workspace = makeTempDir();
   const stateFile = resolveStateFile(workspace);
   fs.mkdirSync(path.dirname(stateFile), { recursive: true });
@@ -145,8 +145,10 @@ test("saveState prunes the index without deleting dropped job artifacts", () => 
 
   assert.equal(fs.existsSync(retainedJobFile), true);
   assert.equal(fs.existsSync(retainedLogFile), true);
-  assert.equal(fs.existsSync(prunedJobFile), true);
-  assert.equal(fs.existsSync(prunedLogFile), true);
+  // A job dropped from the index can never be looked up again, so keeping its files only leaks
+  // them. v0.2 retained them deliberately; v0.3 removes them as they are pruned.
+  assert.equal(fs.existsSync(prunedJobFile), false);
+  assert.equal(fs.existsSync(prunedLogFile), false);
 
   const savedState = JSON.parse(fs.readFileSync(stateFile, "utf8"));
   assert.equal(savedState.jobs.length, 50);
@@ -156,7 +158,7 @@ test("saveState prunes the index without deleting dropped job artifacts", () => 
   );
   assert.deepEqual(
     fs.readdirSync(jobsDir).sort(),
-    Array.from({ length: 51 }, (_, index) => `job-${index}`)
+    Array.from({ length: 50 }, (_, index) => `job-${index + 1}`)
       .flatMap((jobId) => [`${jobId}.json`, `${jobId}.log`])
       .sort()
   );
