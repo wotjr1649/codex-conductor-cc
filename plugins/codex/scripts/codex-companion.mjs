@@ -934,19 +934,38 @@ async function handleTaskWorker(argv) {
     const patch = { status: "failed", phase: "failed", pid: null, errorMessage: message };
     try {
       const latest = readStoredJob(workspaceRoot, jobId);
-      if (latest) {
-        writeJobFile(workspaceRoot, jobId, { ...latest, ...patch });
-        if (latest.controller) discardWorkerController(cwd, latest.controller);
-      }
+      if (latest) writeJobFile(workspaceRoot, jobId, { ...latest, ...patch });
       upsertJob(workspaceRoot, { id: jobId, ...patch });
+      // Discard last, and only what this process owns. Last, because a credential directory left
+      // behind is a leak while removing it before the index agrees leaves a job the index still
+      // calls live with nothing left to control it. Owned, because one of the failures below is
+      // precisely that the stored controller is somebody else's.
+      const controller = latest?.controller;
+      if (
+        controller &&
+        controller.workerId === options["worker-id"] &&
+        controller.generation === options.generation
+      ) {
+        discardWorkerController(cwd, controller);
+      }
     } catch {
       // The stored state may itself be why we are here.
     }
     return new Error(message);
   }
 
-  if (options["start-after-stdin"] && fs.readFileSync(0, "utf8") !== WORKER_START_TOKEN) {
-    throw failPreflight("Background task worker did not receive its start signal.");
+  if (options["start-after-stdin"]) {
+    let token = null;
+    // A read that throws is a missing start signal too, and letting it out here would skip the
+    // failure marking this function exists for.
+    try {
+      token = fs.readFileSync(0, "utf8");
+    } catch {
+      token = null;
+    }
+    if (token !== WORKER_START_TOKEN) {
+      throw failPreflight("Background task worker did not receive its start signal.");
+    }
   }
 
   let transferredCapability = null;
@@ -1158,8 +1177,9 @@ async function handleCancel(argv) {
       outcome = await sendWorkerCancel(workspaceRoot, validateWorkerControllerDescriptor(existing.controller ?? job.controller));
     } catch {
       // The call may have taken long enough for the worker to accept and record the
-      // cancellation. Re-read before writing: the snapshot taken before the call would roll a
-      // newer record backwards and report a successful cancellation as indeterminate.
+      // cancellation, so re-read rather than writing back the snapshot taken before it. That
+      // narrows the window; it does not close it -- writeJobFile carries no compare-and-swap, so
+      // a worker committing between this read and the write below is still overwritten.
       const current = readStoredJob(workspaceRoot, job.id) ?? { ...job, ...existing };
       if (current.status === "queued" || current.status === "running") {
         const patch = {
@@ -1170,6 +1190,11 @@ async function handleCancel(argv) {
         };
         writeJobFile(workspaceRoot, job.id, { ...current, ...patch });
         upsertJob(workspaceRoot, { id: job.id, ...patch });
+      } else if (current.status && current.status !== job.status) {
+        // The record moved on its own, so do not roll it back -- but do not leave the index
+        // behind either. The index is what every lookup reads, and it is what made a job that
+        // had already finished look cancelable in the first place.
+        upsertJob(workspaceRoot, { id: job.id, status: current.status });
       }
     }
     const latest = readStoredJob(workspaceRoot, job.id) ?? {
