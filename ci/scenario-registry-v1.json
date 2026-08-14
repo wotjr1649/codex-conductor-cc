@@ -67,7 +67,7 @@
     {
       "path": "tests/commands.test.mjs",
       "declaredCount": 8,
-      "sha256": "72022c85b03224a31e5da8a9424f98acdf5b651de2937f3da6a349ffed3675b9",
+      "sha256": "c86098f506cd42497336e93bfdbbceb25212f0c5b10d6332d1c15c20a4640a94",
       "profileId": "unit"
     },
     {
@@ -85,7 +85,7 @@
     {
       "path": "tests/git.test.mjs",
       "declaredCount": 10,
-      "sha256": "f0fcec3e64d6c57d75a6bef945b5c2d5ec56079c7a14ad48178bd41db7f469b3",
+      "sha256": "1405b862d342840120f1b39cc1a9b6aa776733c99588238f9a47d41b3dd9d2c2",
       "profileId": "unit"
     },
     {
@@ -109,7 +109,7 @@
     {
       "path": "tests/process.test.mjs",
       "declaredCount": 3,
-      "sha256": "75d8a55c4451627bab36436deb24154bb75563167ff5e2da0ccae0fec451f158",
+      "sha256": "bc4160de6fc2264226e2e4b724ad2228e3844459231cb4258eed24e4d76fa3a7",
       "profileId": "windows-integration"
     },
     {
@@ -121,13 +121,13 @@
     {
       "path": "tests/runtime.test.mjs",
       "declaredCount": 61,
-      "sha256": "a0b82253d920dda1dc038b0128bf2a4e96dbb4f16689b19966e7346cd2e00a58",
+      "sha256": "55a14302ab10c4ed8ef91234a9fde1f969c8d23481573754d07c26df844e9a21",
       "profileId": "windows-integration"
     },
     {
       "path": "tests/state.test.mjs",
       "declaredCount": 3,
-      "sha256": "ab534ac2098e5bc2f1e87b645f7e85dbd95034e5490da6ded27b9a772dd1b016",
+      "sha256": "6f014693b5502a2eac9dc7d99f5937a0a76d390f78e64a46e9ff4335be7a39e4",
       "profileId": "unit"
     }
   ],
@@ -195,6 +195,7 @@
       ],
       "blocking": true,
       "testFiles": [
+        "tests/args.test.mjs",
         "tests/bump-version.test.mjs",
         "tests/commands.test.mjs",
         "tests/downstream-identity.test.mjs",
