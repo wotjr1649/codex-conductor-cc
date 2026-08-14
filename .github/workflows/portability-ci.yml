@@ -95,20 +95,24 @@ jobs:
       # Until now the unit suite ran on win32 only, so every POSIX-only path in state, job
       # control, git and argument handling was reviewed but never executed.
       #
-      # The list is spelled out rather than reusing `npm test` for two reasons. package.json
+      # The list is spelled out rather than reusing the package's test script. package.json
       # declares os: win32 and cpu: x64 -- frozen as product identity by downstream-identity --
-      # so `npm ci` refuses to run here at all with EBADPLATFORM, and no dependency is needed:
-      # the only test that wants one is generate-app-server-types, which drives tsc from
-      # node_modules and is a build concern the Windows leg already covers. The portability
-      # tests keep their own step above, which the frozen policy requires.
+      # so `npm ci` refuses to run here at all with EBADPLATFORM, and no dependency is needed
+      # anyway: the only test wanting one is generate-app-server-types, which drives tsc from
+      # node_modules and is a build concern the Windows leg covers. The portability tests keep
+      # their own step above, which the frozen policy requires.
+      #
+      # These seven are the platform-neutral files. Four of the suite's twelve assert win32
+      # directly -- broker-endpoint on named pipes, platform-policy on the supported tuple,
+      # and commands and runtime through the integration fixtures -- and belong to the Windows
+      # leg. Measured against the first run that got this far, not assumed.
       - name: Run current POSIX unit suite
         if: ${{ matrix.platform != 'win32' }}
         run: |
           node --test --test-concurrency=1 \
-            tests/args.test.mjs tests/broker-endpoint.test.mjs tests/bump-version.test.mjs \
-            tests/commands.test.mjs tests/git.test.mjs tests/job-control.test.mjs \
-            tests/platform-policy.test.mjs tests/process.test.mjs tests/render.test.mjs \
-            tests/runtime.test.mjs tests/state.test.mjs
+            tests/args.test.mjs tests/bump-version.test.mjs tests/git.test.mjs \
+            tests/job-control.test.mjs tests/process.test.mjs tests/render.test.mjs \
+            tests/state.test.mjs
 
       # Windows-only: this suite drives taskkill against processes it owns. It is the one
       # baseline suite of the five that passes today, so it is the one that can have a trigger.

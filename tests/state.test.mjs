@@ -16,7 +16,11 @@ import {
   upsertJob
 } from "../plugins/codex/scripts/lib/state.mjs";
 
-test("resolveStateDir uses a temp-backed per-workspace directory", () => {
+// win32 only: on POSIX the state root sits under the private runtime root, not the temp
+// directory, and tests/portability covers that side.
+test("resolveStateDir uses a temp-backed per-workspace directory", {
+  skip: process.platform === "win32" ? false : "POSIX resolves the state root elsewhere"
+}, () => {
   const workspace = makeTempDir();
   const stateDir = resolveStateDir(workspace);
 
