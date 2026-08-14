@@ -27,7 +27,10 @@ export function run(command, args, options = {}) {
     encoding: "utf8",
     input: options.input,
     timeout: options.timeoutMs,
-    shell: options.shell ?? (process.platform === "win32" && !path.isAbsolute(command)),
+    // No shell. Every command passed here is node or git, both of which spawn resolves from
+    // PATH on its own. A shell re-parses the argument array — three call sites already opt out
+    // for that reason — and on Windows it makes the whole suite depend on cmd.exe.
+    shell: options.shell ?? false,
     windowsHide: true
   });
 }
