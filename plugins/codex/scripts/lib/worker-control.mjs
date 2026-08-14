@@ -3,6 +3,7 @@ import fs from "node:fs";
 import net from "node:net";
 import path from "node:path";
 import process from "node:process";
+import { supportsWorkerControl } from "./platform-policy.mjs";
 
 import {
   authenticateBrokerSocket,
@@ -47,7 +48,7 @@ export function createWorkerControllerDescriptor({ workerId, generation }) {
 }
 
 function assertPosix() {
-  if (process.platform !== "linux" && process.platform !== "darwin") {
+  if (!supportsWorkerControl()) {
     throw new Error("Worker control sockets require POSIX.");
   }
 }

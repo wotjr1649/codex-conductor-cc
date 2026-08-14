@@ -26,7 +26,7 @@ import {
 } from "./lib/state.mjs";
 import { TRANSCRIPT_PATH_ENV } from "./lib/claude-session-transfer.mjs";
 import { resolveWorkspaceRoot } from "./lib/workspace.mjs";
-import { assertSupportedRuntime } from "./lib/platform-policy.mjs";
+import { assertSupportedRuntime, supportsWorkerControl } from "./lib/platform-policy.mjs";
 import { sendWorkerCancel, validateWorkerControllerDescriptor } from "./lib/worker-control.mjs";
 
 assertSupportedRuntime();
@@ -83,7 +83,7 @@ async function cleanupSessionJobs(cwd, sessionId, deadline) {
     return [];
   }
 
-  if (process.platform !== "win32") {
+  if (supportsWorkerControl()) {
     const unresolved = [];
     for (const job of removedJobs) {
       if (job.status !== "queued" && job.status !== "running" && job.status !== "cancel_requested") continue;
@@ -168,7 +168,7 @@ async function handleSessionEnd(input) {
   const pid = brokerSession?.pid ?? null;
 
   const unresolvedJobs = await cleanupSessionJobs(cwd, input.session_id || process.env[SESSION_ID_ENV], deadline);
-  if (process.platform !== "win32" && unresolvedJobs.length > 0) {
+  if (supportsWorkerControl() && unresolvedJobs.length > 0) {
     if (brokerSession) saveBrokerSession(cwd, { ...brokerSession, phase: "indeterminate" });
     throw new Error(`Authenticated worker shutdown is indeterminate for ${unresolvedJobs.length} job(s).`);
   }

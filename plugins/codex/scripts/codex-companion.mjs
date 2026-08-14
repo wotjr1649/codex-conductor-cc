@@ -53,7 +53,7 @@ import {
   SESSION_ID_ENV
 } from "./lib/tracked-jobs.mjs";
 import { resolveWorkspaceRoot } from "./lib/workspace.mjs";
-import { assertSupportedRuntime } from "./lib/platform-policy.mjs";
+import { assertSupportedRuntime, supportsWorkerControl } from "./lib/platform-policy.mjs";
 import {
   createWorkerController,
   discardUnstartedWorkerController,
@@ -712,7 +712,7 @@ function enqueueBackgroundTask(cwd, job, request) {
   const { logFile } = createTrackedProgress(job);
   appendLogLine(logFile, "Queued for background execution.");
 
-  const controller = process.platform === "win32" ? null : createWorkerController(job.workspaceRoot);
+  const controller = supportsWorkerControl() ? createWorkerController(job.workspaceRoot) : null;
   const queuedRecord = {
     ...job,
     status: "queued",
@@ -927,7 +927,7 @@ async function handleTaskWorker(argv) {
   }
 
   let transferredCapability = null;
-  if (process.platform !== "win32") {
+  if (supportsWorkerControl()) {
     const controlFd = Number(options["control-fd"]);
     if (!Number.isSafeInteger(controlFd) || controlFd < 3) {
       throw new Error("Background task worker did not receive its control capability.");
@@ -967,7 +967,7 @@ async function handleTaskWorker(argv) {
     upsertJob(workspaceRoot, { id: storedJob.id, ...patch });
   }
 
-  if (process.platform !== "win32") {
+  if (supportsWorkerControl()) {
     const descriptor = validateWorkerControllerDescriptor(storedJob.controller);
     if (descriptor.workerId !== options["worker-id"] || descriptor.generation !== options.generation) {
       throw new Error("Background task worker controller identity did not match its state.");
@@ -1131,7 +1131,7 @@ async function handleCancel(argv) {
   const { workspaceRoot, job } = resolveCancelableJob(cwd, reference, { env: process.env });
   const existing = readStoredJob(workspaceRoot, job.id) ?? {};
 
-  if (process.platform !== "win32") {
+  if (supportsWorkerControl()) {
     let outcome = "indeterminate";
     try {
       outcome = await sendWorkerCancel(workspaceRoot, validateWorkerControllerDescriptor(existing.controller ?? job.controller));
