@@ -590,6 +590,15 @@ function yamlIndentedBlock(lines, startIndex) {
   return block;
 }
 
+// The workflow's trigger set, as a list. Exported because validateWorkflowText collapses every
+// non-`pull_request` set into a single error, so callers that need to distinguish one archived
+// trigger from that trigger plus a privileged one cannot get it from the error list.
+export function workflowTriggers(workflow) {
+  const lines = String(workflow ?? "").split(/\r?\n/);
+  const eventIndex = lines.findIndex((line) => line === "on:");
+  return eventIndex < 0 ? [] : yamlIndentedBlock(lines, eventIndex).map((entry) => entry.replace(/:$/, ""));
+}
+
 export function validateWorkflowText(workflow, admittedActions = []) {
   const errors = [];
   const lines = workflow.split(/\r?\n/);

@@ -103,19 +103,19 @@
     {
       "path": "tests/p3-security-baseline.test.mjs",
       "declaredCount": 11,
-      "sha256": "ebdb98f1add2243b6a9dbd034e6e894538f7fc813153c2a2f48c07df8e22565c",
+      "sha256": "df6a84ec1c6063885c1a18615ea5911516bbf31cbf5eb27651e3ed064ffeabb9",
       "profileId": "policy-validation"
     },
     {
       "path": "tests/p4-contract-baseline.test.mjs",
       "declaredCount": 40,
-      "sha256": "8d4edbb35984db7361e5befa9dbf15881fe225f99f70bb891d464e508a7e177c",
+      "sha256": "1217d4a9694df8507200a06668f403886548e4561c7ef7237ac1867f2ef0c394",
       "profileId": "core-contract"
     },
     {
       "path": "tests/platform-policy.test.mjs",
       "declaredCount": 2,
-      "sha256": "547eb18bf0faca77e67c1d08dabaddf47fc32698f019e254e1ee62be2ff90b59",
+      "sha256": "190382d0df1ddadbcf40bcae935464e37306552025a55c2a328b8a5be4c4b4d7",
       "profileId": "unit"
     },
     {

@@ -312,9 +312,20 @@ function validateReleaseVersionMigration(root, headSha, localPaths) {
     // releases because nothing cross-checked it. What is still enforced is that every entry
     // names a file that exists and that the totals are the inventory's own arithmetic -- a
     // registry claiming a count it does not contain is what this rule is for.
-    expectedRegistry.inheritedTests = structuredClone(currentRegistry.inheritedTests ?? []);
+    const currentInherited = currentRegistry.inheritedTests ?? [];
+    const currentPaths = new Set(currentInherited.map((entry) => normalizeRelativePath(entry.path)));
+    // Entries may be added, never dropped. Without this, swapping a real suite for a trivial file
+    // with a matching declaredCount keeps both the file count and the sum intact, so neither this
+    // rule nor the literal totals in p5-validation.mjs would notice the suite leaving.
+    for (const entry of baseRegistry.inheritedTests ?? []) {
+      if (!currentPaths.has(normalizeRelativePath(entry.path))) {
+        throw new Error("release registry entry unavailable");
+      }
+    }
+    expectedRegistry.inheritedTests = structuredClone(currentInherited);
     for (const entry of expectedRegistry.inheritedTests) {
-      if (!fs.existsSync(path.join(root, entry.path))) {
+      const relativePath = normalizeRelativePath(entry.path);
+      if (!relativePath || !fs.existsSync(path.join(root, relativePath))) {
         throw new Error("release registry entry unavailable");
       }
     }

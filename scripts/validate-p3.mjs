@@ -12,7 +12,8 @@ import {
   validateMarkdownStructure,
   validateP3EvidenceManifest,
   validateToolchain,
-  validateWorkflowText
+  validateWorkflowText,
+  workflowTriggers
 } from "./lib/p3-validation.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -67,7 +68,12 @@ const ARCHIVED_TRIGGER_ERROR = "workflow: trigger set must be exactly pull_reque
 const workflowPath = path.join(ROOT, ".github", "workflows", "pull-request-ci.yml");
 if (fs.existsSync(workflowPath)) {
   const workflowText = fs.readFileSync(workflowPath, "utf8");
-  const archived = /^on:\r?\n {2}workflow_dispatch:\r?\n/m.test(workflowText);
+  // The whole trigger set, not a prefix match. validateWorkflowText reports one error for any
+  // set that is not exactly `pull_request`, so a regex that merely saw workflow_dispatch first
+  // dropped that error even when pull_request_target had been added underneath -- a privileged
+  // trigger, on the workflow this very step is here to police, going green.
+  const triggers = workflowTriggers(workflowText);
+  const archived = triggers.length === 1 && triggers[0] === "workflow_dispatch";
   errors.push(
     ...validateWorkflowText(workflowText, toolchain?.actions ?? []).filter(
       (error) => !(archived && error === ARCHIVED_TRIGGER_ERROR)

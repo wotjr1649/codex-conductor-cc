@@ -1301,14 +1301,13 @@ test("P5-PARTITION-001 every inherited test maps once with exact byte identity",
 });
 
 // v0.2 moved the pull-request run to portability-ci.yml and archived this workflow to
-// workflow_dispatch. These two are exactly that archival -- the trigger set, and the digest
-// that follows from changing it -- and they are the same pair the continuation in
-// validate-p5.mjs consumes. Expecting them keeps every other check in this validator live
-// against the archived graph instead of switching the whole assertion off.
-const ARCHIVED_WORKFLOW_ERRORS = [
-  "workflow: trigger set must be exactly pull_request",
-  "P5E_WORKFLOW_DIGEST: PR workflow differs from the reviewed P5 executable graph"
-];
+// workflow_dispatch, so the trigger complaint is that archival rather than drift.
+//
+// Only the trigger. The digest error is deliberately *not* expected here: expecting it made the
+// digest check inert, since any content producing those two errors then passed -- a step that
+// downloads and runs a script, for instance. EXPECTED_P5_WORKFLOW_SHA256 now names the archived
+// bytes, so the digest is silent on this file and loud on any change to it.
+const ARCHIVED_WORKFLOW_ERRORS = ["workflow: trigger set must be exactly pull_request"];
 
 test("P5-WORKFLOW-001 job-scoped security and matrix policy validates", () => {
   assert.deepEqual(

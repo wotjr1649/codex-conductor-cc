@@ -186,7 +186,7 @@ test("PR workflow rejects mutable tools and privileged untrusted execution", asy
     "utf8"
   );
   const manifest = readJson("toolchain.json");
-  const { validateWorkflowText } = await loadValidationModule();
+  const { validateWorkflowText, workflowTriggers } = await loadValidationModule();
   assert.match(workflow, /^\s+node-version:\s+24\.18\.1\s*$/m);
   assert.doesNotMatch(workflow, /npm\s+install\s+-g/i);
   assert.doesNotMatch(workflow, /id-token:\s+write/i);
@@ -203,11 +203,23 @@ test("PR workflow rejects mutable tools and privileged untrusted execution", asy
   const archivedErrors = validateWorkflowText(workflow, manifest.actions);
   assert.deepEqual(archivedErrors, ["workflow: trigger set must be exactly pull_request"]);
 
+  // The trigger set itself, because that one error cannot tell workflow_dispatch alone from
+  // workflow_dispatch plus pull_request_target: validateWorkflowText collapses every set that is
+  // not exactly `pull_request` into the same message. Asserting the list is what makes adding a
+  // privileged trigger to this file visible here.
+  assert.deepEqual(workflowTriggers(workflow), ["workflow_dispatch"]);
+  for (const added of ["pull_request_target", "push", "issue_comment", "workflow_run"]) {
+    assert.deepEqual(
+      workflowTriggers(workflow.replace("  workflow_dispatch:", `  workflow_dispatch:\n  ${added}:`)),
+      ["workflow_dispatch", added],
+      added
+    );
+  }
+
   const unsafeMutations = [
-    // The trigger mutation that used to lead this list is gone. The validator already refuses
-    // this workflow's trigger set, so adding another trigger produces no new error and the
-    // negative proved nothing. Live pull-request triggers are checked by
-    // validatePortabilityWorkflow against portability-ci.yml instead.
+    // No trigger mutation in this list: the validator already refuses this workflow's trigger
+    // set, so adding another produces no new error. That case is covered by the trigger-set
+    // assertion above instead, which can see the difference.
     workflow.replace("  contents: read", "  contents: write"),
     workflow.replace(
       "actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd",

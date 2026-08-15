@@ -556,10 +556,12 @@ test("P4-HANDSHAKE-001: broker hello and app-server initialize are not conflated
   // each is matched in its own branch, `broker/hello` opens the capability exchange, and
   // `initialize` is answered by the broker itself rather than satisfied by a hello.
   assert.match(brokerSource, /message\.method === "broker\/hello"/);
-  assert.notEqual(
-    brokerSource.indexOf('message.method === "broker/hello"'),
-    brokerSource.indexOf('message.method === "initialize"')
-  );
+  // Each answers with its own thing, which is what "not conflated" means here: the hello opens
+  // the capability exchange, and initialize returns the broker's identity. Comparing the two
+  // offsets instead -- as an earlier version of this did -- can never fail, because two distinct
+  // literals never share an index, so it passed even for a broker that let one satisfy the other.
+  assert.match(brokerSource, /message\.method === "broker\/hello"[\s\S]{0,600}createBrokerAuthChallenge/);
+  assert.match(brokerSource, /message\.method === "initialize"[\s\S]{0,300}userAgent/);
 });
 
 test("P4-INTEGRATION-001: both stable lanes execute direct and broker core lifecycle", () => {

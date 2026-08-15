@@ -15,8 +15,13 @@ const SECRET = new RegExp(
   `(?:AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9_]{20,}|${GITHUB_FINE_GRAINED_PAT_PREFIX}` +
     "[A-Za-z0-9_]{20,}|-----BEGIN [A-Z ]+PRIVATE KEY-----|Bearer\\s+[A-Za-z0-9._~-]{20,})"
 );
+// The archived workflow as v0.2 left it: the released P5 graph with its `pull_request` trigger
+// replaced by `workflow_dispatch`, and nothing else. Pinned to the archived bytes rather than the
+// released ones so this digest keeps meaning something -- while it named the pre-archival file,
+// the only way to make P5-WORKFLOW-001 pass was to expect the digest error, which made any
+// content of that file acceptable.
 const EXPECTED_P5_WORKFLOW_SHA256 =
-  "0bdeaf4eb007f853fe5e9caad3dc7a4e6a458e2c0504c17f55f48fe634b18461";
+  "083fbec3f5aa9bc614d64d880fc50bd61d2eee4e99cd575fd9050dcdf798f074";
 const EXPECTED_PROFILE_IDS = [
   "policy-validation",
   "install-build",
