@@ -137,6 +137,55 @@ every pinned shape reaches an available Codex, and only the failure sentence gai
   `npm test` file list that needs registration, so a file there costs nothing. Moved, and
   `tests/args.test.mjs` is byte-identical to `HEAD` again.
 
+### Why `cmd.exe` and not PowerShell
+
+Asked once, so recorded once. Windows cannot `CreateProcess` a batch file, and **PowerShell is not
+an exception to that — it hands a `.cmd` to `cmd.exe` like everything else.** Measured here with a
+PATH of 8192 characters:
+
+| invocation | result |
+| --- | --- |
+| `cmd.exe /d /s /c probe.cmd` | fails |
+| `powershell -Command "& probe.cmd"` | fails, and the error names `node` — the lookup inside `cmd.exe` |
+| `powershell -File probe.ps1` | runs |
+
+The second row is the answer to the question as asked: routing a `.cmd` through PowerShell buys
+the identical defect plus a second process. Startup, trivial no-op, median of 7: `cmd.exe` 35.9 ms,
+Windows PowerShell 210.6 ms, `pwsh` 328.0 ms — and `getCodexAvailability` spawns the shim twice per
+call, on the hook path.
+
+The third row is the real counter-argument and it is not dismissed: PowerShell resolves commands
+through .NET and has no 8191-character buffer, and `npm install -g` does write a `.ps1` beside the
+`.cmd`. Three costs kept it out:
+
+- **Execution policy, which is per-edition and easy to get wrong.** On this one machine, measured:
+  Windows PowerShell 5.1 reports `LocalMachine = Undefined` (so `Restricted`) while `pwsh` 7.6.4
+  reports `RemoteSigned`. With policy inheritance cut, a freshly written local `.ps1` was refused
+  under 5.1 — *"running scripts is disabled on this system"*. Making it dependable means
+  `-ExecutionPolicy Bypass` on every Codex call: a standing widening of authority, and one Group
+  Policy can refuse anyway.
+- **It is not general.** The branch is `/\.(?:cmd|bat)$/i`. A `.bat` from any non-npm installer has
+  no `.ps1` sibling, so this would be a special case for one packager rather than a fix.
+- **It enlarges the parsing surface.** Today the args are whitelisted to
+  `^[A-Za-z0-9_./:=+@-]+$`, the command is rejected on `[\r\n"&|<>^%]`, `/d` skips the AutoRun
+  registry hook, `/s` fixes the quote-stripping rule, and `windowsVerbatimArguments` stops Node
+  re-quoting. That is a small closed grammar. PowerShell's — `$(...)`, backtick escapes, `@()`,
+  `--%`, argument versus expression mode — is not, and `P6-PROCESS-SHELL-001` exists to prove this
+  code does not reinterpret arguments through a shell.
+
+Two points do favour PowerShell and are worth keeping on the record: `pwsh` defaults to UTF-8, so
+the failure detail would be legible on a non-English Windows instead of the mojibake `cmd.exe`
+produces through a UTF-8 decode; and `cmd.exe`'s 8191 limit also caps the whole command line, which
+is the same family of limit even though nothing here passes arguments long enough to reach it.
+
+**The better answer is neither shell, and this repository already writes it.**
+`scripts/generate-app-server-types.mjs:193-198` refuses a `.cmd` and requires an absolute non-shell
+executable. For an npm-published Node CLI the shim can be resolved past, to the entry script, and
+run with `process.execPath` directly: no interpreter, no PATH cap, no execution policy, no quoting
+layer, and faster than all three. It costs npm-layout resolution plus a fallback for installs that
+are not npm's, which is a much larger change than the fix above. Worth doing; not worth bundling
+into a defect fix.
+
 ### Still information-blocked
 
 1. **Whether the truncation ever bites a real user.** It needs a report from a host with an
