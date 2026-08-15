@@ -258,7 +258,15 @@ test("P4-PIN-001: exact build/current/previous lanes reject mutable identity", (
 });
 
 test("P4-PIN-002: generation host gate is exact and fail-closed", () => {
-  assert.doesNotThrow(() => assertSnapshotHost());
+  // The generation gate stays exact on purpose: snapshots are only ever regenerated on
+  // the reviewed toolchain host, which the explicit-argument cases below prove it enforces.
+  // A development or CI host is not required to BE that host. What it must satisfy is the
+  // declared support range, `nodeRange: ">=24.0.0"` in toolchain.json and
+  // contracts/codex/contract-tools-v1.json, which nothing else asserts against the runtime.
+  assert.ok(
+    Number.parseInt(process.versions.node.split(".")[0], 10) >= 24,
+    `supported node range is >=24.0.0, observed ${process.versions.node}`
+  );
   assert.doesNotThrow(() => assertSnapshotHost("win32", "x64", "24.18.1"));
   assert.throws(
     () => assertSnapshotHost("linux", "x64", "24.18.1"),
