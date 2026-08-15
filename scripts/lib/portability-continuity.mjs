@@ -79,7 +79,15 @@ const EXACT_PATHS = new Set([
   "tests/p5-matrix-profile.test.mjs",
   // This one was already live in `npm test` and carried the same win32-only platform
   // declaration, contradicting the SUPPORTED_RUNTIMES it is meant to test.
-  "tests/platform-policy.test.mjs"
+  "tests/platform-policy.test.mjs",
+  // The 2026-07-31 review window, admitted so it can be moved off a date that is about to fail
+  // the gate it feeds. `validateToolchain` compares `expiresAt` against the current day, so from
+  // 2026-09-01 `validate-p3` reports the snapshot and all ten tool reviews as expired -- and it
+  // runs on the win32 CI leg, so every pull request goes red. The evidence manifest is admitted
+  // beside it because `validate-p3` requires the two to bind byte-for-byte, and only its digest
+  // field moves. Exact paths, not a prefix: nothing else under `evidence/manifests/` is admitted.
+  "toolchain.json",
+  "evidence/manifests/p3/p3-threat-toolchain-20260731.json"
 ]);
 const PATH_PREFIXES = [
   "ci/portability-",

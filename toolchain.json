@@ -15,7 +15,7 @@
   },
   "reviewPolicy": {
     "reviewedAt": "2026-07-31",
-    "expiresAt": "2026-08-31",
+    "expiresAt": "2026-09-30",
     "owner": "wotjr1649",
     "reviewer": "wotjr1649",
     "driftTriggers": [
@@ -59,7 +59,7 @@
       },
       "review": {
         "reviewedAt": "2026-07-31",
-        "expiresAt": "2026-08-31",
+        "expiresAt": "2026-09-30",
         "disposition": "accepted"
       }
     },
@@ -94,7 +94,7 @@
       },
       "review": {
         "reviewedAt": "2026-07-31",
-        "expiresAt": "2026-08-31",
+        "expiresAt": "2026-09-30",
         "disposition": "accepted-bundled-only"
       }
     },
@@ -131,7 +131,7 @@
       },
       "review": {
         "reviewedAt": "2026-07-31",
-        "expiresAt": "2026-08-31",
+        "expiresAt": "2026-09-30",
         "disposition": "accepted-regression-only"
       }
     },
@@ -171,7 +171,7 @@
       },
       "review": {
         "reviewedAt": "2026-07-31",
-        "expiresAt": "2026-08-31",
+        "expiresAt": "2026-09-30",
         "disposition": "accepted-project-minimum"
       }
     },
@@ -211,7 +211,7 @@
       },
       "review": {
         "reviewedAt": "2026-07-31",
-        "expiresAt": "2026-08-31",
+        "expiresAt": "2026-09-30",
         "disposition": "accepted-current-snapshot"
       }
     },
@@ -246,7 +246,7 @@
       },
       "review": {
         "reviewedAt": "2026-07-31",
-        "expiresAt": "2026-08-31",
+        "expiresAt": "2026-09-30",
         "disposition": "accepted-digest-only"
       }
     },
@@ -281,7 +281,7 @@
       },
       "review": {
         "reviewedAt": "2026-07-31",
-        "expiresAt": "2026-08-31",
+        "expiresAt": "2026-09-30",
         "disposition": "accepted"
       }
     },
@@ -316,7 +316,7 @@
       },
       "review": {
         "reviewedAt": "2026-07-31",
-        "expiresAt": "2026-08-31",
+        "expiresAt": "2026-09-30",
         "disposition": "accepted-digest-only"
       }
     },
@@ -351,7 +351,7 @@
       },
       "review": {
         "reviewedAt": "2026-07-31",
-        "expiresAt": "2026-08-31",
+        "expiresAt": "2026-09-30",
         "disposition": "accepted-digest-only"
       }
     },
@@ -386,7 +386,7 @@
       },
       "review": {
         "reviewedAt": "2026-07-31",
-        "expiresAt": "2026-08-31",
+        "expiresAt": "2026-09-30",
         "disposition": "accepted-spike-only"
       }
     }

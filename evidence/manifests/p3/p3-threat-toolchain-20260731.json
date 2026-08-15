@@ -23,7 +23,7 @@
   "toolchain": {
     "manifest": "toolchain.json",
     "schema": "evidence/schemas/toolchain-v1.schema.json",
-    "sha256": "a6033a05ebecd4ff5bca3a5924ff06e55a2e2de9b41541da2c050642102dbb5d",
+    "sha256": "fa56f871fb2ba6e358003ea219bd3f36f66523e600eff35ff906fa4fee20f31f",
     "validationStatus": "executed-pass"
   },
   "localChecks": [

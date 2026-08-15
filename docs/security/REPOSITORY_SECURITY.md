@@ -60,7 +60,7 @@ never the generated marker.
 
 ## Review and drift
 
-The current snapshot was reviewed on 2026-07-31 and expires on 2026-08-31.
+The current snapshot was reviewed on 2026-07-31 and expires on 2026-09-30.
 Review occurs earlier when a Node 24 security release appears, a vendor key or
 artifact changes, a relevant vulnerability lands, an Action changes runtime,
 or a source/license/manifest identity drifts. Exact regression pins remain
