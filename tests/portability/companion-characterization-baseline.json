@@ -1,0 +1,123 @@
+{
+  "schemaVersion": "companion-characterization-v1",
+  "shapes": {
+    "setup-json": {
+      "status": 0,
+      "stdout": "{\n  \"ready\": true,\n  \"node\": {\n    \"available\": true,\n    \"detail\": \"<node-version>\"\n  },\n  \"npm\": {\n    \"available\": true,\n    \"detail\": \"<npm-version>\"\n  },\n  \"codex\": {\n    \"available\": true,\n    \"detail\": \"codex-cli test; advanced runtime available\"\n  },\n  \"auth\": {\n    \"available\": true,\n    \"loggedIn\": true,\n    \"detail\": \"ChatGPT login active for test@example.com\",\n    \"source\": \"app-server\",\n    \"authMethod\": \"chatgpt\",\n    \"verified\": true,\n    \"requiresOpenaiAuth\": true,\n    \"provider\": \"openai\"\n  },\n  \"sessionRuntime\": {\n    \"mode\": \"direct\",\n    \"label\": \"direct startup\",\n    \"detail\": \"No shared Codex runtime is active yet. The first review or task command will start one on demand.\",\n    \"endpoint\": null\n  },\n  \"reviewGateEnabled\": false,\n  \"actionsTaken\": [],\n  \"nextSteps\": [\n    \"Optional: run `/codex:setup --enable-review-gate` to require a fresh review before stop.\"\n  ]\n}\n",
+      "stderr": ""
+    },
+    "setup-json-logged-out": {
+      "status": 0,
+      "stdout": "{\n  \"ready\": false,\n  \"node\": {\n    \"available\": true,\n    \"detail\": \"<node-version>\"\n  },\n  \"npm\": {\n    \"available\": true,\n    \"detail\": \"<npm-version>\"\n  },\n  \"codex\": {\n    \"available\": true,\n    \"detail\": \"codex-cli test; advanced runtime available\"\n  },\n  \"auth\": {\n    \"available\": true,\n    \"loggedIn\": false,\n    \"detail\": \"OpenAI requires OpenAI authentication\",\n    \"source\": \"app-server\",\n    \"authMethod\": null,\n    \"verified\": null,\n    \"requiresOpenaiAuth\": true,\n    \"provider\": \"openai\"\n  },\n  \"sessionRuntime\": {\n    \"mode\": \"direct\",\n    \"label\": \"direct startup\",\n    \"detail\": \"No shared Codex runtime is active yet. The first review or task command will start one on demand.\",\n    \"endpoint\": null\n  },\n  \"reviewGateEnabled\": false,\n  \"actionsTaken\": [],\n  \"nextSteps\": [\n    \"Run `!codex login`.\",\n    \"If browser login is blocked, retry with `!codex login --device-auth` or `!codex login --with-api-key`.\",\n    \"Optional: run `/codex:setup --enable-review-gate` to require a fresh review before stop.\"\n  ]\n}\n",
+      "stderr": ""
+    },
+    "setup-json-provider-no-auth": {
+      "status": 0,
+      "stdout": "{\n  \"ready\": true,\n  \"node\": {\n    \"available\": true,\n    \"detail\": \"<node-version>\"\n  },\n  \"npm\": {\n    \"available\": true,\n    \"detail\": \"<npm-version>\"\n  },\n  \"codex\": {\n    \"available\": true,\n    \"detail\": \"codex-cli test; advanced runtime available\"\n  },\n  \"auth\": {\n    \"available\": true,\n    \"loggedIn\": true,\n    \"detail\": \"Ollama is configured and does not require OpenAI authentication\",\n    \"source\": \"app-server\",\n    \"authMethod\": null,\n    \"verified\": null,\n    \"requiresOpenaiAuth\": false,\n    \"provider\": \"ollama\"\n  },\n  \"sessionRuntime\": {\n    \"mode\": \"direct\",\n    \"label\": \"direct startup\",\n    \"detail\": \"No shared Codex runtime is active yet. The first review or task command will start one on demand.\",\n    \"endpoint\": null\n  },\n  \"reviewGateEnabled\": false,\n  \"actionsTaken\": [],\n  \"nextSteps\": [\n    \"Optional: run `/codex:setup --enable-review-gate` to require a fresh review before stop.\"\n  ]\n}\n",
+      "stderr": ""
+    },
+    "setup-json-env-key-provider": {
+      "status": 0,
+      "stdout": "{\n  \"ready\": true,\n  \"node\": {\n    \"available\": true,\n    \"detail\": \"<node-version>\"\n  },\n  \"npm\": {\n    \"available\": true,\n    \"detail\": \"<npm-version>\"\n  },\n  \"codex\": {\n    \"available\": true,\n    \"detail\": \"codex-cli test; advanced runtime available\"\n  },\n  \"auth\": {\n    \"available\": true,\n    \"loggedIn\": true,\n    \"detail\": \"OpenAI custom is configured and does not require OpenAI authentication\",\n    \"source\": \"app-server\",\n    \"authMethod\": null,\n    \"verified\": null,\n    \"requiresOpenaiAuth\": false,\n    \"provider\": \"openai-custom\"\n  },\n  \"sessionRuntime\": {\n    \"mode\": \"direct\",\n    \"label\": \"direct startup\",\n    \"detail\": \"No shared Codex runtime is active yet. The first review or task command will start one on demand.\",\n    \"endpoint\": null\n  },\n  \"reviewGateEnabled\": false,\n  \"actionsTaken\": [],\n  \"nextSteps\": [\n    \"Optional: run `/codex:setup --enable-review-gate` to require a fresh review before stop.\"\n  ]\n}\n",
+      "stderr": ""
+    },
+    "setup-json-api-key-account-only": {
+      "status": 0,
+      "stdout": "{\n  \"ready\": true,\n  \"node\": {\n    \"available\": true,\n    \"detail\": \"<node-version>\"\n  },\n  \"npm\": {\n    \"available\": true,\n    \"detail\": \"<npm-version>\"\n  },\n  \"codex\": {\n    \"available\": true,\n    \"detail\": \"codex-cli test; advanced runtime available\"\n  },\n  \"auth\": {\n    \"available\": true,\n    \"loggedIn\": true,\n    \"detail\": \"API key configured (unverified)\",\n    \"source\": \"app-server\",\n    \"authMethod\": \"apiKey\",\n    \"verified\": false,\n    \"requiresOpenaiAuth\": true,\n    \"provider\": \"openai\"\n  },\n  \"sessionRuntime\": {\n    \"mode\": \"direct\",\n    \"label\": \"direct startup\",\n    \"detail\": \"No shared Codex runtime is active yet. The first review or task command will start one on demand.\",\n    \"endpoint\": null\n  },\n  \"reviewGateEnabled\": false,\n  \"actionsTaken\": [],\n  \"nextSteps\": [\n    \"Optional: run `/codex:setup --enable-review-gate` to require a fresh review before stop.\"\n  ]\n}\n",
+      "stderr": ""
+    },
+    "setup-json-refreshable-auth": {
+      "status": 0,
+      "stdout": "{\n  \"ready\": false,\n  \"node\": {\n    \"available\": true,\n    \"detail\": \"<node-version>\"\n  },\n  \"npm\": {\n    \"available\": true,\n    \"detail\": \"<npm-version>\"\n  },\n  \"codex\": {\n    \"available\": true,\n    \"detail\": \"codex-cli test; advanced runtime available\"\n  },\n  \"auth\": {\n    \"available\": true,\n    \"loggedIn\": false,\n    \"detail\": \"OpenAI requires OpenAI authentication\",\n    \"source\": \"app-server\",\n    \"authMethod\": null,\n    \"verified\": null,\n    \"requiresOpenaiAuth\": true,\n    \"provider\": \"openai\"\n  },\n  \"sessionRuntime\": {\n    \"mode\": \"direct\",\n    \"label\": \"direct startup\",\n    \"detail\": \"No shared Codex runtime is active yet. The first review or task command will start one on demand.\",\n    \"endpoint\": null\n  },\n  \"reviewGateEnabled\": false,\n  \"actionsTaken\": [],\n  \"nextSteps\": [\n    \"Run `!codex login`.\",\n    \"If browser login is blocked, retry with `!codex login --device-auth` or `!codex login --with-api-key`.\",\n    \"Optional: run `/codex:setup --enable-review-gate` to require a fresh review before stop.\"\n  ]\n}\n",
+      "stderr": ""
+    },
+    "status": {
+      "status": 0,
+      "stdout": "# Codex Status\n\nSession runtime: direct startup\nReview gate: disabled\n\nNo jobs recorded yet.\n",
+      "stderr": ""
+    },
+    "status-json": {
+      "status": 0,
+      "stdout": "{\n  \"workspaceRoot\": \"<workspace>\",\n  \"config\": {\n    \"stopReviewGate\": false\n  },\n  \"sessionRuntime\": {\n    \"mode\": \"direct\",\n    \"label\": \"direct startup\",\n    \"detail\": \"No shared Codex runtime is active yet. The first review or task command will start one on demand.\",\n    \"endpoint\": null\n  },\n  \"running\": [],\n  \"latestFinished\": null,\n  \"recent\": [],\n  \"needsReview\": false\n}\n",
+      "stderr": ""
+    },
+    "result-no-jobs": {
+      "status": 1,
+      "stdout": "",
+      "stderr": "No finished Codex jobs found for this repository yet.\n"
+    },
+    "cancel-nothing-running": {
+      "status": 1,
+      "stdout": "",
+      "stderr": "No active Codex jobs to cancel.\n"
+    },
+    "cancel-nothing-running-in-session": {
+      "status": 1,
+      "stdout": "",
+      "stderr": "No active Codex jobs to cancel for this session.\n"
+    },
+    "task-resume-candidate-json": {
+      "status": 0,
+      "stdout": "{\n  \"available\": false,\n  \"sessionId\": null,\n  \"candidate\": null\n}\n",
+      "stderr": ""
+    },
+    "review-wait": {
+      "status": 0,
+      "stdout": "# Codex Review\n\nTarget: working tree diff\n\nReviewed uncommitted changes.\nNo material issues found.\n",
+      "stderr": "[codex] Starting Codex review thread.\n[codex] Thread ready (thr_1).\n[codex] Turn started (turn_1).\n[codex] Reviewer started: current changes\n[codex] Review output captured.\n[codex] Reviewer finished.\n[codex] Turn completed.\n"
+    },
+    "review-wait-json": {
+      "status": 0,
+      "stdout": "{\n  \"review\": \"Review\",\n  \"target\": {\n    \"mode\": \"working-tree\",\n    \"label\": \"working tree diff\",\n    \"explicit\": false\n  },\n  \"threadId\": \"thr_1\",\n  \"sourceThreadId\": \"thr_1\",\n  \"codex\": {\n    \"status\": 0,\n    \"stderr\": \"\",\n    \"stdout\": \"Reviewed uncommitted changes.\\nNo material issues found.\",\n    \"reasoning\": []\n  }\n}\n",
+      "stderr": ""
+    },
+    "adversarial-review-wait": {
+      "status": 0,
+      "stdout": "# Codex Adversarial Review\n\nTarget: working tree diff\nVerdict: needs-attention\n\nOne adversarial concern surfaced.\n\nFindings:\n- [high] Missing empty-state guard (src/app.js:4-6)\n  The change assumes data is always present.\n  Recommendation: Handle empty collections before indexing.\n\nNext steps:\n- Add an empty-state test.\n",
+      "stderr": "[codex] Starting Codex task thread.\n[codex] Thread ready (thr_1).\n[codex] Turn started (turn_1).\n[codex] Assistant message captured: {\"verdict\":\"needs-attention\",\"summary\":\"One adversarial concern surfaced.\",\"findings\":[{\"seve...\n[codex] Turn completed.\n"
+    },
+    "task-wait": {
+      "status": 0,
+      "stdout": "Handled the requested task.\nTask prompt accepted.\n",
+      "stderr": "[codex] Starting Codex task thread.\n[codex] Thread ready (thr_1).\n[codex] Turn started (turn_1).\n[codex] Assistant message captured: Handled the requested task. Task prompt accepted.\n[codex] Turn completed.\n"
+    },
+    "task-wait-json": {
+      "status": 0,
+      "stdout": "Handled the requested task.\nTask prompt accepted.\n",
+      "stderr": "[codex] Starting Codex task thread.\n[codex] Thread ready (thr_1).\n[codex] Turn started (turn_1).\n[codex] Assistant message captured: Handled the requested task. Task prompt accepted.\n[codex] Turn completed.\n"
+    },
+    "task-background-then-status-then-result": {
+      "steps": [
+        {
+          "status": 0,
+          "stdout": "Codex Task started in the background as <job-id>. Check /codex:status <job-id> for progress.\n",
+          "stderr": ""
+        },
+        {
+          "status": 0,
+          "stdout": "# Codex Job Status\n\n- <job-id> | completed | rescue | Codex Task\n  Summary: Handled the requested task.\n  Phase: done\n  Duration: <duration>\n  Codex session ID: thr_1\n  Resume in Codex: codex resume thr_1\n  Log: <plugin-data>\\state\\<workspace-state>\\jobs\\<job-id>.log\n  Result: /codex:result <job-id>\n",
+          "stderr": ""
+        },
+        {
+          "status": 0,
+          "stdout": "Handled the requested task.\nTask prompt accepted.\n\nCodex session ID: thr_1\nResume in Codex: codex resume thr_1\n",
+          "stderr": ""
+        }
+      ]
+    },
+    "task-background-then-status-json": {
+      "steps": [
+        {
+          "status": 0,
+          "stdout": "{\n  \"jobId\": \"<job-id>\",\n  \"status\": \"queued\",\n  \"title\": \"Codex Task\",\n  \"summary\": \"explain the seed file\",\n  \"logFile\": \"<plugin-data>\\\\state\\\\<workspace-state>\\\\jobs\\\\<job-id>.log\"\n}\n",
+          "stderr": ""
+        },
+        {
+          "status": 0,
+          "stdout": "{\n  \"workspaceRoot\": \"<workspace>\",\n  \"job\": {\n    \"createdAt\": \"<timestamp>\",\n    \"updatedAt\": \"<timestamp>\",\n    \"id\": \"<job-id>\",\n    \"kind\": \"task\",\n    \"kindLabel\": \"rescue\",\n    \"title\": \"Codex Task\",\n    \"workspaceRoot\": \"<workspace>\",\n    \"jobClass\": \"task\",\n    \"summary\": \"Handled the requested task.\",\n    \"write\": false,\n    \"status\": \"completed\",\n    \"phase\": \"done\",\n    \"pid\": null,\n    \"logFile\": \"<plugin-data>\\\\state\\\\<workspace-state>\\\\jobs\\\\<job-id>.log\",\n    \"request\": {\n      \"cwd\": \"<workspace>\",\n      \"model\": null,\n      \"effort\": null,\n      \"prompt\": \"explain the seed file\",\n      \"write\": false,\n      \"resumeLast\": false,\n      \"jobId\": \"<job-id>\"\n    },\n    \"startedAt\": \"<timestamp>\",\n    \"threadId\": \"thr_1\",\n    \"turnId\": \"turn_1\",\n    \"completedAt\": \"<timestamp>\",\n    \"progressPreview\": [],\n    \"elapsed\": \"<duration>\",\n    \"duration\": \"<duration>\"\n  },\n  \"waitTimedOut\": false,\n  \"timeoutMs\": 240000\n}\n",
+          "stderr": ""
+        }
+      ]
+    }
+  }
+}
