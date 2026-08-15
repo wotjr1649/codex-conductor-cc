@@ -5,13 +5,7 @@ import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
 
 import { buildEnv, installFakeCodex } from "../fake-codex-fixture.mjs";
-import {
-  initGitRepo,
-  listCreatedTempDirs,
-  makeTempDir,
-  pinnedRuntimeEnv,
-  run
-} from "../helpers.mjs";
+import { initGitRepo, makeTempDir, pinnedRuntimeEnv, run } from "../helpers.mjs";
 import {
   clearBrokerSession,
   loadBrokerSession,
@@ -98,9 +92,19 @@ function jobIdOf(text) {
   return /\b(task-[A-Za-z0-9]+-[A-Za-z0-9]+)\b/.exec(String(text ?? ""))?.[1] ?? "unresolved-job-id";
 }
 
+// Each shape runs against its own pinned CLAUDE_PLUGIN_DATA, and `loadBrokerSession` resolves the
+// broker descriptor through `resolveStateDir`, which reads that variable from whichever process
+// calls it. Teardown therefore has to restore each shape's value before looking for its broker —
+// iterating temp directories alone finds nothing, because this process's own CLAUDE_PLUGIN_DATA
+// points somewhere the children never wrote. Measured: without this the file leaked fourteen
+// processes per run, seven brokers and their seven app-servers, one pair per shape that runs a
+// Codex turn, and a following full-suite run took 253 seconds against 159.
+const CLEANUP_TARGETS = [];
+
 after(async () => {
-  for (const directory of listCreatedTempDirs()) {
-    const session = loadBrokerSession(directory);
+  for (const { workspace, pluginData } of CLEANUP_TARGETS) {
+    process.env.CLAUDE_PLUGIN_DATA = pluginData;
+    const session = loadBrokerSession(workspace);
     if (!session) {
       continue;
     }
@@ -115,7 +119,7 @@ after(async () => {
       pid: session.pid ?? null,
       killProcess: terminateProcessTree
     });
-    clearBrokerSession(directory);
+    clearBrokerSession(workspace);
   }
 });
 
@@ -158,6 +162,8 @@ function captureShape(shape) {
     run("git", ["commit", "-m", "seed"], { cwd: workspace });
     fs.writeFileSync(path.join(workspace, "seed.txt"), "alpha\nbeta\n");
   }
+
+  CLEANUP_TARGETS.push({ workspace, pluginData });
 
   const env = pinnedRuntimeEnv(buildEnv(binDir), {
     pluginData,
