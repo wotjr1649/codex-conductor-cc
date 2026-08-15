@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 import { parseArgs, splitRawArgumentString } from "./lib/args.mjs";
 import {
     buildPersistentTaskThreadName,
+    codexUnavailableError,
     DEFAULT_CONTINUE_PROMPT,
     findLatestTaskThread,
     getCodexAuthStatus,
@@ -270,7 +271,7 @@ function buildAdversarialReviewPrompt(context, focusText) {
 function ensureCodexAvailable(cwd) {
   const availability = getCodexAvailability(cwd);
   if (!availability.available) {
-    throw new Error("Codex CLI is not installed or is missing required runtime support. Install it with `npm install -g @openai/codex`, then rerun `/codex:setup`.");
+    throw codexUnavailableError(availability.detail);
   }
 }
 

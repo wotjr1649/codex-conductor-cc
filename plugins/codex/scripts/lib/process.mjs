@@ -6,6 +6,13 @@ import process from "node:process";
 const SAFE_CMD_ARGUMENT = /^[A-Za-z0-9_./:=+@-]+$/;
 const CMD_META = /[\r\n"&|<>^%]/;
 
+// cmd.exe expands a variable through an 8191-character buffer. A longer PATH still reaches the
+// child's environment intact, but cmd.exe itself can no longer resolve any bare command name —
+// and a bare command name is the entire body of the `.cmd` shim `npm install -g` writes for a
+// Node CLI (`node "%~dp0entry" %*`). Measured on Windows 11 26200: 8191 resolves, 8192 does not.
+// Without this, `/codex:setup` reports a working Codex install as missing.
+const CMD_PATH_LIMIT = 8191;
+
 // where.exe costs a process launch, and every git or codex call pays it. Cache per process,
 // keyed by everything the lookup depends on: the command, the directory where.exe searches
 // first, and the search variables. Successful lookups only — an absent binary can appear
@@ -47,14 +54,41 @@ function resolveWithWhere(command, options) {
   return resolved;
 }
 
+// Null when the environment already carries a PATH cmd.exe can use, so the healthy case is
+// untouched. Otherwise a copy whose PATH fits: as much of the original as the cap allows, then
+// the directory of the interpreter running this process, because the shim looks its interpreter
+// up by bare name and this is that interpreter. Last, not first — room is reserved for it so it
+// cannot be cut, and every original entry still outranks it, so it shadows nothing.
+//
+// ponytail: entries past the cap are dropped, so a `.cmd` that reads PATH as data, or a
+// grandchild of one, sees the shortened value rather than the full one it gets today. That is
+// unavoidable here — cmd.exe resolves no bare name at all while PATH is over the cap, so the
+// real choice is a shortened PATH or a tool that cannot run. Revisit only if a caller needs the
+// untruncated value downstream.
+function shortenedShellEnv(env) {
+  const current = String(env.PATH ?? env.Path ?? "");
+  if (current.length <= CMD_PATH_LIMIT) return null;
+  const interpreter = path.dirname(process.execPath);
+  const head = current.slice(0, CMD_PATH_LIMIT - interpreter.length - 1);
+  // Complete entries only, separators included. A truncated directory is not a directory, and an
+  // empty entry is the current one, so neither may survive the cut.
+  const kept = `${head.slice(0, head.lastIndexOf(";") + 1)}${interpreter}`;
+  const shortened = { ...env };
+  for (const name of Object.keys(shortened)) {
+    if (name.toUpperCase() === "PATH") delete shortened[name];
+  }
+  shortened.PATH = kept;
+  return shortened;
+}
+
 export function resolveCommandInvocation(command, args = [], options = {}) {
   const platform = options.platform ?? process.platform;
   if (options.shell) throw new Error("Shell command execution is disabled.");
-  if (platform !== "win32") return { command, args, shell: false, windowsVerbatimArguments: false };
+  if (platform !== "win32") return { command, args, shell: false, windowsVerbatimArguments: false, env: null };
 
   const resolved = /[\\/]/.test(command) ? path.resolve(command) : resolveWithWhere(command, options);
   if (!resolved || !/\.(?:cmd|bat)$/i.test(resolved)) {
-    return { command: resolved ?? command, args, shell: false, windowsVerbatimArguments: false };
+    return { command: resolved ?? command, args, shell: false, windowsVerbatimArguments: false, env: null };
   }
   if (CMD_META.test(resolved) || args.some((value) => !SAFE_CMD_ARGUMENT.test(String(value)))) {
     throw new Error("Unsafe Windows command invocation.");
@@ -73,7 +107,8 @@ export function resolveCommandInvocation(command, args = [], options = {}) {
     command: commandShell,
     args: ["/d", "/s", "/c", commandLine],
     shell: false,
-    windowsVerbatimArguments: true
+    windowsVerbatimArguments: true,
+    env: shortenedShellEnv(env)
   };
 }
 
@@ -81,7 +116,7 @@ export function runCommand(command, args = [], options = {}) {
   const invocation = resolveCommandInvocation(command, args, options);
   const result = spawnSync(invocation.command, invocation.args, {
     cwd: options.cwd,
-    env: options.env,
+    env: invocation.env ?? options.env,
     encoding: "utf8",
     input: options.input,
     maxBuffer: options.maxBuffer,

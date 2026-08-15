@@ -257,7 +257,7 @@ class SpawnedCodexAppServerClient extends AppServerClientBase {
     });
     this.proc = spawn(invocation.command, invocation.args, {
       cwd: this.cwd,
-      env: this.options.env ?? process.env,
+      env: invocation.env ?? this.options.env ?? process.env,
       stdio: ["pipe", "pipe", "pipe"],
       shell: false,
       windowsVerbatimArguments: invocation.windowsVerbatimArguments,
