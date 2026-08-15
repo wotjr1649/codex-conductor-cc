@@ -44,13 +44,16 @@ test("P6-CONTINUITY-001 binds the reviewed base and explicit path scope", () => 
     ".github/workflows/portability-ci.yml",
     ".github/workflows/pull-request-ci.yml",
     "ci/portability-profiles-v1.json",
-    "docs/superpowers/specs/2026-08-07-portability-v0.2-design.md"
+    "docs/superpowers/specs/2026-08-07-portability-v0.2-design.md",
+    // Admitted so the baseline suites could be brought to the facts they describe.
+    "scripts/lib/p5-validation.mjs",
+    "tests/p5-matrix-profile.test.mjs",
+    "tests/contract/command-transcripts-v1.json"
   ]) {
     assert.equal(isPortabilityAllowedPath(relativePath), true, relativePath);
   }
   for (const relativePath of [
-    "scripts/lib/p5-validation.mjs",
-    "tests/p5-matrix-profile.test.mjs",
+    "scripts/lib/p4-validation.mjs",
     "evidence/manifests/p5/forged.json",
     "plugins/codex/hooks/hooks.json",
     "plugins/codex/CHANGELOG.md.bak",
@@ -105,10 +108,9 @@ test("P6-CONTINUITY-003 refuses any change to the already archived workflow", ()
 });
 
 test("P6-CONTINUITY-004 consumes only exact final-frontier legacy errors", () => {
-  const archiveErrors = [
-    "workflow: trigger set must be exactly pull_request",
-    "P5E_WORKFLOW_DIGEST: PR workflow differs from the reviewed P5 executable graph"
-  ];
+  // Just the trigger error now: the digest is pinned to the archived bytes, so a digest
+  // complaint means real drift and must reach the caller rather than being consumed.
+  const archiveErrors = ["workflow: trigger set must be exactly pull_request"];
   const allowedPaths = ["plugins/codex/scripts/lib/runtime-paths.mjs", "package-lock.json"];
   const legacyErrors = [
     ...archiveErrors,
@@ -193,7 +195,7 @@ test("P6-CONTINUITY-002 refuses any change to the legacy validator", () => {
 
   assert.ok(
     validatePortabilityChangeSet({
-      changedPaths: ["scripts/validate-p5.mjs", "scripts/lib/p5-validation.mjs"],
+      changedPaths: ["scripts/validate-p5.mjs", "plugins/codex/hooks/hooks.json"],
       baseValidatorText: currentValidator,
       currentValidatorText: currentValidator
     }).some((entry) => entry.includes("P6E_SCOPE"))

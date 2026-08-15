@@ -10,7 +10,7 @@
           "clientInfo": {
             "title": "Codex Conductor",
             "name": "codex_conductor",
-            "version": "0.1.0"
+            "version": "<version>"
           },
           "capabilities": {
             "experimentalApi": false,

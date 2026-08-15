@@ -594,7 +594,10 @@ if (
 const packageJson = readJson("package.json");
 if (
   packageJson?.name !== "codex-conductor-cc" ||
-  packageJson?.version !== "0.1.0" ||
+  // A relation, not a literal: the plugin manifest is the version of record and this must match
+  // it. See validate-p3.mjs for why the literal could not survive a release.
+  !/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(packageJson?.version ?? "") ||
+  packageJson?.version !== readJson("plugins/codex/.claude-plugin/plugin.json")?.version ||
   packageJson?.private !== true ||
   packageJson?.engines?.node !== ">=24.0.0" ||
   packageJson?.scripts?.["validate:p3"] !== "node scripts/validate-p3.mjs" ||

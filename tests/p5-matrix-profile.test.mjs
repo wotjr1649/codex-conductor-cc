@@ -1300,14 +1300,23 @@ test("P5-PARTITION-001 every inherited test maps once with exact byte identity",
   assert.deepEqual(validateScenarioRegistry(scenarios, root, profiles), []);
 });
 
+// v0.2 moved the pull-request run to portability-ci.yml and archived this workflow to
+// workflow_dispatch, so the trigger complaint is that archival rather than drift.
+//
+// Only the trigger. The digest error is deliberately *not* expected here: expecting it made the
+// digest check inert, since any content producing those two errors then passed -- a step that
+// downloads and runs a script, for instance. EXPECTED_P5_WORKFLOW_SHA256 now names the archived
+// bytes, so the digest is silent on this file and loud on any change to it.
+const ARCHIVED_WORKFLOW_ERRORS = ["workflow: trigger set must be exactly pull_request"];
+
 test("P5-WORKFLOW-001 job-scoped security and matrix policy validates", () => {
   assert.deepEqual(
     validateP5Workflow(workflow, toolchain.actions, profiles),
-    []
+    ARCHIVED_WORKFLOW_ERRORS
   );
   assert.deepEqual(
     validateP5Workflow(workflow.replaceAll("\n", "\r\n"), toolchain.actions, profiles),
-    []
+    ARCHIVED_WORKFLOW_ERRORS
   );
 });
 

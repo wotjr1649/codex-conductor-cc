@@ -15,8 +15,13 @@ const SECRET = new RegExp(
   `(?:AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9_]{20,}|${GITHUB_FINE_GRAINED_PAT_PREFIX}` +
     "[A-Za-z0-9_]{20,}|-----BEGIN [A-Z ]+PRIVATE KEY-----|Bearer\\s+[A-Za-z0-9._~-]{20,})"
 );
+// The archived workflow as v0.2 left it: the released P5 graph with its `pull_request` trigger
+// replaced by `workflow_dispatch`, and nothing else. Pinned to the archived bytes rather than the
+// released ones so this digest keeps meaning something -- while it named the pre-archival file,
+// the only way to make P5-WORKFLOW-001 pass was to expect the digest error, which made any
+// content of that file acceptable.
 const EXPECTED_P5_WORKFLOW_SHA256 =
-  "0bdeaf4eb007f853fe5e9caad3dc7a4e6a458e2c0504c17f55f48fe634b18461";
+  "083fbec3f5aa9bc614d64d880fc50bd61d2eee4e99cd575fd9050dcdf798f074";
 const EXPECTED_PROFILE_IDS = [
   "policy-validation",
   "install-build",
@@ -533,18 +538,23 @@ export function validateScenarioRegistry(registry, root, profileRegistry) {
   ) {
     errors.push("P5E_SCENARIO_IDENTITY: exact P4 handoff binding is required");
   }
+  // Fifteen files and 192 tests as of v0.3: two files the program added (args, job-control) and
+  // eight tests added to files that were already here. The previous 13/167 was recorded when
+  // this validator was written and nothing cross-checked it against the tree, so the count
+  // silently understated coverage for two releases while the suite that reads it had no
+  // trigger. The numbers are measured by running each file and reading its own reported total.
   if (
-    registry.inheritedTestTotals?.files !== 13 ||
-    registry.inheritedTestTotals?.executedTests !== 167 ||
+    registry.inheritedTestTotals?.files !== 15 ||
+    registry.inheritedTestTotals?.executedTests !== 192 ||
     registry.inheritedTestTotals?.skippedTests !== 0 ||
     registry.inheritedTestTotals?.fileMappingDuplicates !== 0 ||
     registry.inheritedTestTotals?.fileMappingOmissions !== 0
   ) {
-    errors.push("P5E_TEST_TOTAL: inherited 167/167 zero-skip baseline changed");
+    errors.push("P5E_TEST_TOTAL: inherited 192/192 zero-skip baseline changed");
   }
   const inherited = registry.inheritedTests ?? [];
   const observedPaths = inherited.map(({ path: testPath }) => testPath);
-  if (inherited.length !== 13 || new Set(observedPaths).size !== 13) {
+  if (inherited.length !== 15 || new Set(observedPaths).size !== 15) {
     errors.push("P5E_TEST_DUPLICATE: every inherited test file must map exactly once");
   }
   const diskTests = fs

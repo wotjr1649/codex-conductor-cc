@@ -53,6 +53,12 @@
   ],
   "inheritedTests": [
     {
+      "path": "tests/args.test.mjs",
+      "declaredCount": 14,
+      "sha256": "938ed29d7271cacdd33979d101b5f43deecf46047be3fb9542380182e15691a5",
+      "profileId": "unit"
+    },
+    {
       "path": "tests/broker-endpoint.test.mjs",
       "declaredCount": 2,
       "sha256": "4dfdeab37209a73539ce1685a5f706a61e528256b5957d919457f715abc7fba8",
@@ -66,14 +72,14 @@
     },
     {
       "path": "tests/commands.test.mjs",
-      "declaredCount": 8,
+      "declaredCount": 9,
       "sha256": "c86098f506cd42497336e93bfdbbceb25212f0c5b10d6332d1c15c20a4640a94",
       "profileId": "unit"
     },
     {
       "path": "tests/downstream-identity.test.mjs",
       "declaredCount": 3,
-      "sha256": "f625d30b9e7eccf8a869a1071a22c874f52860fb15561612c13c93c4fb0ad9c1",
+      "sha256": "d77c0798ac2d5dcefc16765ec69925d2a9717aba682cc1e8c4ec8c1bdf089206",
       "profileId": "unit"
     },
     {
@@ -84,31 +90,37 @@
     },
     {
       "path": "tests/git.test.mjs",
-      "declaredCount": 10,
+      "declaredCount": 12,
       "sha256": "4ff0874bef4d89d744c0268532d69c859f8b66c3cae20dd6583433b8a77424ad",
+      "profileId": "unit"
+    },
+    {
+      "path": "tests/job-control.test.mjs",
+      "declaredCount": 3,
+      "sha256": "468eba7b7a1e9e886ca213fda29c6701a7fee08e5b3ef0aa924ebabe998e2bc5",
       "profileId": "unit"
     },
     {
       "path": "tests/p3-security-baseline.test.mjs",
       "declaredCount": 11,
-      "sha256": "5992690126965f1e93438d0eb99f47402966d0f7a82a69d1ecd2152abf233ba1",
+      "sha256": "df6a84ec1c6063885c1a18615ea5911516bbf31cbf5eb27651e3ed064ffeabb9",
       "profileId": "policy-validation"
     },
     {
       "path": "tests/p4-contract-baseline.test.mjs",
       "declaredCount": 40,
-      "sha256": "6fd6001f5e04e0c1b8f3243dc7ae56566698d84465b32646125c31178691fdd5",
+      "sha256": "1217d4a9694df8507200a06668f403886548e4561c7ef7237ac1867f2ef0c394",
       "profileId": "core-contract"
     },
     {
       "path": "tests/platform-policy.test.mjs",
       "declaredCount": 2,
-      "sha256": "bf0382f93235bab0a2891d0d884ae8739ed6612a8c668103fef4b107bfea0bf5",
+      "sha256": "190382d0df1ddadbcf40bcae935464e37306552025a55c2a328b8a5be4c4b4d7",
       "profileId": "unit"
     },
     {
       "path": "tests/process.test.mjs",
-      "declaredCount": 3,
+      "declaredCount": 4,
       "sha256": "bc4160de6fc2264226e2e4b724ad2228e3844459231cb4258eed24e4d76fa3a7",
       "profileId": "windows-integration"
     },
@@ -120,20 +132,20 @@
     },
     {
       "path": "tests/runtime.test.mjs",
-      "declaredCount": 61,
+      "declaredCount": 62,
       "sha256": "55a14302ab10c4ed8ef91234a9fde1f969c8d23481573754d07c26df844e9a21",
       "profileId": "windows-integration"
     },
     {
       "path": "tests/state.test.mjs",
-      "declaredCount": 3,
+      "declaredCount": 6,
       "sha256": "426ffe5b3c0aa48480d322e9295286f9c1832f21999c3bd0bc32023347ac6028",
       "profileId": "unit"
     }
   ],
   "inheritedTestTotals": {
-    "files": 13,
-    "executedTests": 167,
+    "files": 15,
+    "executedTests": 192,
     "skippedTests": 0,
     "fileMappingDuplicates": 0,
     "fileMappingOmissions": 0

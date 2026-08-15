@@ -12,7 +12,8 @@ import {
   validateMarkdownStructure,
   validateP3EvidenceManifest,
   validateToolchain,
-  validateWorkflowText
+  validateWorkflowText,
+  workflowTriggers
 } from "./lib/p3-validation.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -57,12 +58,25 @@ if (fs.existsSync(gitleaksPath)) {
 const toolchain = readJson("toolchain.json");
 if (toolchain) errors.push(...validateToolchain(toolchain));
 
+// v0.2 moved the pull-request run to portability-ci.yml and archived this workflow to
+// workflow_dispatch, so its trigger set is deliberately no longer `pull_request`. That one
+// complaint is the archival and is dropped here; every other check this validator makes about
+// the archived graph -- pinned actions, no privileged execution, no mutable tools -- still
+// applies, and the live pull-request workflow is checked by validatePortabilityWorkflow.
+// Without this, `npm run validate:p3` could never pass, which is finding V1.
+const ARCHIVED_TRIGGER_ERROR = "workflow: trigger set must be exactly pull_request";
 const workflowPath = path.join(ROOT, ".github", "workflows", "pull-request-ci.yml");
 if (fs.existsSync(workflowPath)) {
+  const workflowText = fs.readFileSync(workflowPath, "utf8");
+  // The whole trigger set, not a prefix match. validateWorkflowText reports one error for any
+  // set that is not exactly `pull_request`, so a regex that merely saw workflow_dispatch first
+  // dropped that error even when pull_request_target had been added underneath -- a privileged
+  // trigger, on the workflow this very step is here to police, going green.
+  const triggers = workflowTriggers(workflowText);
+  const archived = triggers.length === 1 && triggers[0] === "workflow_dispatch";
   errors.push(
-    ...validateWorkflowText(
-      fs.readFileSync(workflowPath, "utf8"),
-      toolchain?.actions ?? []
+    ...validateWorkflowText(workflowText, toolchain?.actions ?? []).filter(
+      (error) => !(archived && error === ARCHIVED_TRIGGER_ERROR)
     )
   );
 }
@@ -150,10 +164,11 @@ errors.push(...validateMarkdownStructure(ROOT, docs));
 errors.push(...validateMarkdownLinks(ROOT, docs));
 
 const packageJson = readJson("package.json");
+const VERSION = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 if (packageJson) {
   if (
     packageJson.name !== "codex-conductor-cc" ||
-    packageJson.version !== "0.1.0" ||
+    !VERSION.test(packageJson.version ?? "") ||
     packageJson.private !== true ||
     packageJson.engines?.node !== ">=24.0.0" ||
     packageJson.scripts?.["validate:p3"] !== "node scripts/validate-p3.mjs"
@@ -164,9 +179,13 @@ if (packageJson) {
 
 const plugin = readJson("plugins/codex/.claude-plugin/plugin.json");
 const downstream = readJson("downstream.json");
+// The version is checked as a relation -- the two manifests must agree -- rather than as the
+// literal this validator was written against, which is what made it unpassable once v0.2
+// shipped. The upstream base is a genuine constant and stays pinned.
 if (
   plugin?.name !== "codex" ||
-  plugin?.version !== "0.1.0" ||
+  !VERSION.test(plugin?.version ?? "") ||
+  plugin?.version !== packageJson?.version ||
   downstream?.upstreamBase !== "db52e28f4d9ded852ab3942cea316258ae4ef346"
 ) {
   errors.push("P2 plugin or downstream identity changed");

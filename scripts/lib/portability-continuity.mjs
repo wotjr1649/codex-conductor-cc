@@ -12,10 +12,14 @@ export const PORTABILITY_BASE = "b547af57e07a64d25769c22223ef76be72f2dfa9";
 
 const ENTRYPOINT = "scripts/validate-p5.mjs";
 const LEGACY_WORKFLOW = ".github/workflows/pull-request-ci.yml";
-const LEGACY_ARCHIVE_P5_ERRORS = [
-  "workflow: trigger set must be exactly pull_request",
-  "P5E_WORKFLOW_DIGEST: PR workflow differs from the reviewed P5 executable graph"
-];
+// The archival, as the legacy validator reports it. This is the fingerprint that switches the
+// continuation on: anything else and the filter refuses to run at all, so an unexpected state
+// surfaces in full rather than being partly consumed.
+//
+// One error, not two. The digest complaint used to be here because EXPECTED_P5_WORKFLOW_SHA256
+// named the pre-archival bytes; it names the archived bytes now, so a digest error means real
+// drift and must never be filtered.
+const LEGACY_ARCHIVE_P5_ERRORS = ["workflow: trigger set must be exactly pull_request"];
 const PORTABILITY_CODEOWNER_LINES = [
   "/.github/workflows/ @wotjr1649",
   "/plugins/codex/scripts/ @wotjr1649",
@@ -58,7 +62,24 @@ const EXACT_PATHS = new Set([
   "tests/git.test.mjs",
   "tests/helpers.mjs",
   "tests/job-control.test.mjs",
-  "tests/process.test.mjs"
+  "tests/process.test.mjs",
+  // The P2/P3/P4/P5 baseline surface, admitted so its assertions can be brought to the facts
+  // they describe. Every one of these pins a literal the project has since moved past -- the
+  // release version, the archived workflow trigger, a method v0.2 introduced -- and the effect
+  // was five suites that could not pass and therefore ran nowhere. Admitting them is the point
+  // at which that is reviewed; the freeze on everything else is unchanged.
+  "scripts/lib/p3-validation.mjs",
+  "scripts/lib/p5-validation.mjs",
+  "scripts/validate-p3.mjs",
+  "scripts/validate-p4.mjs",
+  "tests/contract/command-transcripts-v1.json",
+  "tests/downstream-identity.test.mjs",
+  "tests/p3-security-baseline.test.mjs",
+  "tests/p4-contract-baseline.test.mjs",
+  "tests/p5-matrix-profile.test.mjs",
+  // This one was already live in `npm test` and carried the same win32-only platform
+  // declaration, contradicting the SUPPORTED_RUNTIMES it is meant to test.
+  "tests/platform-policy.test.mjs"
 ]);
 const PATH_PREFIXES = [
   "ci/portability-",
@@ -220,15 +241,19 @@ export function filterLegacyP5ContinuationErrors(
     ]) {
       if (error.startsWith(prefix)) return !allowed.has(normalizeRelativePath(error.slice(prefix.length)));
     }
-    if (error === "P5E_IMMUTABLE_PATH:package-lock.json") return !allowed.has("package-lock.json");
-    if (error === "P5E_IMMUTABLE_PATH:plugins/codex/scripts") {
-      return ![...allowed].some((relativePath) => relativePath.startsWith("plugins/codex/scripts/"));
-    }
-    if (error === "P5E_IMMUTABLE_PATH:plugins/codex/skills") {
-      return ![...allowed].some((relativePath) => relativePath.startsWith("plugins/codex/skills/"));
-    }
-    if (error === "P5E_IMMUTABLE_PATH:plugins/codex/agents") {
-      return ![...allowed].some((relativePath) => relativePath.startsWith("plugins/codex/agents/"));
+    // One rule rather than a growing list of paths: an immutability complaint is consumed when
+    // the portability allowlist has already admitted that path, either exactly or as a directory
+    // whose contents it admits. The allowlist is where admission is reviewed, and this filter
+    // only runs when validatePortabilityRepository has already returned clean, so deferring to
+    // it keeps the decision in one place instead of duplicating it here for every new surface.
+    const immutablePrefix = "P5E_IMMUTABLE_PATH:";
+    if (error.startsWith(immutablePrefix)) {
+      const target = normalizeRelativePath(error.slice(immutablePrefix.length));
+      if (!target) return true;
+      return !(
+        allowed.has(target) ||
+        [...allowed].some((relativePath) => relativePath.startsWith(`${target}/`))
+      );
     }
     if (error === "P5E_TEST_OMITTED: inherited test mapping differs from the exact tree") {
       // The inherited inventory is the released set and the legacy validator freezes its
@@ -286,11 +311,36 @@ function validateReleaseVersionMigration(root, headSha, localPaths) {
     const baseRegistry = JSON.parse(baseRegistryResult.stdout);
     const currentRegistry = JSON.parse(currentText(root, headSha, localPaths, registryPath));
     const expectedRegistry = structuredClone(baseRegistry);
-    for (const entry of expectedRegistry.inheritedTests ?? []) {
-      const current = (currentRegistry.inheritedTests ?? []).find((item) => item.path === entry.path);
-      if (!current) throw new Error("release registry entry unavailable");
-      entry.sha256 = current.sha256;
+    // The inherited inventory itself may move now: v0.3 added two test files and eight tests to
+    // files that were already here, and the recorded 13/167 had understated the tree for two
+    // releases because nothing cross-checked it. What is still enforced is that every entry
+    // names a file that exists and that the totals are the inventory's own arithmetic -- a
+    // registry claiming a count it does not contain is what this rule is for.
+    const currentInherited = currentRegistry.inheritedTests ?? [];
+    const currentPaths = new Set(currentInherited.map((entry) => normalizeRelativePath(entry.path)));
+    // Entries may be added, never dropped. Without this, swapping a real suite for a trivial file
+    // with a matching declaredCount keeps both the file count and the sum intact, so neither this
+    // rule nor the literal totals in p5-validation.mjs would notice the suite leaving.
+    for (const entry of baseRegistry.inheritedTests ?? []) {
+      if (!currentPaths.has(normalizeRelativePath(entry.path))) {
+        throw new Error("release registry entry unavailable");
+      }
     }
+    expectedRegistry.inheritedTests = structuredClone(currentInherited);
+    for (const entry of expectedRegistry.inheritedTests) {
+      const relativePath = normalizeRelativePath(entry.path);
+      if (!relativePath || !fs.existsSync(path.join(root, relativePath))) {
+        throw new Error("release registry entry unavailable");
+      }
+    }
+    expectedRegistry.inheritedTestTotals = {
+      ...baseRegistry.inheritedTestTotals,
+      files: expectedRegistry.inheritedTests.length,
+      executedTests: expectedRegistry.inheritedTests.reduce(
+        (sum, entry) => sum + (entry.declaredCount ?? 0),
+        0
+      )
+    };
     for (const scenario of expectedRegistry.scenarios ?? []) {
       const current = (currentRegistry.scenarios ?? []).find((item) => item.id === scenario.id);
       if (current && Array.isArray(scenario.testFiles) && Array.isArray(current.testFiles)) {
