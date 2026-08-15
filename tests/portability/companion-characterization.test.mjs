@@ -5,7 +5,13 @@ import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
 
 import { buildEnv, installFakeCodex } from "../fake-codex-fixture.mjs";
-import { initGitRepo, listCreatedTempDirs, makeTempDir, run } from "../helpers.mjs";
+import {
+  initGitRepo,
+  listCreatedTempDirs,
+  makeTempDir,
+  pinnedRuntimeEnv,
+  run
+} from "../helpers.mjs";
 import {
   clearBrokerSession,
   loadBrokerSession,
@@ -21,23 +27,6 @@ const BASELINE = path.join(
   "companion-characterization-baseline.json"
 );
 const UPDATING = process.env.CODEX_CHARACTERIZATION_UPDATE === "1";
-
-// Every ambient variable the runtime reads is an input to this capture, so a characterization
-// harness has to own them rather than inherit them. Measured the hard way: the first version of
-// this file inherited `buildEnv`'s spread of process.env and passed from a shell with none of
-// these set, then failed from a shell inside a Claude Code session, because
-// CODEX_COMPANION_SESSION_ID makes `cancel` say "for this session". These are the complete set
-// the runtime reads, from `plugins/codex/scripts`; PATH, PATHEXT, SystemRoot and ComSpec are
-// deliberately left alone because the child cannot start without them.
-const AMBIENT_INPUTS = [
-  "CODEX_COMPANION_SESSION_ID",
-  "CODEX_COMPANION_APP_SERVER_ENDPOINT",
-  "CODEX_COMPANION_APP_SERVER_LOG_FILE",
-  "CODEX_COMPANION_APP_SERVER_PID_FILE",
-  "CODEX_COMPANION_TRANSCRIPT_PATH",
-  "CLAUDE_PROJECT_DIR",
-  "CLAUDE_ENV_FILE"
-];
 
 // `codex-companion.mjs` is 1,317 lines and is deliberately NOT being split: its call graph is a
 // DAG whose largest closed single-door set is 38 lines, so no turn-capture-shaped extraction
@@ -170,15 +159,11 @@ function captureShape(shape) {
     fs.writeFileSync(path.join(workspace, "seed.txt"), "alpha\nbeta\n");
   }
 
-  const env = buildEnv(binDir);
-  for (const name of AMBIENT_INPUTS) {
-    delete env[name];
-  }
-  env.CLAUDE_PLUGIN_DATA = pluginData;
-  env.CODEX_HOME = codexHome;
-  if (shape.sessionId) {
-    env.CODEX_COMPANION_SESSION_ID = shape.sessionId;
-  }
+  const env = pinnedRuntimeEnv(buildEnv(binDir), {
+    pluginData,
+    codexHome,
+    sessionId: shape.sessionId
+  });
 
   // Three spellings of every root reach stdout: native, forward-slash, and — inside `--json`
   // payloads — JSON-escaped with doubled backslashes. The third is why an earlier version of this
