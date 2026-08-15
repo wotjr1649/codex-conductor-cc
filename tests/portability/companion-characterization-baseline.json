@@ -51,6 +51,11 @@
       "stdout": "",
       "stderr": "No active Codex jobs to cancel.\n"
     },
+    "cancel-nothing-running-in-session": {
+      "status": 1,
+      "stdout": "",
+      "stderr": "No active Codex jobs to cancel for this session.\n"
+    },
     "task-resume-candidate-json": {
       "status": 0,
       "stdout": "{\n  \"available\": false,\n  \"sessionId\": null,\n  \"candidate\": null\n}\n",
@@ -80,6 +85,39 @@
       "status": 0,
       "stdout": "Handled the requested task.\nTask prompt accepted.\n",
       "stderr": "[codex] Starting Codex task thread.\n[codex] Thread ready (thr_1).\n[codex] Turn started (turn_1).\n[codex] Assistant message captured: Handled the requested task. Task prompt accepted.\n[codex] Turn completed.\n"
+    },
+    "task-background-then-status-then-result": {
+      "steps": [
+        {
+          "status": 0,
+          "stdout": "Codex Task started in the background as <job-id>. Check /codex:status <job-id> for progress.\n",
+          "stderr": ""
+        },
+        {
+          "status": 0,
+          "stdout": "# Codex Job Status\n\n- <job-id> | completed | rescue | Codex Task\n  Summary: Handled the requested task.\n  Phase: done\n  Duration: <duration>\n  Codex session ID: thr_1\n  Resume in Codex: codex resume thr_1\n  Log: <plugin-data>\\state\\<workspace-state>\\jobs\\<job-id>.log\n  Result: /codex:result <job-id>\n",
+          "stderr": ""
+        },
+        {
+          "status": 0,
+          "stdout": "Handled the requested task.\nTask prompt accepted.\n\nCodex session ID: thr_1\nResume in Codex: codex resume thr_1\n",
+          "stderr": ""
+        }
+      ]
+    },
+    "task-background-then-status-json": {
+      "steps": [
+        {
+          "status": 0,
+          "stdout": "{\n  \"jobId\": \"<job-id>\",\n  \"status\": \"queued\",\n  \"title\": \"Codex Task\",\n  \"summary\": \"explain the seed file\",\n  \"logFile\": \"<plugin-data>\\\\state\\\\<workspace-state>\\\\jobs\\\\<job-id>.log\"\n}\n",
+          "stderr": ""
+        },
+        {
+          "status": 0,
+          "stdout": "{\n  \"workspaceRoot\": \"<workspace>\",\n  \"job\": {\n    \"createdAt\": \"<timestamp>\",\n    \"updatedAt\": \"<timestamp>\",\n    \"id\": \"<job-id>\",\n    \"kind\": \"task\",\n    \"kindLabel\": \"rescue\",\n    \"title\": \"Codex Task\",\n    \"workspaceRoot\": \"<workspace>\",\n    \"jobClass\": \"task\",\n    \"summary\": \"Handled the requested task.\",\n    \"write\": false,\n    \"status\": \"completed\",\n    \"phase\": \"done\",\n    \"pid\": null,\n    \"logFile\": \"<plugin-data>\\\\state\\\\<workspace-state>\\\\jobs\\\\<job-id>.log\",\n    \"request\": {\n      \"cwd\": \"<workspace>\",\n      \"model\": null,\n      \"effort\": null,\n      \"prompt\": \"explain the seed file\",\n      \"write\": false,\n      \"resumeLast\": false,\n      \"jobId\": \"<job-id>\"\n    },\n    \"startedAt\": \"<timestamp>\",\n    \"threadId\": \"thr_1\",\n    \"turnId\": \"turn_1\",\n    \"completedAt\": \"<timestamp>\",\n    \"progressPreview\": [],\n    \"elapsed\": \"<duration>\",\n    \"duration\": \"<duration>\"\n  },\n  \"waitTimedOut\": false,\n  \"timeoutMs\": 240000\n}\n",
+          "stderr": ""
+        }
+      ]
     }
   }
 }
