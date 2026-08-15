@@ -12,10 +12,14 @@ export const PORTABILITY_BASE = "b547af57e07a64d25769c22223ef76be72f2dfa9";
 
 const ENTRYPOINT = "scripts/validate-p5.mjs";
 const LEGACY_WORKFLOW = ".github/workflows/pull-request-ci.yml";
-const LEGACY_ARCHIVE_P5_ERRORS = [
-  "workflow: trigger set must be exactly pull_request",
-  "P5E_WORKFLOW_DIGEST: PR workflow differs from the reviewed P5 executable graph"
-];
+// The archival, as the legacy validator reports it. This is the fingerprint that switches the
+// continuation on: anything else and the filter refuses to run at all, so an unexpected state
+// surfaces in full rather than being partly consumed.
+//
+// One error, not two. The digest complaint used to be here because EXPECTED_P5_WORKFLOW_SHA256
+// named the pre-archival bytes; it names the archived bytes now, so a digest error means real
+// drift and must never be filtered.
+const LEGACY_ARCHIVE_P5_ERRORS = ["workflow: trigger set must be exactly pull_request"];
 const PORTABILITY_CODEOWNER_LINES = [
   "/.github/workflows/ @wotjr1649",
   "/plugins/codex/scripts/ @wotjr1649",

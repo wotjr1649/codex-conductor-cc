@@ -108,10 +108,9 @@ test("P6-CONTINUITY-003 refuses any change to the already archived workflow", ()
 });
 
 test("P6-CONTINUITY-004 consumes only exact final-frontier legacy errors", () => {
-  const archiveErrors = [
-    "workflow: trigger set must be exactly pull_request",
-    "P5E_WORKFLOW_DIGEST: PR workflow differs from the reviewed P5 executable graph"
-  ];
+  // Just the trigger error now: the digest is pinned to the archived bytes, so a digest
+  // complaint means real drift and must reach the caller rather than being consumed.
+  const archiveErrors = ["workflow: trigger set must be exactly pull_request"];
   const allowedPaths = ["plugins/codex/scripts/lib/runtime-paths.mjs", "package-lock.json"];
   const legacyErrors = [
     ...archiveErrors,
