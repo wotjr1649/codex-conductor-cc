@@ -300,9 +300,11 @@ model = "gpt-5.6-luna"
 model_reasoning_effort = "high"
 ```
 
-If your `config.toml` still names `gpt-5.4` or `gpt-5.4-mini`, change it. Both retire from Codex on
-2026-08-31 for sessions signed in with ChatGPT; `gpt-5.6-terra` and `gpt-5.6-luna` are the
-replacements OpenAI names for them. Sessions authenticated with an API key keep both.
+If your `config.toml` still names `gpt-5.4` or `gpt-5.4-mini`, change it — both retire from Codex on
+2026-08-31 for sessions signed in with ChatGPT. Use `gpt-5.6-sol` in place of `gpt-5.4` and
+`gpt-5.6-luna` in place of `gpt-5.4-mini`. OpenAI's own like-for-like mapping names `gpt-5.6-terra`
+rather than Sol, so pick Terra instead if cost matters more than capability; Sol is the heavier
+model and the current default. Sessions authenticated with an API key keep both retiring models.
 
 Your configuration will be picked up based on:
 
