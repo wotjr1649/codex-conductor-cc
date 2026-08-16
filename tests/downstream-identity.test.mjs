@@ -17,7 +17,7 @@ const DOWNSTREAM_MAINTAINER = {
 
 const PROTECTED_TREES = {
   "plugins/codex/commands": "1e361db52c52f5043ae4c8a547d1a32fb9b0d232",
-  "plugins/codex/agents": "13e8295580d649307acae7d11dba42fe1e8f71ae",
+  "plugins/codex/agents": "273b8a3c016fed976081d1fd8c8750167ce0f689",
   "plugins/codex/skills": "e0ffe136304fed92507315ef66c401553b84d5c0",
   "plugins/codex/hooks": "39821e61e8b99bf415b7b05098b97d545fd377af"
 };
@@ -25,7 +25,9 @@ const PROTECTED_TREES = {
 const PROTECTED_BLOBS = new Map([
   // Updated in v0.3: the rescue contract gained the flag-ordering rule, without which a
   // write-capable rescue ran read-only and reported success. See tests/args.test.mjs.
-  ["plugins/codex/agents/codex-rescue.md", "ea2a1285ff7ebde5f623f5c72938445b76b014cb"],
+  // Updated again for the 2026-08-31 cutoff: the sample slug named `gpt-5.4-mini`, which stops
+  // working in Codex that day for anyone signed in with ChatGPT. It names `gpt-5.6-luna` now.
+  ["plugins/codex/agents/codex-rescue.md", "c0c00a66750cf7a4a964c6d9ebf55e8f7e36dc9d"],
   ["plugins/codex/commands/adversarial-review.md", "da440ab4d397e3eee6b11ae5eac2ff92ef82e04e"],
   ["plugins/codex/commands/cancel.md", "a1472b836ad00084f1e56f8e8ebc0466cc59fac6"],
   // Updated for the effort vocabulary: the argument hint stopped at `xhigh` while the models
@@ -183,6 +185,6 @@ test("P2 preserves baseline command, agent, skill, and hook paths, blobs, and tr
   const canonical = expectedFiles.map((relativePath) => `${relativePath}\t${PROTECTED_BLOBS.get(relativePath)}\n`).join("");
   assert.equal(
     crypto.createHash("sha256").update(canonical, "utf8").digest("hex"),
-    "27244aa85a118eca33cc2c567487b72e22f982faeda2a0d9ff49bb64fa028364"
+    "19bccaf4cce91815063cdbdcae63d1405beeac6f05aa1e153e66ce0079608f62"
   );
 });

@@ -73,13 +73,13 @@
     {
       "path": "tests/commands.test.mjs",
       "declaredCount": 9,
-      "sha256": "1fe6ee004fcc5dbd29a0801bf65efc4e4d12fcf5fc6f2db936d47aa2037ffbc9",
+      "sha256": "443e5eae9e3671a07f909aa5c1409317d309279b154e79f226ed65d4bcf501db",
       "profileId": "unit"
     },
     {
       "path": "tests/downstream-identity.test.mjs",
       "declaredCount": 3,
-      "sha256": "34aabb197b84b7fae31828a349b43325223c0d97ff0c8e3fa277dacdc16b8db6",
+      "sha256": "157645c89d4bed033dbaca9352d4cdc8b26b45574abd30eebeb8d0b69bee330c",
       "profileId": "unit"
     },
     {
