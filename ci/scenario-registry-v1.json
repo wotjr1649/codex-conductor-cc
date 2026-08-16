@@ -73,7 +73,7 @@
     {
       "path": "tests/commands.test.mjs",
       "declaredCount": 9,
-      "sha256": "c86098f506cd42497336e93bfdbbceb25212f0c5b10d6332d1c15c20a4640a94",
+      "sha256": "7a4ea24d0f2ecca155e6f7ad93c44030cdbfda930d636f0148ae62546000406e",
       "profileId": "unit"
     },
     {
