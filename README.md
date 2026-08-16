@@ -168,7 +168,7 @@ Examples:
 /codex:rescue investigate why the tests started failing
 /codex:rescue fix the failing test with the smallest safe patch
 /codex:rescue --resume apply the top fix from the last run
-/codex:rescue --model gpt-5.4-mini --effort medium investigate the flaky integration test
+/codex:rescue --model gpt-5.6-luna --effort medium investigate the flaky integration test
 /codex:rescue --model spark fix the issue quickly
 /codex:rescue --background investigate the regression
 ```
@@ -293,12 +293,16 @@ The Codex plugin wraps the [Codex app server](https://developers.openai.com/code
 
 ### Common Configurations
 
-If you want to change the default reasoning effort or the default model that gets used by the plugin, you can define that inside your user-level or project-level `config.toml`. For example to always use `gpt-5.4-mini` on `high` for a specific project you can add the following to a `.codex/config.toml` file at the root of the directory you started Claude in:
+If you want to change the default reasoning effort or the default model that gets used by the plugin, you can define that inside your user-level or project-level `config.toml`. For example to always use `gpt-5.6-luna` on `high` for a specific project you can add the following to a `.codex/config.toml` file at the root of the directory you started Claude in:
 
 ```toml
-model = "gpt-5.4-mini"
+model = "gpt-5.6-luna"
 model_reasoning_effort = "high"
 ```
+
+If your `config.toml` still names `gpt-5.4` or `gpt-5.4-mini`, change it. Both retire from Codex on
+2026-08-31 for sessions signed in with ChatGPT; `gpt-5.6-terra` and `gpt-5.6-luna` are the
+replacements OpenAI names for them. Sessions authenticated with an API key keep both.
 
 Your configuration will be picked up based on:
 
