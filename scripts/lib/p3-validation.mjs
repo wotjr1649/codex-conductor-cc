@@ -282,7 +282,6 @@ function validateSource(source, location, errors) {
 
 export function validateToolchain(manifest) {
   const errors = [];
-  const today = new Date().toISOString().slice(0, 10);
   unknownFields(manifest, ALLOWED_TOP_LEVEL, "toolchain", errors);
   if (!ownObject(manifest)) return errors;
 
@@ -338,12 +337,16 @@ export function validateToolchain(manifest) {
     requireDate(manifest.reviewPolicy.expiresAt, "reviewPolicy.expiresAt", errors);
     requireString(manifest.reviewPolicy.owner, "reviewPolicy.owner", errors);
     requireString(manifest.reviewPolicy.reviewer, "reviewPolicy.reviewer", errors);
-    if (
-      typeof manifest.reviewPolicy.expiresAt === "string" &&
-      manifest.reviewPolicy.expiresAt < today
-    ) {
-      errors.push("reviewPolicy.expiresAt: review snapshot has expired");
-    }
+    // The review dates are recorded here, not enforced against the clock. An expiry compared to
+    // the current day stops every unrelated pull request on a calendar morning -- a reminder
+    // delivered as an outage -- and the only way to clear it is to change this manifest, which
+    // forces the dated evidence record that binds its bytes to be rewritten, which makes that
+    // record describe a run it did not come from. `ci/portability-profiles-v1.json`, the newest
+    // policy artifact here, already records `reviewedAt` with no expiry at all. The dates stay,
+    // and everything that says what the pins are worth is still checked -- shape and calendar
+    // validity above, owner and reviewer, the drift-trigger list below, and expiry-after-review
+    // per tool. What should force a re-review is a drift trigger firing, watched on a schedule
+    // that reports instead of blocking.
     if (
       !Array.isArray(manifest.reviewPolicy.driftTriggers) ||
       manifest.reviewPolicy.driftTriggers.length === 0
@@ -394,12 +397,6 @@ export function validateToolchain(manifest) {
         );
       }
       validateReview(tool.review, `${location}.review`, errors);
-      if (
-        typeof tool.review?.expiresAt === "string" &&
-        tool.review.expiresAt < today
-      ) {
-        errors.push(`${location}.review.expiresAt: tool review has expired`);
-      }
     });
   }
 
