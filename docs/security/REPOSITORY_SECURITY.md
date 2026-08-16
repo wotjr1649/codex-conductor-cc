@@ -61,7 +61,11 @@ never the generated marker.
 ## Review and drift
 
 The current snapshot was reviewed on 2026-07-31 and expires on 2026-08-31.
-Review occurs earlier when a Node 24 security release appears, a vendor key or
+That date is recorded, not enforced: validation checks the policy's shape, its
+owner and reviewer, and that it declares drift triggers, and it does not fail on
+the calendar. A date cannot know whether anything drifted, and enforcing one
+stops unrelated work on a morning nobody chose. The triggers are what force a
+review. Review occurs when a Node 24 security release appears, a vendor key or
 artifact changes, a relevant vulnerability lands, an Action changes runtime,
 or a source/license/manifest identity drifts. Exact regression pins remain
 immutable; only claims such as “current” expire.
