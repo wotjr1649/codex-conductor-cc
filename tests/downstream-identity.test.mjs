@@ -16,9 +16,9 @@ const DOWNSTREAM_MAINTAINER = {
 };
 
 const PROTECTED_TREES = {
-  "plugins/codex/commands": "01dee9ba76393439e179c5676ea92e538358d86b",
+  "plugins/codex/commands": "1e361db52c52f5043ae4c8a547d1a32fb9b0d232",
   "plugins/codex/agents": "273b8a3c016fed976081d1fd8c8750167ce0f689",
-  "plugins/codex/skills": "a5b2af7397eb8678489a9659b7af61f68a7dfd47",
+  "plugins/codex/skills": "e0ffe136304fed92507315ef66c401553b84d5c0",
   "plugins/codex/hooks": "39821e61e8b99bf415b7b05098b97d545fd377af"
 };
 
@@ -30,14 +30,18 @@ const PROTECTED_BLOBS = new Map([
   ["plugins/codex/agents/codex-rescue.md", "c0c00a66750cf7a4a964c6d9ebf55e8f7e36dc9d"],
   ["plugins/codex/commands/adversarial-review.md", "da440ab4d397e3eee6b11ae5eac2ff92ef82e04e"],
   ["plugins/codex/commands/cancel.md", "a1472b836ad00084f1e56f8e8ebc0466cc59fac6"],
-  ["plugins/codex/commands/rescue.md", "56de9555d6e4b8c8ec142df187cceed3ab4da590"],
+  // Updated for the effort vocabulary: the argument hint stopped at `xhigh` while the models
+  // advertise `max` and `ultra`, so it told users a level was unavailable that their model takes.
+  ["plugins/codex/commands/rescue.md", "2d610e7bee86f3e7b554a286973b68e1140ca105"],
   ["plugins/codex/commands/result.md", "3abc2d9312033a68979b6cccd33015f466e6380e"],
   ["plugins/codex/commands/review.md", "fb70a487654cde1a9aa9fa056b27d21344043cc4"],
   ["plugins/codex/commands/setup.md", "fb33a150ad3b7de403136a5b4bfa1156cda41795"],
   ["plugins/codex/commands/status.md", "8f70663d1a99ed871befa6120f4219971ba52469"],
   ["plugins/codex/commands/transfer.md", "42170e51d35ed6d2679418d0d7459c0c759b9e68"],
   ["plugins/codex/hooks/hooks.json", "19e33b818d143aa7bdb666ffc00f93de8f275eab"],
-  ["plugins/codex/skills/codex-cli-runtime/SKILL.md", "e1560bb2a663ce626dc7c759636790c8569ca7b4"],
+  // Same effort-vocabulary update: the runtime skill documented the accepted values and stopped
+  // at `xhigh` too.
+  ["plugins/codex/skills/codex-cli-runtime/SKILL.md", "a01bf3882463b2c12c617249b7b8fada0f55c581"],
   ["plugins/codex/skills/codex-result-handling/SKILL.md", "e1896548000387055a583e342467c9575b00bdaa"],
   ["plugins/codex/skills/gpt-5-4-prompting/SKILL.md", "16669d92d0116d8eaf705d58c58845cfa0bdccb1"],
   [
@@ -181,6 +185,6 @@ test("P2 preserves baseline command, agent, skill, and hook paths, blobs, and tr
   const canonical = expectedFiles.map((relativePath) => `${relativePath}\t${PROTECTED_BLOBS.get(relativePath)}\n`).join("");
   assert.equal(
     crypto.createHash("sha256").update(canonical, "utf8").digest("hex"),
-    "6b7f389af5ac54ae8a497dd88987b10f117589d0b0709d45e16bd3955f6e816f"
+    "19bccaf4cce91815063cdbdcae63d1405beeac6f05aa1e153e66ce0079608f62"
   );
 });
