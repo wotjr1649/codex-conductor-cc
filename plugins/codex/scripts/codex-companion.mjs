@@ -14,6 +14,7 @@ import {
     findLatestTaskThread,
     getCodexAuthStatus,
     getCodexAvailability,
+    getCodexModelCatalog,
     getSessionRuntimeStatus,
     importExternalAgentSession,
     interruptAppServerTurn,
@@ -103,7 +104,7 @@ function printUsage() {
   console.log(
     [
       "Usage:",
-      "  node scripts/codex-companion.mjs setup [--enable-review-gate|--disable-review-gate] [--json]",
+      "  node scripts/codex-companion.mjs setup [--enable-review-gate|--disable-review-gate] [--model-effort <model>=<effort>[,...]] [--json]",
       "  node scripts/codex-companion.mjs review [--wait|--background] [--base <ref>] [--scope <auto|working-tree|branch>]",
       "  node scripts/codex-companion.mjs adversarial-review [--wait|--background] [--base <ref>] [--scope <auto|working-tree|branch>] [focus text]",
       "  node scripts/codex-companion.mjs task [--background] [--write] [--resume-last|--resume|--fresh] [--model <model|spark>] [--effort <none|minimal|low|medium|high|xhigh|max|ultra>] [prompt]",
@@ -136,6 +137,40 @@ function normalizeRequestedModel(model) {
     return null;
   }
   return MODEL_ALIASES.get(normalized.toLowerCase()) ?? normalized;
+}
+
+// A default effort per model, held in this plugin's own config rather than in its code. Codex
+// publishes one default per model and offers no way to override it per model -- `config.toml` has a
+// single global `model_reasoning_effort` -- so a preference like "max whenever I ask for Luna" has
+// nowhere else to live. Keeping the slugs in config rather than in a constant here is deliberate:
+// model names are retired every seven to thirteen weeks, and a table in the source would have to be
+// edited on that cadence by whoever notices first.
+function parseModelEffortPairs(raw) {
+  const pairs = String(raw ?? "")
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+  const parsed = {};
+  for (const pair of pairs) {
+    const index = pair.indexOf("=");
+    if (index <= 0) {
+      throw new Error(`Expected "<model>=<effort>" pairs, got "${pair}".`);
+    }
+    const model = normalizeRequestedModel(pair.slice(0, index));
+    const effort = normalizeReasoningEffort(pair.slice(index + 1));
+    if (!model || !effort) {
+      throw new Error(`Expected "<model>=<effort>" pairs, got "${pair}".`);
+    }
+    parsed[model] = effort;
+  }
+  return parsed;
+}
+
+function configuredModelEffort(workspaceRoot, model) {
+  if (!model) return null;
+  const configured = getConfig(workspaceRoot)?.modelEffort;
+  const effort = configured && typeof configured === "object" ? configured[model] : null;
+  return typeof effort === "string" ? effort : null;
 }
 
 function normalizeReasoningEffort(effort) {
@@ -206,6 +241,37 @@ function firstMeaningfulLine(text, fallback) {
   return line ?? fallback;
 }
 
+// Only asks Codex when there is something to ask about. A workspace with no configured defaults
+// pays nothing, which also keeps `setup` free of an app-server round trip for everyone who has not
+// opted in.
+async function buildModelAdvisories(cwd, modelEffort) {
+  const configured = Object.keys(modelEffort);
+  if (configured.length === 0) {
+    return { checked: false, retiring: [], unsupported: [], detail: null };
+  }
+
+  const catalog = await getCodexModelCatalog(cwd);
+  if (!catalog.available) {
+    return { checked: false, retiring: [], unsupported: [], detail: catalog.detail };
+  }
+
+  const byModel = new Map(catalog.models.map((entry) => [entry.model, entry]));
+  const retiring = [];
+  const unsupported = [];
+  for (const model of configured) {
+    const info = byModel.get(model);
+    if (!info) continue;
+    if (info.upgrade) {
+      retiring.push({ model, upgrade: info.upgrade });
+    }
+    const effort = modelEffort[model];
+    if (info.supportedEfforts.length > 0 && !info.supportedEfforts.includes(effort)) {
+      unsupported.push({ model, effort, supported: info.supportedEfforts });
+    }
+  }
+  return { checked: true, retiring, unsupported, detail: null };
+}
+
 async function buildSetupReport(cwd, actionsTaken = []) {
   const workspaceRoot = resolveWorkspaceRoot(cwd);
   const nodeStatus = binaryAvailable("node", ["--version"], { cwd });
@@ -232,6 +298,20 @@ async function buildSetupReport(cwd, actionsTaken = []) {
     nextSteps.push("Optional: run `/codex:setup --enable-review-gate` to require a fresh review before stop.");
   }
 
+  const modelEffort =
+    config.modelEffort && typeof config.modelEffort === "object" ? config.modelEffort : {};
+  const modelAdvisories = await buildModelAdvisories(cwd, modelEffort);
+  for (const entry of modelAdvisories.retiring) {
+    nextSteps.push(
+      `Codex is retiring \`${entry.model}\` and names \`${entry.upgrade}\` as its replacement; update your default.`
+    );
+  }
+  for (const entry of modelAdvisories.unsupported) {
+    nextSteps.push(
+      `\`${entry.model}\` does not accept effort \`${entry.effort}\`. It accepts ${entry.supported.join(", ")}.`
+    );
+  }
+
   return {
     ready: nodeStatus.available && codexStatus.available && authStatus.loggedIn,
     node: nodeStatus,
@@ -240,6 +320,8 @@ async function buildSetupReport(cwd, actionsTaken = []) {
     auth: authStatus,
     sessionRuntime: getSessionRuntimeStatus(process.env, workspaceRoot),
     reviewGateEnabled: Boolean(config.stopReviewGate),
+    modelEffort,
+    modelAdvisories,
     actionsTaken,
     nextSteps
   };
@@ -247,7 +329,7 @@ async function buildSetupReport(cwd, actionsTaken = []) {
 
 async function handleSetup(argv) {
   const { options } = parseCommandInput(argv, {
-    valueOptions: ["cwd"],
+    valueOptions: ["cwd", "model-effort"],
     booleanOptions: ["json", "enable-review-gate", "disable-review-gate"]
   });
 
@@ -265,6 +347,18 @@ async function handleSetup(argv) {
   } else if (options["disable-review-gate"]) {
     setConfig(workspaceRoot, "stopReviewGate", false);
     actionsTaken.push(`Disabled the stop-time review gate for ${workspaceRoot}.`);
+  }
+
+  // Replace rather than merge: one flag, one predictable outcome, and an empty value clears.
+  if (options["model-effort"] != null) {
+    const parsed = parseModelEffortPairs(options["model-effort"]);
+    setConfig(workspaceRoot, "modelEffort", parsed);
+    const entries = Object.entries(parsed);
+    actionsTaken.push(
+      entries.length
+        ? `Set default reasoning effort for ${entries.map(([m, e]) => `${m}=${e}`).join(", ")}.`
+        : "Cleared the per-model reasoning effort defaults."
+    );
   }
 
   const finalReport = await buildSetupReport(cwd, actionsTaken);
@@ -865,7 +959,8 @@ async function handleTask(argv) {
   const cwd = resolveCommandCwd(options);
   const workspaceRoot = resolveCommandWorkspace(options);
   const model = normalizeRequestedModel(options.model);
-  const effort = normalizeReasoningEffort(options.effort);
+  // An explicit `--effort` always wins; the configured default only fills a gap.
+  const effort = normalizeReasoningEffort(options.effort) ?? configuredModelEffort(workspaceRoot, model);
   const prompt = readTaskPrompt(cwd, options, positionals);
 
   const resumeLast = Boolean(options["resume-last"] || options.resume);

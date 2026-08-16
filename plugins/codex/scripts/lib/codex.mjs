@@ -422,6 +422,48 @@ export function getCodexAvailability(cwd) {
   };
 }
 
+// `model/list` reports, per model, the effort levels it accepts and whether Codex has published an
+// upgrade target for it. Both are answers this plugin used to guess at: the accepted-effort list
+// was hard-coded and went stale, and a retiring model was noticed only by someone reading a
+// changelog. Asking is cheaper than tracking. A failure here is not an error -- setup still has
+// everything else to say -- so it degrades to an empty list carrying the reason.
+export async function getCodexModelCatalog(cwd, options = {}) {
+  const availability = getCodexAvailability(cwd);
+  if (!availability.available) {
+    return { available: false, models: [], detail: shorten(availability.detail, 160) };
+  }
+
+  let client = null;
+  try {
+    client = await CodexAppServerClient.connect(cwd, {
+      env: options.env,
+      reuseExistingBroker: true
+    });
+    const response = await client.request("model/list", { includeHidden: false });
+    const rows = Array.isArray(response?.data) ? response.data : [];
+    const models = rows
+      .map((row) => ({
+        model: typeof row?.model === "string" ? row.model : null,
+        isDefault: Boolean(row?.isDefault),
+        upgrade: typeof row?.upgrade === "string" ? row.upgrade : null,
+        defaultEffort: typeof row?.defaultReasoningEffort === "string" ? row.defaultReasoningEffort : null,
+        supportedEfforts: (Array.isArray(row?.supportedReasoningEfforts) ? row.supportedReasoningEfforts : [])
+          .map((entry) => entry?.reasoningEffort)
+          .filter((value) => typeof value === "string")
+      }))
+      .filter((row) => row.model);
+    return { available: true, models, detail: null };
+  } catch (error) {
+    return {
+      available: false,
+      models: [],
+      detail: shorten(error instanceof Error ? error.message : String(error), 160)
+    };
+  } finally {
+    await client?.close().catch(() => {});
+  }
+}
+
 export function getSessionRuntimeStatus(env = process.env, cwd = process.cwd()) {
   const envEndpoint = (process.platform === "win32" ? env?.[BROKER_ENDPOINT_ENV] : null) ?? null;
   let storedEndpoint = null;

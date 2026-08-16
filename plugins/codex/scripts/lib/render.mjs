@@ -174,6 +174,12 @@ function appendReasoningSection(lines, reasoningSummary) {
   }
 }
 
+function formatModelEffort(modelEffort) {
+  const entries = Object.entries(modelEffort ?? {});
+  if (entries.length === 0) return "codex defaults";
+  return entries.map(([model, effort]) => `${model}=${effort}`).join(", ");
+}
+
 export function renderSetupReport(report) {
   const lines = [
     "# Codex Setup",
@@ -187,6 +193,7 @@ export function renderSetupReport(report) {
     `- auth: ${report.auth.detail}`,
     `- session runtime: ${report.sessionRuntime.label}`,
     `- review gate: ${report.reviewGateEnabled ? "enabled" : "disabled"}`,
+    `- model effort: ${formatModelEffort(report.modelEffort)}`,
     ""
   ];
 
