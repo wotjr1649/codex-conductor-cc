@@ -79,7 +79,13 @@ const EXACT_PATHS = new Set([
   "tests/p5-matrix-profile.test.mjs",
   // This one was already live in `npm test` and carried the same win32-only platform
   // declaration, contradicting the SUPPORTED_RUNTIMES it is meant to test.
-  "tests/platform-policy.test.mjs"
+  "tests/platform-policy.test.mjs",
+  // The rescue command's argument hint, admitted because it enumerates the reasoning-effort
+  // values and the enumeration was wrong. The app-server names eight and Codex 0.147.0 offers
+  // `max` on three models and `ultra` on two, while this hint stopped at `xhigh` -- so the hint
+  // told users a level was unavailable that their model accepts. A published argument hint that
+  // contradicts the runtime is a defect in the hint, not a reason to leave it frozen.
+  "plugins/codex/commands/rescue.md"
 ]);
 const PATH_PREFIXES = [
   "ci/portability-",

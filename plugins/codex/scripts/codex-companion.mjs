@@ -80,7 +80,21 @@ const ROOT_DIR = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
 const REVIEW_SCHEMA = path.join(ROOT_DIR, "schemas", "review-output.schema.json");
 const DEFAULT_STATUS_WAIT_TIMEOUT_MS = 240000;
 const DEFAULT_STATUS_POLL_INTERVAL_MS = 2000;
-const VALID_REASONING_EFFORTS = new Set(["none", "minimal", "low", "medium", "high", "xhigh"]);
+// The app-server's `ReasoningEffort` is an open string, and its Rust enum names exactly these
+// eight before falling through to a model-defined value. Which of them a given model accepts is
+// the model's business, not this list's: `model/list` reports `supportedReasoningEfforts` per
+// model, and Codex 0.147.0 answers with `max` for sol, terra and luna, and `ultra` for the first
+// two only. This set is a typo guard sized to the protocol; the server decides the rest.
+const VALID_REASONING_EFFORTS = new Set([
+  "none",
+  "minimal",
+  "low",
+  "medium",
+  "high",
+  "xhigh",
+  "max",
+  "ultra"
+]);
 const MODEL_ALIASES = new Map([["spark", "gpt-5.3-codex-spark"]]);
 const STOP_REVIEW_TASK_MARKER = "Run a stop-gate review of the previous Claude turn.";
 const WORKER_START_TOKEN = "start\n";
@@ -92,7 +106,7 @@ function printUsage() {
       "  node scripts/codex-companion.mjs setup [--enable-review-gate|--disable-review-gate] [--json]",
       "  node scripts/codex-companion.mjs review [--wait|--background] [--base <ref>] [--scope <auto|working-tree|branch>]",
       "  node scripts/codex-companion.mjs adversarial-review [--wait|--background] [--base <ref>] [--scope <auto|working-tree|branch>] [focus text]",
-      "  node scripts/codex-companion.mjs task [--background] [--write] [--resume-last|--resume|--fresh] [--model <model|spark>] [--effort <none|minimal|low|medium|high|xhigh>] [prompt]",
+      "  node scripts/codex-companion.mjs task [--background] [--write] [--resume-last|--resume|--fresh] [--model <model|spark>] [--effort <none|minimal|low|medium|high|xhigh|max|ultra>] [prompt]",
       "  node scripts/codex-companion.mjs transfer [--source <claude-jsonl>] [--json]",
       "  node scripts/codex-companion.mjs status [job-id] [--all] [--json]",
       "  node scripts/codex-companion.mjs result [job-id] [--json]",
@@ -134,7 +148,7 @@ function normalizeReasoningEffort(effort) {
   }
   if (!VALID_REASONING_EFFORTS.has(normalized)) {
     throw new Error(
-      `Unsupported reasoning effort "${effort}". Use one of: none, minimal, low, medium, high, xhigh.`
+      `Unsupported reasoning effort "${effort}". Use one of: none, minimal, low, medium, high, xhigh, max, ultra. Codex decides which of those the chosen model accepts.`
     );
   }
   return normalized;
